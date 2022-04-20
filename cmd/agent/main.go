@@ -92,17 +92,19 @@ func reportMetric(client *http.Client, typeMetric string, nameMetric string, val
 	}
 
 	req.Header.Set("Content-Type", "text/plain; charset=utf-8")
-	client.Do(req)
 
-	// resp, err := client.Do(req)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
+	resp, err := client.Do(req)
 
-	// if resp.StatusCode != http.StatusOK {
-	// 	fmt.Println(resp.Status)
-	// }
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Println(resp.Status)
+	}
 }
 
 func reportMetrics(monitor *MetricsMonitor) {
