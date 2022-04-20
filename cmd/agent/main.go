@@ -155,12 +155,12 @@ func main() {
 
 	var waitGroup sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
-	motinor := MetricsMonitor{data: make(map[string]float64)}
+	monitor := MetricsMonitor{data: make(map[string]float64)}
 
 	// Запуск горутины для обновления метрик
-	go regularUpdateMetrics(ctx, &waitGroup, &motinor)
+	go regularUpdateMetrics(ctx, &waitGroup, &monitor)
 	// Запуск горутины для отправки метрик
-	go regularReportMetrics(ctx, &waitGroup, &motinor)
+	go regularReportMetrics(ctx, &waitGroup, &monitor)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
