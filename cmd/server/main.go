@@ -21,7 +21,7 @@ func main() {
 		<-sigChan
 
 		if err := server.Shutdown(context.Background()); err != nil {
-			fmt.Printf("HTTP server Shutdown: %v", err)
+			fmt.Printf("HTTP server Shutdown: %v\n", err)
 		}
 		close(waitChan)
 	}()
