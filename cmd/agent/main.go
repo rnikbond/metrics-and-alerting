@@ -42,36 +42,36 @@ func updateMetrics(metrics storage.Metrics) {
 
 	generator := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	metrics.SetMetricGauge("RandomValue", generator.Float64())
-	metrics.SetMetricGauge("Alloc", float64(memstats.Alloc))
-	metrics.SetMetricGauge("BuckHashSys", float64(memstats.BuckHashSys))
-	metrics.SetMetricGauge("Frees", float64(memstats.Frees))
-	metrics.SetMetricGauge("GCCPUFraction", float64(memstats.GCCPUFraction))
-	metrics.SetMetricGauge("GCSys", float64(memstats.GCSys))
-	metrics.SetMetricGauge("HeapAlloc", float64(memstats.HeapAlloc))
-	metrics.SetMetricGauge("HeapIdle", float64(memstats.HeapIdle))
-	metrics.SetMetricGauge("HeapInuse", float64(memstats.HeapInuse))
-	metrics.SetMetricGauge("HeapObjects", float64(memstats.HeapObjects))
-	metrics.SetMetricGauge("HeapReleased", float64(memstats.HeapReleased))
-	metrics.SetMetricGauge("HeapSys", float64(memstats.HeapSys))
-	metrics.SetMetricGauge("LastGC", float64(memstats.LastGC))
-	metrics.SetMetricGauge("Lookups", float64(memstats.Lookups))
-	metrics.SetMetricGauge("MCacheInuse", float64(memstats.MCacheInuse))
-	metrics.SetMetricGauge("MCacheSys", float64(memstats.MCacheSys))
-	metrics.SetMetricGauge("MSpanInuse", float64(memstats.MSpanInuse))
-	metrics.SetMetricGauge("MSpanSys", float64(memstats.MSpanSys))
-	metrics.SetMetricGauge("Mallocs", float64(memstats.Mallocs))
-	metrics.SetMetricGauge("NextGC", float64(memstats.NextGC))
-	metrics.SetMetricGauge("NumForcedGC", float64(memstats.NumForcedGC))
-	metrics.SetMetricGauge("NumGC", float64(memstats.NumGC))
-	metrics.SetMetricGauge("OtherSys", float64(memstats.OtherSys))
-	metrics.SetMetricGauge("PauseTotalNs", float64(memstats.PauseTotalNs))
-	metrics.SetMetricGauge("StackInuse", float64(memstats.StackInuse))
-	metrics.SetMetricGauge("StackSys", float64(memstats.StackSys))
-	metrics.SetMetricGauge("Sys", float64(memstats.Sys))
-	metrics.SetMetricGauge("TotalAlloc", float64(memstats.TotalAlloc))
+	metrics.SetValueGaugeType("RandomValue", generator.Float64())
+	metrics.SetValueGaugeType("Alloc", float64(memstats.Alloc))
+	metrics.SetValueGaugeType("BuckHashSys", float64(memstats.BuckHashSys))
+	metrics.SetValueGaugeType("Frees", float64(memstats.Frees))
+	metrics.SetValueGaugeType("GCCPUFraction", float64(memstats.GCCPUFraction))
+	metrics.SetValueGaugeType("GCSys", float64(memstats.GCSys))
+	metrics.SetValueGaugeType("HeapAlloc", float64(memstats.HeapAlloc))
+	metrics.SetValueGaugeType("HeapIdle", float64(memstats.HeapIdle))
+	metrics.SetValueGaugeType("HeapInuse", float64(memstats.HeapInuse))
+	metrics.SetValueGaugeType("HeapObjects", float64(memstats.HeapObjects))
+	metrics.SetValueGaugeType("HeapReleased", float64(memstats.HeapReleased))
+	metrics.SetValueGaugeType("HeapSys", float64(memstats.HeapSys))
+	metrics.SetValueGaugeType("LastGC", float64(memstats.LastGC))
+	metrics.SetValueGaugeType("Lookups", float64(memstats.Lookups))
+	metrics.SetValueGaugeType("MCacheInuse", float64(memstats.MCacheInuse))
+	metrics.SetValueGaugeType("MCacheSys", float64(memstats.MCacheSys))
+	metrics.SetValueGaugeType("MSpanInuse", float64(memstats.MSpanInuse))
+	metrics.SetValueGaugeType("MSpanSys", float64(memstats.MSpanSys))
+	metrics.SetValueGaugeType("Mallocs", float64(memstats.Mallocs))
+	metrics.SetValueGaugeType("NextGC", float64(memstats.NextGC))
+	metrics.SetValueGaugeType("NumForcedGC", float64(memstats.NumForcedGC))
+	metrics.SetValueGaugeType("NumGC", float64(memstats.NumGC))
+	metrics.SetValueGaugeType("OtherSys", float64(memstats.OtherSys))
+	metrics.SetValueGaugeType("PauseTotalNs", float64(memstats.PauseTotalNs))
+	metrics.SetValueGaugeType("StackInuse", float64(memstats.StackInuse))
+	metrics.SetValueGaugeType("StackSys", float64(memstats.StackSys))
+	metrics.SetValueGaugeType("Sys", float64(memstats.Sys))
+	metrics.SetValueGaugeType("TotalAlloc", float64(memstats.TotalAlloc))
 
-	metrics.AppendToMetricCounter(1)
+	metrics.AddValueCounterType(1)
 }
 
 // Отправка запроса серверу на обновление метрики
@@ -111,11 +111,11 @@ func reportMetric(ctx context.Context, typeMetric string, nameMetric string, val
 // Отправка всех метрик серверу
 func reportMetrics(ctx context.Context, metrics storage.Metrics) {
 
-	for metricName, metricValue := range metrics.GetMetricsGauge() {
+	for metricName, metricValue := range metrics.ValuesGaugeType() {
 		reportMetric(ctx, storage.GuageType, metricName, float64ToString(metricValue))
 	}
 
-	reportMetric(ctx, storage.CounterType, "PollCount", int64ToString(metrics.GetMetricCounter()))
+	reportMetric(ctx, storage.CounterType, "PollCount", int64ToString(metrics.ValueCounterType()))
 }
 
 // Обновление метрик с заданной частотой

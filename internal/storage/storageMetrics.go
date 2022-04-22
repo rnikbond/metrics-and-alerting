@@ -11,11 +11,11 @@ const (
 )
 
 type Metrics interface {
-	GetMetricsGauge() map[string]float64
-	GetMetricGauge(name string) (float64, error)
-	GetMetricCounter() int64
-	SetMetricGauge(name string, value float64)
-	AppendToMetricCounter(value int64)
+	ValuesGaugeType() map[string]float64
+	ValueGaugeType(name string) (float64, error)
+	ValueCounterType() int64
+	SetValueGaugeType(name string, value float64)
+	AddValueCounterType(value int64)
 }
 
 type MetricsData struct {
@@ -25,7 +25,7 @@ type MetricsData struct {
 }
 
 // обновление значения метрики name типа 'gauge'
-func (monitor *MetricsData) SetMetricGauge(name string, value float64) {
+func (monitor *MetricsData) SetValueGaugeType(name string, value float64) {
 
 	monitor.mu.Lock()
 	defer monitor.mu.Unlock()
@@ -38,7 +38,7 @@ func (monitor *MetricsData) SetMetricGauge(name string, value float64) {
 }
 
 // увеличение значения метрики типа 'counter'
-func (monitor *MetricsData) AppendToMetricCounter(value int64) {
+func (monitor *MetricsData) AddValueCounterType(value int64) {
 	monitor.mu.Lock()
 	defer monitor.mu.Unlock()
 
@@ -46,12 +46,12 @@ func (monitor *MetricsData) AppendToMetricCounter(value int64) {
 }
 
 // получение всех метрик
-func (monitor *MetricsData) GetMetricsGauge() map[string]float64 {
+func (monitor *MetricsData) ValuesGaugeType() map[string]float64 {
 	return monitor.Metrics
 }
 
 // получение значения метрики name типа 'gauge'
-func (monitor *MetricsData) GetMetricGauge(name string) (float64, error) {
+func (monitor *MetricsData) ValueGaugeType(name string) (float64, error) {
 
 	if monitor.Metrics == nil {
 		return 0, errors.New("metric '" + name + "' does not exist")
@@ -66,6 +66,6 @@ func (monitor *MetricsData) GetMetricGauge(name string) (float64, error) {
 }
 
 // получение значение метрики типа 'counter'
-func (monitor *MetricsData) GetMetricCounter() int64 {
+func (monitor *MetricsData) ValueCounterType() int64 {
 	return monitor.pollCount
 }

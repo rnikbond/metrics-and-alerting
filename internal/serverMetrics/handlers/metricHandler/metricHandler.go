@@ -49,7 +49,7 @@ func UpdateMetricGauge(metrics storage.Metrics) http.HandlerFunc {
 			return
 		}
 
-		metrics.SetMetricGauge(metric[idxMetricName], metricValue)
+		metrics.SetValueGaugeType(metric[idxMetricName], metricValue)
 		w.WriteHeader(http.StatusOK)
 	}
 }
@@ -85,7 +85,7 @@ func UpdateMetricCounter(metrics storage.Metrics) http.HandlerFunc {
 			return
 		}
 
-		metrics.AppendToMetricCounter(metricValue)
+		metrics.AddValueCounterType(metricValue)
 		w.WriteHeader(http.StatusOK)
 	}
 }
