@@ -2,95 +2,16 @@ package main
 
 import (
 	"net/http"
-	"strconv"
-	"strings"
 
+	handler "github.com/rnikbond/metrics-and-alerting/internal/handlers/metricHandler"
 	storage "github.com/rnikbond/metrics-and-alerting/internal/storage"
 )
 
-const (
-	idxMetricName  = 0
-	idxMetricValue = 1
-	sizeDataMetric = 2
-)
-const (
-	gaugeUrlPart   = "/update/" + storage.GuageType + "/"
-	counterUrlPart = "/update/" + storage.CounterType + "/"
-)
-
-var metrics storage.MetricsData = storage.MetricsData{}
-
-func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
-
-	w.Header().Set("Content-Type", "text/plain")
-
-	if r.Header.Get("Content-Type") != "text/plain" {
-		http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
-		return
-	}
-
-	if r.Method != http.MethodPost {
-		http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
-	}
-
-	// оставляем из url только <ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
-	// затем разбиваем на массив:
-	// [0] - Название метрики
-	// [1] - Значение метрики
-	metric := strings.Split(strings.ReplaceAll(r.URL.String(), gaugeUrlPart, ""), "/")
-
-	if len(metric) != sizeDataMetric {
-		http.Error(w, "uncorrect request update metric", http.StatusBadRequest)
-		return
-	}
-
-	metricValue, err := strconv.ParseFloat(metric[idxMetricValue], 64)
-	if err != nil {
-		http.Error(w, "uncorrect value type 'gauge' metric", http.StatusBadRequest)
-		return
-	}
-
-	metrics.SetMetricGauge(metric[idxMetricName], metricValue)
-	w.WriteHeader(http.StatusOK)
-}
-
-func UpdateCounter(w http.ResponseWriter, r *http.Request) {
-
-	w.Header().Set("Content-Type", "text/plain")
-
-	if r.Header.Get("Content-Type") != "text/plain" {
-		http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
-		return
-	}
-
-	if r.Method != http.MethodPost {
-		http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
-	}
-
-	// оставляем из url только <ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
-	// затем разбиваем на массив:
-	// [0] - Название метрики
-	// [1] - Значение метрики
-	metric := strings.Split(strings.ReplaceAll(r.URL.String(), counterUrlPart, ""), "/")
-
-	if len(metric) != sizeDataMetric {
-		http.Error(w, "uncorrect request metric update", http.StatusBadRequest)
-		return
-	}
-
-	metricValue, err := strconv.ParseInt(metric[idxMetricValue], 10, 64)
-	if err != nil {
-		http.Error(w, "uncorrect value type 'counter' metric", http.StatusBadRequest)
-		return
-	}
-
-	metrics.AppendToMetricCounter(metricValue)
-	w.WriteHeader(http.StatusOK)
-}
-
 func main() {
 
-	http.HandleFunc(gaugeUrlPart, UpdateMetrics)
-	http.HandleFunc(counterUrlPart, UpdateCounter)
+	metrics := storage.MetricsData{}
+
+	http.HandleFunc(handler.GaugeUrlPart, handler.UpdateMetricGauge(&metrics))
+	http.HandleFunc(handler.CounterUrlPart, handler.UpdateMetricCounter(&metrics))
 	http.ListenAndServe(":8080", nil)
 }
