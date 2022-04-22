@@ -1,17 +1,30 @@
 package main
 
 import (
-	"net/http"
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
-	handler "github.com/rnikbond/metrics-and-alerting/internal/handlers/metricHandler"
-	storage "github.com/rnikbond/metrics-and-alerting/internal/storage"
+	"github.com/rnikbond/metrics-and-alerting/internal/serverMetrics"
 )
 
 func main() {
 
-	metrics := storage.MetricsData{}
+	waitChan := make(chan struct{})
+	server := serverMetrics.StartMetricsHttpServer()
 
-	http.HandleFunc(handler.GaugeUrlPart, handler.UpdateMetricGauge(&metrics))
-	http.HandleFunc(handler.CounterUrlPart, handler.UpdateMetricCounter(&metrics))
-	http.ListenAndServe(":8080", nil)
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+		<-sigChan
+
+		if err := server.Shutdown(context.Background()); err != nil {
+			fmt.Printf("HTTP server Shutdown: %v", err)
+		}
+		close(waitChan)
+	}()
+
+	<-waitChan
 }
