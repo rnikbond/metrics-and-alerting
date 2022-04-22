@@ -13,6 +13,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	storage "github.com/rnikbond/metrics-and-alerting/internal/storage"
 )
 
 const (
@@ -21,16 +23,8 @@ const (
 )
 
 const (
-	urlServer   string = "http://127.0.0.1:8080/update/"
-	guageType   string = "gauge"
-	counterType string = "counter"
+	urlServer string = "http://127.0.0.1:8080/update/"
 )
-
-type MetricsMonitor struct {
-	mutex     sync.Mutex
-	pollCount int64
-	data      map[string]float64
-}
 
 func float64ToString(value float64) string {
 	return strconv.FormatFloat(value, 'f', 3, 64)
@@ -41,46 +35,43 @@ func int64ToString(value int64) string {
 }
 
 // Обновление всех метрик
-func updateMetrics(monitor *MetricsMonitor) {
-
-	monitor.mutex.Lock()
-	defer monitor.mutex.Unlock()
+func updateMetrics(metrics storage.Metrics) {
 
 	var memstats runtime.MemStats
 	runtime.ReadMemStats(&memstats)
 
 	generator := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	monitor.data["RandomValue"] = generator.Float64()
-	monitor.data["Alloc"] = float64(memstats.Alloc)
-	monitor.data["BuckHashSys"] = float64(memstats.BuckHashSys)
-	monitor.data["Frees"] = float64(memstats.Frees)
-	monitor.data["GCCPUFraction"] = float64(memstats.GCCPUFraction)
-	monitor.data["GCSys"] = float64(memstats.GCSys)
-	monitor.data["HeapAlloc"] = float64(memstats.HeapAlloc)
-	monitor.data["HeapIdle"] = float64(memstats.HeapIdle)
-	monitor.data["HeapInuse"] = float64(memstats.HeapInuse)
-	monitor.data["HeapObjects"] = float64(memstats.HeapObjects)
-	monitor.data["HeapReleased"] = float64(memstats.HeapReleased)
-	monitor.data["HeapSys"] = float64(memstats.HeapSys)
-	monitor.data["LastGC"] = float64(memstats.LastGC)
-	monitor.data["Lookups"] = float64(memstats.Lookups)
-	monitor.data["MCacheInuse"] = float64(memstats.MCacheInuse)
-	monitor.data["MCacheSys"] = float64(memstats.MCacheSys)
-	monitor.data["MSpanInuse"] = float64(memstats.MSpanInuse)
-	monitor.data["MSpanSys"] = float64(memstats.MSpanSys)
-	monitor.data["Mallocs"] = float64(memstats.Mallocs)
-	monitor.data["NextGC"] = float64(memstats.NextGC)
-	monitor.data["NumForcedGC"] = float64(memstats.NumForcedGC)
-	monitor.data["NumGC"] = float64(memstats.NumGC)
-	monitor.data["OtherSys"] = float64(memstats.OtherSys)
-	monitor.data["PauseTotalNs"] = float64(memstats.PauseTotalNs)
-	monitor.data["StackInuse"] = float64(memstats.StackInuse)
-	monitor.data["StackSys"] = float64(memstats.StackSys)
-	monitor.data["Sys"] = float64(memstats.Sys)
-	monitor.data["TotalAlloc"] = float64(memstats.TotalAlloc)
+	metrics.SetMetricGauge("RandomValue", generator.Float64())
+	metrics.SetMetricGauge("Alloc", float64(memstats.Alloc))
+	metrics.SetMetricGauge("BuckHashSys", float64(memstats.BuckHashSys))
+	metrics.SetMetricGauge("Frees", float64(memstats.Frees))
+	metrics.SetMetricGauge("GCCPUFraction", float64(memstats.GCCPUFraction))
+	metrics.SetMetricGauge("GCSys", float64(memstats.GCSys))
+	metrics.SetMetricGauge("HeapAlloc", float64(memstats.HeapAlloc))
+	metrics.SetMetricGauge("HeapIdle", float64(memstats.HeapIdle))
+	metrics.SetMetricGauge("HeapInuse", float64(memstats.HeapInuse))
+	metrics.SetMetricGauge("HeapObjects", float64(memstats.HeapObjects))
+	metrics.SetMetricGauge("HeapReleased", float64(memstats.HeapReleased))
+	metrics.SetMetricGauge("HeapSys", float64(memstats.HeapSys))
+	metrics.SetMetricGauge("LastGC", float64(memstats.LastGC))
+	metrics.SetMetricGauge("Lookups", float64(memstats.Lookups))
+	metrics.SetMetricGauge("MCacheInuse", float64(memstats.MCacheInuse))
+	metrics.SetMetricGauge("MCacheSys", float64(memstats.MCacheSys))
+	metrics.SetMetricGauge("MSpanInuse", float64(memstats.MSpanInuse))
+	metrics.SetMetricGauge("MSpanSys", float64(memstats.MSpanSys))
+	metrics.SetMetricGauge("Mallocs", float64(memstats.Mallocs))
+	metrics.SetMetricGauge("NextGC", float64(memstats.NextGC))
+	metrics.SetMetricGauge("NumForcedGC", float64(memstats.NumForcedGC))
+	metrics.SetMetricGauge("NumGC", float64(memstats.NumGC))
+	metrics.SetMetricGauge("OtherSys", float64(memstats.OtherSys))
+	metrics.SetMetricGauge("PauseTotalNs", float64(memstats.PauseTotalNs))
+	metrics.SetMetricGauge("StackInuse", float64(memstats.StackInuse))
+	metrics.SetMetricGauge("StackSys", float64(memstats.StackSys))
+	metrics.SetMetricGauge("Sys", float64(memstats.Sys))
+	metrics.SetMetricGauge("TotalAlloc", float64(memstats.TotalAlloc))
 
-	monitor.pollCount++
+	metrics.AppendToMetricCounter(1)
 }
 
 // Отправка запроса серверу на обновление метрики
@@ -118,27 +109,24 @@ func reportMetric(ctx context.Context, typeMetric string, nameMetric string, val
 }
 
 // Отправка всех метрик серверу
-func reportMetrics(ctx context.Context, monitor *MetricsMonitor) {
+func reportMetrics(ctx context.Context, metrics storage.Metrics) {
 
-	monitor.mutex.Lock()
-	defer monitor.mutex.Unlock()
-
-	for metricName, metricValue := range monitor.data {
-		reportMetric(ctx, guageType, metricName, float64ToString(metricValue))
+	for metricName, metricValue := range metrics.GetMetricsGauge() {
+		reportMetric(ctx, storage.GuageType, metricName, float64ToString(metricValue))
 	}
 
-	reportMetric(ctx, counterType, "PollCount", int64ToString(monitor.pollCount))
+	reportMetric(ctx, storage.CounterType, "PollCount", int64ToString(metrics.GetMetricCounter()))
 }
 
 // Обновление метрик с заданной частотой
-func regularUpdateMetrics(ctx context.Context, waitGroup *sync.WaitGroup, monitor *MetricsMonitor) {
+func regularUpdateMetrics(ctx context.Context, waitGroup *sync.WaitGroup, metrics storage.Metrics) {
 	waitGroup.Add(1)
-	updateMetrics(monitor)
+	updateMetrics(metrics)
 
 	for {
 		select {
 		case <-time.After(pollInterval * time.Second):
-			updateMetrics(monitor)
+			updateMetrics(metrics)
 		case <-ctx.Done():
 			waitGroup.Done()
 			return
@@ -147,13 +135,13 @@ func regularUpdateMetrics(ctx context.Context, waitGroup *sync.WaitGroup, monito
 }
 
 // Отправка метрик серверу с заданной частотой
-func regularReportMetrics(ctx context.Context, waitGroup *sync.WaitGroup, monitor *MetricsMonitor) {
+func regularReportMetrics(ctx context.Context, waitGroup *sync.WaitGroup, metrics storage.Metrics) {
 	waitGroup.Add(1)
 
 	for {
 		select {
 		case <-time.After(reportInterval * time.Second):
-			reportMetrics(ctx, monitor)
+			reportMetrics(ctx, metrics)
 		case <-ctx.Done():
 			waitGroup.Done()
 			return
@@ -165,7 +153,8 @@ func main() {
 
 	var waitGroup sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
-	monitor := MetricsMonitor{data: make(map[string]float64)}
+
+	monitor := storage.MetricsData{}
 
 	// Запуск горутины для обновления метрик
 	go regularUpdateMetrics(ctx, &waitGroup, &monitor)

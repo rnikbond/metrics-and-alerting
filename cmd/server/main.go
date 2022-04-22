@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	storage "github.com/rnikbond/metrics-and-alerting/internal/storage"
 )
 
 const (
@@ -12,12 +14,11 @@ const (
 	sizeDataMetric = 2
 )
 const (
-	gaugeUrlPart   = "/update/gauge/"
-	counterUrlPart = "/update/counter/"
+	gaugeUrlPart   = "/update/" + storage.GuageType + "/"
+	counterUrlPart = "/update/" + storage.CounterType + "/"
 )
 
-var metrics map[string]float64
-var counter int64
+var metrics storage.MetricsData = storage.MetricsData{}
 
 func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 
@@ -43,18 +44,13 @@ func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if metrics == nil {
-		metrics = make(map[string]float64)
-	}
-
 	metricValue, err := strconv.ParseFloat(metric[idxMetricValue], 64)
 	if err != nil {
 		http.Error(w, "uncorrect value type 'gauge' metric", http.StatusBadRequest)
 		return
 	}
 
-	// обновляем значение метрики
-	metrics[metric[idxMetricName]] = metricValue
+	metrics.SetMetricGauge(metric[idxMetricName], metricValue)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -82,17 +78,13 @@ func UpdateCounter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if metrics == nil {
-		metrics = make(map[string]float64)
-	}
-
 	metricValue, err := strconv.ParseInt(metric[idxMetricValue], 10, 64)
 	if err != nil {
 		http.Error(w, "uncorrect value type 'counter' metric", http.StatusBadRequest)
 		return
 	}
 
-	counter += metricValue
+	metrics.AppendToMetricCounter(metricValue)
 	w.WriteHeader(http.StatusOK)
 }
 
