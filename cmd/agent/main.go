@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"os"
@@ -26,13 +27,12 @@ const (
 )
 
 type MetricsMonitor struct {
-	mutex       sync.Mutex
-	pollCount   int64
-	randomValue float64
-	data        map[string]float64
+	mutex     sync.Mutex
+	pollCount int64
+	data      map[string]float64
 }
 
-func floatToString(value float64) string {
+func float64ToString(value float64) string {
 	return strconv.FormatFloat(value, 'f', 3, 64)
 }
 
@@ -40,6 +40,7 @@ func int64ToString(value int64) string {
 	return strconv.FormatInt(value, 10)
 }
 
+// Обновление всех метрик
 func updateMetrics(monitor *MetricsMonitor) {
 
 	monitor.mutex.Lock()
@@ -48,6 +49,9 @@ func updateMetrics(monitor *MetricsMonitor) {
 	var memstats runtime.MemStats
 	runtime.ReadMemStats(&memstats)
 
+	generator := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	monitor.data["RandomValue"] = generator.Float64()
 	monitor.data["Alloc"] = float64(memstats.Alloc)
 	monitor.data["BuckHashSys"] = float64(memstats.BuckHashSys)
 	monitor.data["Frees"] = float64(memstats.Frees)
@@ -77,22 +81,21 @@ func updateMetrics(monitor *MetricsMonitor) {
 	monitor.data["TotalAlloc"] = float64(memstats.TotalAlloc)
 
 	monitor.pollCount++
-
-	generator := rand.New(rand.NewSource(time.Now().UnixNano()))
-	monitor.randomValue = generator.Float64()
 }
 
-func reportMetric(client *http.Client, typeMetric string, nameMetric string, valueMetric string) {
+// Отправка запроса серверу на обновление метрики
+func reportMetric(ctx context.Context, typeMetric string, nameMetric string, valueMetric string) {
 
 	urlMetric := urlServer + typeMetric + "/" + nameMetric + "/" + valueMetric
-	req, err := http.NewRequest(http.MethodPost, urlMetric, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlMetric, nil)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	req.Header.Set("Content-Type", "text/plain; charset=utf-8")
+	req.Header.Set("Content-Type", "text/plain")
 
+	client := &http.Client{}
 	resp, err := client.Do(req)
 
 	if err != nil {
@@ -103,25 +106,31 @@ func reportMetric(client *http.Client, typeMetric string, nameMetric string, val
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Println(resp.Status)
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Printf("failed update metric: %s. Reason: %s", resp.Status, err.Error())
+		} else {
+			fmt.Printf("failed update metric: %s. Reason: %s", resp.Status, string(respBody))
+		}
+	} else {
+		fmt.Printf("sussecc update metric: %s\n", nameMetric)
 	}
 }
 
-func reportMetrics(monitor *MetricsMonitor) {
+// Отправка всех метрик серверу
+func reportMetrics(ctx context.Context, monitor *MetricsMonitor) {
 
 	monitor.mutex.Lock()
 	defer monitor.mutex.Unlock()
 
-	client := &http.Client{}
-
 	for metricName, metricValue := range monitor.data {
-		reportMetric(client, guageType, metricName, floatToString(metricValue))
+		reportMetric(ctx, guageType, metricName, float64ToString(metricValue))
 	}
 
-	reportMetric(client, counterType, "PollCount", int64ToString(monitor.pollCount))
-	reportMetric(client, guageType, "RandomValue", floatToString(monitor.randomValue))
+	reportMetric(ctx, counterType, "PollCount", int64ToString(monitor.pollCount))
 }
 
+// Обновление метрик с заданной частотой
 func regularUpdateMetrics(ctx context.Context, waitGroup *sync.WaitGroup, monitor *MetricsMonitor) {
 	waitGroup.Add(1)
 	updateMetrics(monitor)
@@ -137,13 +146,14 @@ func regularUpdateMetrics(ctx context.Context, waitGroup *sync.WaitGroup, monito
 	}
 }
 
+// Отправка метрик серверу с заданной частотой
 func regularReportMetrics(ctx context.Context, waitGroup *sync.WaitGroup, monitor *MetricsMonitor) {
 	waitGroup.Add(1)
 
 	for {
 		select {
 		case <-time.After(reportInterval * time.Second):
-			reportMetrics(monitor)
+			reportMetrics(ctx, monitor)
 		case <-ctx.Done():
 			waitGroup.Done()
 			return
