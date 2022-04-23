@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -39,8 +38,6 @@ func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
 		// [1] - Название метрики
 		// [2] - Значение метрики
 		metric := strings.Split(strings.ReplaceAll(r.URL.String(), PartUrlUpdate, ""), "/")
-
-		fmt.Println("server: ", metric)
 
 		if len(metric) != sizeDataMetric {
 			http.Error(w, "uncorrect request update metric", http.StatusBadRequest)

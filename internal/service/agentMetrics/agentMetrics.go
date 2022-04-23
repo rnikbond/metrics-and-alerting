@@ -2,6 +2,7 @@ package agentMetrics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -20,8 +21,8 @@ type AgentMetrics interface {
 	regularReport(ctx context.Context, wg *sync.WaitGroup)
 	regularUpdate(ctx context.Context, wg *sync.WaitGroup)
 
-	reportAll(ctx context.Context)
-	report(ctx context.Context, nameMetric, valueMetric, typeMetric string)
+	reportAll(ctx context.Context) error
+	report(ctx context.Context, nameMetric, valueMetric, typeMetric string) error
 
 	updateAll()
 }
@@ -89,35 +90,46 @@ func (agent *AgentMeticsData) regularUpdate(ctx context.Context, wg *sync.WaitGr
 // Отправление всех метрик
 func (agent *AgentMeticsData) reportAll(ctx context.Context) {
 
-	fmt.Println("agent: reportAll()")
+	client := &http.Client{}
 
 	for metricName, metricValue := range agent.Metrics.GetGauges() {
-		agent.report(ctx, metricName, float64ToString(metricValue), storage.GuageType)
+		agent.report(ctx, client, metricName, float64ToString(metricValue), storage.GuageType)
 	}
 
 	for metricName, metricValue := range agent.Metrics.GetCounters() {
-		agent.report(ctx, metricName, int64ToString(metricValue), storage.CounterType)
+		agent.report(ctx, client, metricName, int64ToString(metricValue), storage.CounterType)
 	}
 }
 
 // Обновление метрики
-func (agent *AgentMeticsData) report(ctx context.Context, nameMetric, valueMetric, typeMetric string) {
+func (agent *AgentMeticsData) report(ctx context.Context, client *http.Client, nameMetric, valueMetric, typeMetric string) error {
+
+	fmt.Println("AgentMeticsData().report")
+
+	if len(nameMetric) < 1 {
+		return errors.New("name metric can not be empty")
+	}
+
+	if len(valueMetric) < 1 {
+		return errors.New("value metric can not be empty")
+	}
+
+	if len(typeMetric) < 1 {
+		return errors.New("type metric can not be empty")
+	}
 
 	urlMetric := agent.UrlServer + string(typeMetric) + "/" + nameMetric + "/" + valueMetric
+	fmt.Println(urlMetric)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlMetric, nil)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 
 	req.Header.Set("Content-Type", "text/plain; charset=utf-8")
 
-	client := &http.Client{}
 	resp, err := client.Do(req)
-
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 
 	defer resp.Body.Close()
@@ -125,11 +137,13 @@ func (agent *AgentMeticsData) report(ctx context.Context, nameMetric, valueMetri
 	if resp.StatusCode != http.StatusOK {
 		respBody, err := io.ReadAll(resp.Body)
 		if err != nil {
-			fmt.Printf("failed update metric: %s. Reason: %s", resp.Status, err.Error())
+			return err
 		} else {
-			fmt.Printf("failed update metric: %s. Reason: %s", resp.Status, string(respBody))
+			return errors.New("failed update metric: " + resp.Status + ". Reason: " + string(respBody))
 		}
 	}
+
+	return nil
 }
 
 // Обновление всех метрик

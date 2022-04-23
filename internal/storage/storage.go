@@ -34,12 +34,12 @@ func (monitor *MetricsData) Update(name, value, t string) error {
 	switch t {
 	case GuageType:
 		if name == CounterName {
-			return errors.New("Metric name '" + name + "' is not '" + string(GuageType) + "' type")
+			return errors.New("metric name '" + name + "' is not '" + string(GuageType) + "' type")
 		}
 
 		metricValue, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return errors.New("Uncorrect metric value '" + value + "' for type '" + string(GuageType) + "'")
+			return errors.New("uncorrect metric value '" + value + "' for type '" + string(GuageType) + "'")
 		}
 
 		if monitor.metricsGauge == nil {
@@ -50,12 +50,12 @@ func (monitor *MetricsData) Update(name, value, t string) error {
 
 	case CounterType:
 		if name != CounterName {
-			return errors.New("Metric name '" + name + "' is not '" + string(CounterType) + "' type")
+			return errors.New("metric name '" + name + "' is not '" + string(CounterType) + "' type")
 		}
 
 		metricValue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return errors.New("Uncorrect metric value '" + value + "' for type '" + string(CounterType) + "'")
+			return errors.New("uncorrect metric value '" + value + "' for type '" + string(CounterType) + "'")
 		}
 
 		if monitor.metricsCounter == nil {
@@ -69,7 +69,7 @@ func (monitor *MetricsData) Update(name, value, t string) error {
 		}
 
 	default:
-		return errors.New("Unknown  metric type: '" + string(t) + "'")
+		return errors.New("unknown  metric type: '" + string(t) + "'")
 	}
 
 	return nil
@@ -81,7 +81,7 @@ func (monitor *MetricsData) GetGauge(name string) (float64, error) {
 
 	value, exist := monitor.metricsGauge[name]
 	if !exist {
-		return 0, errors.New("Metric '" + name + "' does not exist")
+		return 0, errors.New("metric '" + name + "' does not exist")
 	}
 
 	return value, nil
@@ -93,7 +93,7 @@ func (monitor *MetricsData) GetCounter(name string) (int64, error) {
 
 	value, exist := monitor.metricsCounter[name]
 	if !exist {
-		return 0, errors.New("Metric '" + name + "' does not exist")
+		return 0, errors.New("metric '" + name + "' does not exist")
 	}
 
 	return value, nil
