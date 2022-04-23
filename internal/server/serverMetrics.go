@@ -16,13 +16,13 @@ func StartMetricsHTTPServer() *http.Server {
 
 	http.HandleFunc(handler.PartURLUpdate, handler.UpdateMetric(&metrics))
 
-	serverHttp := &http.Server{Addr: ":8080"}
+	serverHTTP := &http.Server{Addr: ":8080"}
 
 	go func() {
-		if err := serverHttp.ListenAndServe(); err != http.ErrServerClosed {
+		if err := serverHTTP.ListenAndServe(); err != http.ErrServerClosed {
 			fmt.Printf("HTTP server ListenAndServe: %v", err)
 		}
 	}()
 
-	return serverHttp
+	return serverHTTP
 }

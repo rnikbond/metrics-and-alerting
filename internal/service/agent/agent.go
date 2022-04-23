@@ -27,7 +27,7 @@ type AgentMetrics interface {
 }
 
 type AgentMeticsData struct {
-	UrlServer      string
+	ServerURL      string
 	PollInterval   time.Duration
 	ReportInterval time.Duration
 	Metrics        storage.Metrics
@@ -115,7 +115,7 @@ func (agent *AgentMeticsData) report(ctx context.Context, client *http.Client, n
 		return errors.New("type metric can not be empty")
 	}
 
-	urlMetric := agent.UrlServer + string(typeMetric) + "/" + nameMetric + "/" + valueMetric
+	urlMetric := agent.URLServer + string(typeMetric) + "/" + nameMetric + "/" + valueMetric
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlMetric, nil)
 	if err != nil {
 		return err

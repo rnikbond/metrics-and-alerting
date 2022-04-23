@@ -28,7 +28,7 @@ func TestAgentMeticsData_report(t *testing.T) {
 		{
 			name: "test agent metrics #1",
 			agent: &AgentMeticsData{
-				URLServer: server.URL + "/",
+				ServerURL: server.URL,
 				Metrics:   &storage.MetricsData{},
 			},
 			args: args{
