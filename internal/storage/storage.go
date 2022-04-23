@@ -2,6 +2,7 @@ package storage
 
 import (
 	"errors"
+	"net/http"
 	"strconv"
 	"sync"
 )
@@ -12,7 +13,7 @@ const (
 )
 
 type Metrics interface {
-	Update(name, value, s string) error
+	Update(name, value, s string) int
 	GetGauge(name string) (float64, error)
 	GetCounter(name string) (int64, error)
 	GetGauges() map[string]float64
@@ -26,7 +27,7 @@ type MetricsData struct {
 	metricsCounter map[string]int64
 }
 
-func (monitor *MetricsData) Update(name, value, t string) error {
+func (monitor *MetricsData) Update(name, value, t string) int {
 	monitor.mu.Lock()
 	defer monitor.mu.Unlock()
 
@@ -38,7 +39,8 @@ func (monitor *MetricsData) Update(name, value, t string) error {
 
 		metricValue, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return errors.New("uncorrect metric value '" + value + "' for type '" + GuageType + "'")
+			//fmt.Println("uncorrect metric value '" + value + "' for type '" + GuageType + "'")
+			return http.StatusBadRequest
 		}
 
 		monitor.metricsGauge[name] = metricValue
@@ -50,16 +52,18 @@ func (monitor *MetricsData) Update(name, value, t string) error {
 
 		metricValue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return errors.New("uncorrect metric value '" + value + "' of type '" + CounterType + "'")
+			//fmt.Println("uncorrect metric value '" + value + "' of type '" + CounterType + "'")
+			return http.StatusBadRequest
 		}
 
 		monitor.metricsCounter[name] += metricValue
 
 	default:
-		return errors.New("unknown  metric type: '" + t + "'")
+		//fmt.Println("unknown  metric type: '" + t + "'")
+		return http.StatusNotImplemented
 	}
 
-	return nil
+	return http.StatusOK
 }
 
 func (monitor *MetricsData) GetGauge(name string) (float64, error) {

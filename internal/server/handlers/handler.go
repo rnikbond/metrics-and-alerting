@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -20,14 +21,15 @@ const (
 func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Type", "text/plain")
 
 		if r.Method != http.MethodPost {
 			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
 			return
 		}
 
-		if r.Header.Get("Content-Type") != "text/plain; charset=utf-8" {
+		if r.Header.Get("Content-Type") != "text/plain" {
+			fmt.Println(r.Header.Get("Content-Type"))
 			http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
 			return
 		}
@@ -44,17 +46,13 @@ func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
 			return
 		}
 
-		if metric[idxMetricType] != storage.GuageType && metric[idxMetricType] != storage.CounterType {
-			http.Error(w, "not implemented", http.StatusNotImplemented)
-			return
-		}
-
-		err := metrics.Update(metric[idxMetricName], metric[idxMetricValue], metric[idxMetricType])
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
+		status := metrics.Update(metric[idxMetricName], metric[idxMetricValue], metric[idxMetricType])
+		if status != http.StatusOK {
+			http.Error(w, "fail update metric", status)
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("success update metric"))
 	}
 }
