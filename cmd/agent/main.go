@@ -16,7 +16,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	agent := agent.AgentMeticsData{
-		UrlServer:      "http://127.0.0.1:8080/update/",
+		ServerURL:      "http://127.0.0.1:8080/update/",
 		PollInterval:   2,
 		ReportInterval: 10,
 		Metrics:        &storage.MetricsData{},
