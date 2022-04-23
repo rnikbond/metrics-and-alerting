@@ -28,6 +28,7 @@ func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
 		}
 
 		// @TODO если проверять Content-Type - на github не проходят тесты :(
+
 		// if r.Header.Get("Content-Type") != "text/plain" {
 		// 	fmt.Println(r.Header.Get("Content-Type"))
 		// 	http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
