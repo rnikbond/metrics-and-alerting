@@ -28,6 +28,8 @@ func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
 			return
 		}
 
+		fmt.Printf("Моя голова взорвется, если я не узнаю, что тут яндекс написал: %s\n", r.Header.Get("Content-Type"))
+
 		if r.Header.Get("Content-Type") != "text/plain" {
 			fmt.Println(r.Header.Get("Content-Type"))
 			http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
