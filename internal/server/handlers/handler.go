@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -28,8 +27,7 @@ func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
 			return
 		}
 
-		fmt.Printf("В задании же сказано, что content-type text/plain, а он такой: %s\n", r.Header.Get("Content-Type"))
-
+		// @TODO если проверять Content-Type - на github не проходят тесты :(
 		// if r.Header.Get("Content-Type") != "text/plain" {
 		// 	fmt.Println(r.Header.Get("Content-Type"))
 		// 	http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
