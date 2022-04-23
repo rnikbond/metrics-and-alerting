@@ -77,7 +77,7 @@ func TestUpdateMetric(t *testing.T) {
 			},
 			contentType: "text/plain; charset=utf-8",
 			httpMethod:  http.MethodPost,
-			wantCode:    http.StatusBadRequest,
+			wantCode:    http.StatusUnsupportedMediaType,
 			wantError:   true,
 		},
 		{
@@ -89,7 +89,7 @@ func TestUpdateMetric(t *testing.T) {
 			},
 			contentType: "text/plain; charset=utf-8",
 			httpMethod:  http.MethodPost,
-			wantCode:    http.StatusBadRequest,
+			wantCode:    http.StatusUnsupportedMediaType,
 			wantError:   true,
 		},
 		{
@@ -101,7 +101,7 @@ func TestUpdateMetric(t *testing.T) {
 			},
 			contentType: "text/plain; charset=utf-8",
 			httpMethod:  http.MethodPost,
-			wantCode:    http.StatusBadRequest,
+			wantCode:    http.StatusUnsupportedMediaType,
 			wantError:   true,
 		},
 		{
@@ -113,7 +113,7 @@ func TestUpdateMetric(t *testing.T) {
 			},
 			contentType: "text/plain; charset=utf-8",
 			httpMethod:  http.MethodPost,
-			wantCode:    http.StatusBadRequest,
+			wantCode:    http.StatusUnsupportedMediaType,
 			wantError:   true,
 		},
 		{
@@ -125,19 +125,7 @@ func TestUpdateMetric(t *testing.T) {
 			},
 			contentType: "text/plain; charset=utf-8",
 			httpMethod:  http.MethodPost,
-			wantCode:    http.StatusBadRequest,
-			wantError:   true,
-		},
-		{
-			name: "test metric handler #10",
-			metricData: metricData{
-				name:       "",
-				value:      "1.123",
-				metricType: storage.GuageType,
-			},
-			contentType: "text/plain; charset=utf-8",
-			httpMethod:  http.MethodPost,
-			wantCode:    http.StatusBadRequest,
+			wantCode:    http.StatusUnsupportedMediaType,
 			wantError:   true,
 		},
 	}
