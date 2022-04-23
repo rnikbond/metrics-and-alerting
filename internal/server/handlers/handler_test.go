@@ -128,6 +128,90 @@ func TestUpdateMetric(t *testing.T) {
 			wantCode:    http.StatusUnsupportedMediaType,
 			wantError:   true,
 		},
+		{
+			name: "test metric handler #10",
+			metricData: metricData{
+				name:       "testCounter",
+				value:      "100",
+				metricType: storage.CounterType,
+			},
+			contentType: "text/plain; charset=utf-8",
+			httpMethod:  http.MethodPost,
+			wantCode:    http.StatusUnsupportedMediaType,
+			wantError:   true,
+		},
+		{
+			name: "test metric handler #11",
+			metricData: metricData{
+				name:       "",
+				value:      "",
+				metricType: storage.CounterType,
+			},
+			contentType: "text/plain; charset=utf-8",
+			httpMethod:  http.MethodPost,
+			wantCode:    http.StatusUnsupportedMediaType,
+			wantError:   true,
+		},
+		{
+			name: "test metric handler #12",
+			metricData: metricData{
+				name:       "testCounter",
+				value:      "none",
+				metricType: storage.CounterType,
+			},
+			contentType: "text/plain; charset=utf-8",
+			httpMethod:  http.MethodPost,
+			wantCode:    http.StatusUnsupportedMediaType,
+			wantError:   true,
+		},
+		{
+			name: "test metric handler #13",
+			metricData: metricData{
+				name:       "testGauge",
+				value:      "100",
+				metricType: storage.GuageType,
+			},
+			contentType: "text/plain; charset=utf-8",
+			httpMethod:  http.MethodPost,
+			wantCode:    http.StatusUnsupportedMediaType,
+			wantError:   true,
+		},
+		{
+			name: "test metric handler #14",
+			metricData: metricData{
+				name:       "",
+				value:      "100",
+				metricType: storage.GuageType,
+			},
+			contentType: "text/plain; charset=utf-8",
+			httpMethod:  http.MethodPost,
+			wantCode:    http.StatusUnsupportedMediaType,
+			wantError:   true,
+		},
+		{
+			name: "test metric handler #15",
+			metricData: metricData{
+				name:       "testGauge",
+				value:      "none",
+				metricType: storage.GuageType,
+			},
+			contentType: "text/plain; charset=utf-8",
+			httpMethod:  http.MethodPost,
+			wantCode:    http.StatusUnsupportedMediaType,
+			wantError:   true,
+		},
+		{
+			name: "test metric handler #16",
+			metricData: metricData{
+				name:       "testGauge",
+				value:      "100",
+				metricType: "unknown",
+			},
+			contentType: "text/plain; charset=utf-8",
+			httpMethod:  http.MethodPost,
+			wantCode:    http.StatusNotImplemented,
+			wantError:   true,
+		},
 	}
 	for _, tt := range tests {
 
@@ -135,7 +219,28 @@ func TestUpdateMetric(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 
-			request := httptest.NewRequest(tt.httpMethod, PartURLUpdate+tt.metricData.metricType+"/"+tt.metricData.name+"/"+tt.metricData.value, nil)
+			target := PartURLUpdate
+			if len(tt.metricData.metricType) > 0 {
+				target += tt.metricData.metricType
+			}
+
+			if len(tt.metricData.name) > 0 {
+				if target[len(target)-1] != '/' {
+					target += "/"
+				}
+
+				target += tt.metricData.name
+			}
+
+			if len(tt.metricData.value) > 0 {
+				if target[len(target)-1] != '/' {
+					target += "/"
+				}
+
+				target += tt.metricData.value
+			}
+
+			request := httptest.NewRequest(tt.httpMethod, target, nil)
 			request.Header.Set("Content-Type", tt.contentType)
 
 			w := httptest.NewRecorder()
@@ -155,7 +260,6 @@ func TestUpdateMetric(t *testing.T) {
 				} else {
 					assert.Contains(t, storageMetrics.GetGauges(), tt.metricData.name)
 				}
-
 			}
 		})
 	}

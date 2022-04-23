@@ -40,13 +40,12 @@ func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
 		metric := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLUpdate, ""), "/")
 
 		if len(metric) != sizeDataMetric {
-			http.Error(w, "uncorrect request update metric", http.StatusNotFound)
+			http.Error(w, "uncorrect request update metric", http.StatusUnsupportedMediaType)
 			return
 		}
 
-		// проверка наличия названия метрики в запросе
-		if len(metric[idxMetricName]) < 1 {
-			http.Error(w, "uncorrect request update metric without name", http.StatusNotFound)
+		if metric[idxMetricType] != storage.GuageType && metric[idxMetricType] != storage.CounterType {
+			http.Error(w, "not implemented", http.StatusNotImplemented)
 			return
 		}
 
