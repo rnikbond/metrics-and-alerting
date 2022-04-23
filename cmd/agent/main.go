@@ -71,7 +71,7 @@ func updateMetrics(metrics storage.Metrics) {
 	metrics.SetValueGaugeType("Sys", float64(memstats.Sys))
 	metrics.SetValueGaugeType("TotalAlloc", float64(memstats.TotalAlloc))
 
-	metrics.AddValueCounterType(1)
+	metrics.SetValueCounterType(1)
 }
 
 // Отправка запроса серверу на обновление метрики

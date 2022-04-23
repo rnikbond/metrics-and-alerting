@@ -15,6 +15,7 @@ type Metrics interface {
 	ValueGaugeType(name string) (float64, error)
 	ValueCounterType() int64
 	SetValueGaugeType(name string, value float64)
+	SetValueCounterType(value int64)
 	AddValueCounterType(value int64)
 }
 
@@ -35,6 +36,13 @@ func (monitor *MetricsData) SetValueGaugeType(name string, value float64) {
 	}
 
 	monitor.Metrics[name] = value
+}
+
+func (monitor *MetricsData) SetValueCounterType(value int64) {
+	monitor.mu.Lock()
+	defer monitor.mu.Unlock()
+
+	monitor.pollCount = value
 }
 
 // увеличение значения метрики типа 'counter'
