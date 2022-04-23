@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/rnikbond/metrics-and-alerting/internal/serverMetrics"
+	serverMetrics "metrics-and-alerting/internal/server"
 )
 
 func main() {

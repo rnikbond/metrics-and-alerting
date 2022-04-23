@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	handler "github.com/rnikbond/metrics-and-alerting/internal/serverMetrics/handlers/metricHandler"
-	storage "github.com/rnikbond/metrics-and-alerting/internal/storage"
+	handler "metrics-and-alerting/internal/server/handlers"
+	storage "metrics-and-alerting/internal/storage"
 )
 
 var (
@@ -14,8 +14,7 @@ var (
 
 func StartMetricsHttpServer() *http.Server {
 
-	http.HandleFunc(handler.GaugeUrlPart, handler.UpdateMetricGauge(&metrics))
-	http.HandleFunc(handler.CounterUrlPart, handler.UpdateMetricCounter(&metrics))
+	http.HandleFunc(handler.PartUrlUpdate, handler.UpdateMetric(&metrics))
 
 	serverHttp := &http.Server{Addr: ":8080"}
 

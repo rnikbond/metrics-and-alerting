@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	storage "github.com/rnikbond/metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/internal/storage"
 )
 
 const (
@@ -34,6 +34,10 @@ func int64ToString(value int64) string {
 	return strconv.FormatInt(value, 10)
 }
 
+func uint64ToString(value uint64) string {
+	return strconv.FormatUint(value, 10)
+}
+
 // Обновление всех метрик
 func updateMetrics(metrics storage.Metrics) {
 
@@ -42,49 +46,48 @@ func updateMetrics(metrics storage.Metrics) {
 
 	generator := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	metrics.SetValueGaugeType("RandomValue", generator.Float64())
-	metrics.SetValueGaugeType("Alloc", float64(memstats.Alloc))
-	metrics.SetValueGaugeType("BuckHashSys", float64(memstats.BuckHashSys))
-	metrics.SetValueGaugeType("Frees", float64(memstats.Frees))
-	metrics.SetValueGaugeType("GCCPUFraction", float64(memstats.GCCPUFraction))
-	metrics.SetValueGaugeType("GCSys", float64(memstats.GCSys))
-	metrics.SetValueGaugeType("HeapAlloc", float64(memstats.HeapAlloc))
-	metrics.SetValueGaugeType("HeapIdle", float64(memstats.HeapIdle))
-	metrics.SetValueGaugeType("HeapInuse", float64(memstats.HeapInuse))
-	metrics.SetValueGaugeType("HeapObjects", float64(memstats.HeapObjects))
-	metrics.SetValueGaugeType("HeapReleased", float64(memstats.HeapReleased))
-	metrics.SetValueGaugeType("HeapSys", float64(memstats.HeapSys))
-	metrics.SetValueGaugeType("LastGC", float64(memstats.LastGC))
-	metrics.SetValueGaugeType("Lookups", float64(memstats.Lookups))
-	metrics.SetValueGaugeType("MCacheInuse", float64(memstats.MCacheInuse))
-	metrics.SetValueGaugeType("MCacheSys", float64(memstats.MCacheSys))
-	metrics.SetValueGaugeType("MSpanInuse", float64(memstats.MSpanInuse))
-	metrics.SetValueGaugeType("MSpanSys", float64(memstats.MSpanSys))
-	metrics.SetValueGaugeType("Mallocs", float64(memstats.Mallocs))
-	metrics.SetValueGaugeType("NextGC", float64(memstats.NextGC))
-	metrics.SetValueGaugeType("NumForcedGC", float64(memstats.NumForcedGC))
-	metrics.SetValueGaugeType("NumGC", float64(memstats.NumGC))
-	metrics.SetValueGaugeType("OtherSys", float64(memstats.OtherSys))
-	metrics.SetValueGaugeType("PauseTotalNs", float64(memstats.PauseTotalNs))
-	metrics.SetValueGaugeType("StackInuse", float64(memstats.StackInuse))
-	metrics.SetValueGaugeType("StackSys", float64(memstats.StackSys))
-	metrics.SetValueGaugeType("Sys", float64(memstats.Sys))
-	metrics.SetValueGaugeType("TotalAlloc", float64(memstats.TotalAlloc))
-
-	metrics.SetValueCounterType(1)
+	metrics.Update("RandomValue", float64ToString(generator.Float64()), storage.GuageType)
+	metrics.Update("Alloc", uint64ToString(memstats.Alloc), storage.GuageType)
+	metrics.Update("BuckHashSys", uint64ToString(memstats.BuckHashSys), storage.GuageType)
+	metrics.Update("Frees", uint64ToString(memstats.Frees), storage.GuageType)
+	metrics.Update("GCCPUFraction", float64ToString(memstats.GCCPUFraction), storage.GuageType)
+	metrics.Update("GCSys", uint64ToString(memstats.GCSys), storage.GuageType)
+	metrics.Update("HeapAlloc", uint64ToString(memstats.HeapAlloc), storage.GuageType)
+	metrics.Update("HeapIdle", uint64ToString(memstats.HeapIdle), storage.GuageType)
+	metrics.Update("HeapInuse", uint64ToString(memstats.HeapInuse), storage.GuageType)
+	metrics.Update("HeapObjects", uint64ToString(memstats.HeapObjects), storage.GuageType)
+	metrics.Update("HeapReleased", uint64ToString(memstats.HeapReleased), storage.GuageType)
+	metrics.Update("HeapSys", uint64ToString(memstats.HeapSys), storage.GuageType)
+	metrics.Update("LastGC", uint64ToString(memstats.LastGC), storage.GuageType)
+	metrics.Update("Lookups", uint64ToString(memstats.Lookups), storage.GuageType)
+	metrics.Update("MCacheInuse", uint64ToString(memstats.MCacheInuse), storage.GuageType)
+	metrics.Update("MCacheSys", uint64ToString(memstats.MCacheSys), storage.GuageType)
+	metrics.Update("MSpanInuse", uint64ToString(memstats.MSpanInuse), storage.GuageType)
+	metrics.Update("MSpanSys", uint64ToString(memstats.MSpanSys), storage.GuageType)
+	metrics.Update("Mallocs", uint64ToString(memstats.Mallocs), storage.GuageType)
+	metrics.Update("NextGC", uint64ToString(memstats.NextGC), storage.GuageType)
+	metrics.Update("NumForcedGC", uint64ToString(uint64(memstats.NumForcedGC)), storage.GuageType)
+	metrics.Update("NumGC", uint64ToString(uint64(memstats.NumGC)), storage.GuageType)
+	metrics.Update("OtherSys", uint64ToString(memstats.OtherSys), storage.GuageType)
+	metrics.Update("PauseTotalNs", uint64ToString(memstats.PauseTotalNs), storage.GuageType)
+	metrics.Update("StackInuse", uint64ToString(memstats.StackInuse), storage.GuageType)
+	metrics.Update("StackSys", uint64ToString(memstats.StackSys), storage.GuageType)
+	metrics.Update("Sys", uint64ToString(memstats.Sys), storage.GuageType)
+	metrics.Update("TotalAlloc", uint64ToString(memstats.TotalAlloc), storage.GuageType)
+	metrics.Update(storage.CounterName, uint64ToString(memstats.TotalAlloc), storage.CounterType)
 }
 
 // Отправка запроса серверу на обновление метрики
-func reportMetric(ctx context.Context, typeMetric string, nameMetric string, valueMetric string) {
+func reportMetric(ctx context.Context, nameMetric, valueMetric, typeMetric string) {
 
-	urlMetric := urlServer + typeMetric + "/" + nameMetric + "/" + valueMetric
+	urlMetric := urlServer + string(typeMetric) + "/" + nameMetric + "/" + valueMetric
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlMetric, nil)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("Content-Type", "text/plain; charset=utf-8")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -103,19 +106,19 @@ func reportMetric(ctx context.Context, typeMetric string, nameMetric string, val
 		} else {
 			fmt.Printf("failed update metric: %s. Reason: %s", resp.Status, string(respBody))
 		}
-	} else {
-		fmt.Printf("sussecc update metric: %s\n", nameMetric)
 	}
 }
 
 // Отправка всех метрик серверу
 func reportMetrics(ctx context.Context, metrics storage.Metrics) {
 
-	for metricName, metricValue := range metrics.ValuesGaugeType() {
-		reportMetric(ctx, storage.GuageType, metricName, float64ToString(metricValue))
+	for metricName, metricValue := range metrics.GetGauges() {
+		reportMetric(ctx, metricName, float64ToString(metricValue), storage.GuageType)
 	}
 
-	reportMetric(ctx, storage.CounterType, "PollCount", int64ToString(metrics.ValueCounterType()))
+	for metricName, metricValue := range metrics.GetCounters() {
+		reportMetric(ctx, metricName, int64ToString(metricValue), storage.CounterType)
+	}
 }
 
 // Обновление метрик с заданной частотой
