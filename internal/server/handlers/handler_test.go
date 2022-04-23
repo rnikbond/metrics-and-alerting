@@ -44,7 +44,7 @@ func TestUpdateMetric(t *testing.T) {
 		{
 			name: "test metric handler #2",
 			metricData: metricData{
-				name:       storage.CounterName,
+				name:       "testCounter",
 				value:      "5",
 				metricType: storage.CounterType,
 			},
@@ -77,13 +77,13 @@ func TestUpdateMetric(t *testing.T) {
 			},
 			contentType: "text/plain; charset=utf-8",
 			httpMethod:  http.MethodPost,
-			wantCode:    http.StatusUnsupportedMediaType,
-			wantError:   true,
+			wantCode:    http.StatusOK,
+			wantError:   false,
 		},
 		{
 			name: "test metric handler #6",
 			metricData: metricData{
-				name:       storage.CounterName,
+				name:       "testCounter",
 				value:      "5.123",
 				metricType: storage.CounterType,
 			},
@@ -95,7 +95,7 @@ func TestUpdateMetric(t *testing.T) {
 		{
 			name: "test metric handler #7",
 			metricData: metricData{
-				name:       storage.CounterName,
+				name:       "testCounter",
 				value:      "aaaa",
 				metricType: storage.CounterType,
 			},
@@ -125,7 +125,7 @@ func TestUpdateMetric(t *testing.T) {
 			},
 			contentType: "text/plain; charset=utf-8",
 			httpMethod:  http.MethodPost,
-			wantCode:    http.StatusUnsupportedMediaType,
+			wantCode:    http.StatusNotFound,
 			wantError:   true,
 		},
 		{
@@ -137,8 +137,8 @@ func TestUpdateMetric(t *testing.T) {
 			},
 			contentType: "text/plain; charset=utf-8",
 			httpMethod:  http.MethodPost,
-			wantCode:    http.StatusUnsupportedMediaType,
-			wantError:   true,
+			wantCode:    http.StatusOK,
+			wantError:   false,
 		},
 		{
 			name: "test metric handler #11",
@@ -149,7 +149,7 @@ func TestUpdateMetric(t *testing.T) {
 			},
 			contentType: "text/plain; charset=utf-8",
 			httpMethod:  http.MethodPost,
-			wantCode:    http.StatusUnsupportedMediaType,
+			wantCode:    http.StatusNotFound,
 			wantError:   true,
 		},
 		{
@@ -173,8 +173,8 @@ func TestUpdateMetric(t *testing.T) {
 			},
 			contentType: "text/plain; charset=utf-8",
 			httpMethod:  http.MethodPost,
-			wantCode:    http.StatusUnsupportedMediaType,
-			wantError:   true,
+			wantCode:    http.StatusOK,
+			wantError:   false,
 		},
 		{
 			name: "test metric handler #14",
@@ -185,7 +185,7 @@ func TestUpdateMetric(t *testing.T) {
 			},
 			contentType: "text/plain; charset=utf-8",
 			httpMethod:  http.MethodPost,
-			wantCode:    http.StatusUnsupportedMediaType,
+			wantCode:    http.StatusNotFound,
 			wantError:   true,
 		},
 		{

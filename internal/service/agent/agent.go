@@ -178,5 +178,5 @@ func (agent *AgentMeticsData) updateAll() {
 	agent.Metrics.Update("StackSys", uint64ToString(memstats.StackSys), storage.GuageType)
 	agent.Metrics.Update("Sys", uint64ToString(memstats.Sys), storage.GuageType)
 	agent.Metrics.Update("TotalAlloc", uint64ToString(memstats.TotalAlloc), storage.GuageType)
-	agent.Metrics.Update(storage.CounterName, uint64ToString(memstats.TotalAlloc), storage.CounterType)
+	agent.Metrics.Update("PollCount", uint64ToString(memstats.TotalAlloc), storage.CounterType)
 }
