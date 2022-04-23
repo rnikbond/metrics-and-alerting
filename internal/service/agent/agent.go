@@ -115,7 +115,7 @@ func (agent *AgentMeticsData) report(ctx context.Context, client *http.Client, n
 		return errors.New("type metric can not be empty")
 	}
 
-	urlMetric := agent.ServerURL + string(typeMetric) + "/" + nameMetric + "/" + valueMetric
+	urlMetric := agent.ServerURL + "/" + string(typeMetric) + "/" + nameMetric + "/" + valueMetric
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlMetric, nil)
 	if err != nil {
 		return err
