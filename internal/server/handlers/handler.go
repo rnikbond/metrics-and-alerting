@@ -28,13 +28,13 @@ func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
 			return
 		}
 
-		fmt.Printf("Моя голова взорвется, если я не узнаю, что тут яндекс написал: %s\n", r.Header.Get("Content-Type"))
+		fmt.Printf("В задании же сказано, что content-type text/plain, а он такой: %s\n", r.Header.Get("Content-Type"))
 
-		if r.Header.Get("Content-Type") != "text/plain" {
-			fmt.Println(r.Header.Get("Content-Type"))
-			http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
-			return
-		}
+		// if r.Header.Get("Content-Type") != "text/plain" {
+		// 	fmt.Println(r.Header.Get("Content-Type"))
+		// 	http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
+		// 	return
+		// }
 
 		// оставляем из url только <ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 		// затем разбиваем на массив:
