@@ -147,7 +147,7 @@ func TestUpdateMetric(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 
-			request := httptest.NewRequest(tt.httpMethod, PartUrlUpdate+tt.metricData.metricType+"/"+tt.metricData.name+"/"+tt.metricData.value, nil)
+			request := httptest.NewRequest(tt.httpMethod, PartURLUpdate+tt.metricData.metricType+"/"+tt.metricData.name+"/"+tt.metricData.value, nil)
 			request.Header.Set("Content-Type", tt.contentType)
 
 			w := httptest.NewRecorder()

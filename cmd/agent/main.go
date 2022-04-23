@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"metrics-and-alerting/internal/service/agentMetrics"
+	"metrics-and-alerting/internal/service/agent"
 	"metrics-and-alerting/internal/storage"
 	"os"
 	"os/signal"
@@ -15,7 +15,7 @@ func main() {
 	var waitGroup sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
 
-	agent := agentMetrics.AgentMeticsData{
+	agent := agent.AgentMeticsData{
 		UrlServer:      "http://127.0.0.1:8080/update/",
 		PollInterval:   2,
 		ReportInterval: 10,

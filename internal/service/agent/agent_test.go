@@ -1,4 +1,4 @@
-package agentMetrics
+package agent
 
 import (
 	"context"
@@ -28,7 +28,7 @@ func TestAgentMeticsData_report(t *testing.T) {
 		{
 			name: "test agent metrics #1",
 			agent: &AgentMeticsData{
-				UrlServer: server.URL + "/",
+				URLServer: server.URL + "/",
 				Metrics:   &storage.MetricsData{},
 			},
 			args: args{

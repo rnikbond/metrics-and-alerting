@@ -14,7 +14,7 @@ const (
 	sizeDataMetric = 3
 )
 const (
-	PartUrlUpdate = "/update/"
+	PartURLUpdate = "/update/"
 )
 
 func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
@@ -37,7 +37,7 @@ func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
 		// [0] - Тип метрики
 		// [1] - Название метрики
 		// [2] - Значение метрики
-		metric := strings.Split(strings.ReplaceAll(r.URL.String(), PartUrlUpdate, ""), "/")
+		metric := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLUpdate, ""), "/")
 
 		if len(metric) != sizeDataMetric {
 			http.Error(w, "uncorrect request update metric", http.StatusBadRequest)

@@ -1,9 +1,8 @@
-package agentMetrics
+package agent
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
@@ -104,8 +103,6 @@ func (agent *AgentMeticsData) reportAll(ctx context.Context) {
 // Обновление метрики
 func (agent *AgentMeticsData) report(ctx context.Context, client *http.Client, nameMetric, valueMetric, typeMetric string) error {
 
-	fmt.Println("AgentMeticsData().report")
-
 	if len(nameMetric) < 1 {
 		return errors.New("name metric can not be empty")
 	}
@@ -119,7 +116,6 @@ func (agent *AgentMeticsData) report(ctx context.Context, client *http.Client, n
 	}
 
 	urlMetric := agent.UrlServer + string(typeMetric) + "/" + nameMetric + "/" + valueMetric
-	fmt.Println(urlMetric)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlMetric, nil)
 	if err != nil {
 		return err

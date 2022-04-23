@@ -1,4 +1,4 @@
-package serverMetrics
+package servermetrics
 
 import (
 	"fmt"
@@ -12,9 +12,9 @@ var (
 	metrics = storage.MetricsData{}
 )
 
-func StartMetricsHttpServer() *http.Server {
+func StartMetricsHTTPServer() *http.Server {
 
-	http.HandleFunc(handler.PartUrlUpdate, handler.UpdateMetric(&metrics))
+	http.HandleFunc(handler.PartURLUpdate, handler.UpdateMetric(&metrics))
 
 	serverHttp := &http.Server{Addr: ":8080"}
 

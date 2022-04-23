@@ -13,7 +13,7 @@ import (
 func main() {
 
 	waitChan := make(chan struct{})
-	server := serverMetrics.StartMetricsHttpServer()
+	server := serverMetrics.StartMetricsHTTPServer()
 
 	go func() {
 		sigChan := make(chan os.Signal, 1)
