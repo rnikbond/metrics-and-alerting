@@ -170,8 +170,8 @@ func TestUpdateMetric(t *testing.T) {
 func TestGetMetric(t *testing.T) {
 
 	storageMetrics := storage.MetricsData{}
-	storageMetrics.Update("testGauge", "100.023", storage.GuageType)
-	storageMetrics.Update("testCounter", "100", storage.CounterType)
+	storageMetrics.Set("testGauge", "100.023", storage.GuageType)
+	storageMetrics.Set("testCounter", "100", storage.CounterType)
 
 	type metricData struct {
 		name       string
@@ -318,7 +318,7 @@ func TestGetMetric(t *testing.T) {
 
 func TestGetMetrics(t *testing.T) {
 	storageMetrics := storage.MetricsData{}
-	storageMetrics.Update("testGauge1", "100.023", storage.GuageType)
+	storageMetrics.Set("testGauge1", "100.023", storage.GuageType)
 
 	type metricData struct {
 		name       string

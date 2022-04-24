@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -32,14 +33,28 @@ func GetMetrics(metrics storage.Metrics) http.HandlerFunc {
 
 		html := ""
 
+		// Gauges
 		gauges := metrics.GetGauges()
-		for k, v := range gauges {
-			html += k + " " + strconv.FormatFloat(v, 'f', 3, 64) + "<br/>"
+
+		keysGauges := make([]string, 0, len(gauges))
+		for k := range gauges {
+			keysGauges = append(keysGauges, k)
+		}
+		sort.Strings(keysGauges)
+
+		for _, k := range keysGauges {
+			html += k + ":" + strconv.FormatFloat(gauges[k], 'f', 3, 64) + "<br/>"
 		}
 
+		// Counters
 		counters := metrics.GetCounters()
-		for k, v := range counters {
-			html += k + strconv.FormatInt(v, 10) + "<br/>"
+		keysCounters := make([]string, 0, len(counters))
+		for k := range counters {
+			keysCounters = append(keysCounters, k)
+		}
+
+		for _, k := range keysCounters {
+			html += k + ":" + strconv.FormatInt(counters[k], 10) + "<br/>"
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -112,7 +127,14 @@ func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
 			return
 		}
 
-		status := metrics.Update(metric[idxMetricName], metric[idxMetricValue], metric[idxMetricType])
+		var status int
+
+		if metric[idxMetricType] == storage.CounterType {
+			status = metrics.Add(metric[idxMetricName], metric[idxMetricValue], metric[idxMetricType])
+		} else {
+			status = metrics.Set(metric[idxMetricName], metric[idxMetricValue], metric[idxMetricType])
+		}
+
 		if status != http.StatusOK {
 			http.Error(w, "fail update metric", status)
 			return

@@ -12,7 +12,8 @@ const (
 )
 
 type Metrics interface {
-	Update(name, value, s string) int
+	Set(name, value, t string) int
+	Add(name, value, t string) int
 	GetGauge(name string) (float64, int)
 	GetCounter(name string) (int64, int)
 	GetGauges() map[string]float64
@@ -28,7 +29,46 @@ type MetricsData struct {
 	metricsCounter map[string]int64
 }
 
-func (monitor *MetricsData) Update(name, value, t string) int {
+func (monitor *MetricsData) Add(name, value, t string) int {
+	monitor.mu.Lock()
+	defer monitor.mu.Unlock()
+
+	switch t {
+	case GuageType:
+		if monitor.metricsGauge == nil {
+			monitor.metricsGauge = make(map[string]float64)
+		}
+
+		metricValue, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			//fmt.Println("uncorrect metric value '" + value + "' for type '" + GuageType + "'")
+			return http.StatusBadRequest
+		}
+
+		monitor.metricsGauge[name] += metricValue
+
+	case CounterType:
+		if monitor.metricsCounter == nil {
+			monitor.metricsCounter = make(map[string]int64)
+		}
+
+		metricValue, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			//fmt.Println("uncorrect metric value '" + value + "' of type '" + CounterType + "'")
+			return http.StatusBadRequest
+		}
+
+		monitor.metricsCounter[name] += metricValue
+
+	default:
+		//fmt.Println("unknown  metric type: '" + t + "'")
+		return http.StatusNotImplemented
+	}
+
+	return http.StatusOK
+}
+
+func (monitor *MetricsData) Set(name, value, t string) int {
 	monitor.mu.Lock()
 	defer monitor.mu.Unlock()
 
@@ -57,7 +97,7 @@ func (monitor *MetricsData) Update(name, value, t string) int {
 			return http.StatusBadRequest
 		}
 
-		monitor.metricsCounter[name] += metricValue
+		monitor.metricsCounter[name] = metricValue
 
 	default:
 		//fmt.Println("unknown  metric type: '" + t + "'")
