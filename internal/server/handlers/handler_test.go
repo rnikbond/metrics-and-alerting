@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"io"
 	"metrics-and-alerting/internal/storage"
 	"net/http"
 	"net/http/httptest"
@@ -29,189 +30,6 @@ func TestUpdateMetric(t *testing.T) {
 		wantCode    int
 		wantError   bool
 	}{
-		// {
-		// 	name: "test metric handler #1",
-		// 	metricData: metricData{
-		// 		name:       "RandomValue",
-		// 		value:      "1.123",
-		// 		metricType: storage.GuageType,
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusOK,
-		// 	wantError:   false,
-		// },
-		// {
-		// 	name: "test metric handler #2",
-		// 	metricData: metricData{
-		// 		name:       "testCounter",
-		// 		value:      "5",
-		// 		metricType: storage.CounterType,
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusOK,
-		// 	wantError:   false,
-		// },
-		// {
-		// 	name:       "test metric handler #3",
-		// 	metricData: metricData{},
-		// 	httpMethod: http.MethodGet,
-		// 	wantCode:   http.StatusMethodNotAllowed,
-		// 	wantError:  true,
-		// },
-		// {
-		// 	name:        "test metric handler #4",
-		// 	metricData:  metricData{},
-		// 	contentType: "application/json",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusUnsupportedMediaType,
-		// 	wantError:   true,
-		// },
-		// {
-		// 	name: "test metric handler #5",
-		// 	metricData: metricData{
-		// 		name:       "Ololo",
-		// 		value:      "5",
-		// 		metricType: storage.CounterType,
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusOK,
-		// 	wantError:   false,
-		// },
-		// {
-		// 	name: "test metric handler #6",
-		// 	metricData: metricData{
-		// 		name:       "testCounter",
-		// 		value:      "5.123",
-		// 		metricType: storage.CounterType,
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusUnsupportedMediaType,
-		// 	wantError:   true,
-		// },
-		// {
-		// 	name: "test metric handler #7",
-		// 	metricData: metricData{
-		// 		name:       "testCounter",
-		// 		value:      "aaaa",
-		// 		metricType: storage.CounterType,
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusUnsupportedMediaType,
-		// 	wantError:   true,
-		// },
-		// {
-		// 	name: "test metric handler #8",
-		// 	metricData: metricData{
-		// 		name:       "HeapIdle",
-		// 		value:      "4.a",
-		// 		metricType: storage.GuageType,
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusUnsupportedMediaType,
-		// 	wantError:   true,
-		// },
-		// {
-		// 	name: "test metric handler #9",
-		// 	metricData: metricData{
-		// 		name:       "HeapIdle",
-		// 		value:      "",
-		// 		metricType: storage.GuageType,
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusNotFound,
-		// 	wantError:   true,
-		// },
-		// {
-		// 	name: "test metric handler #10",
-		// 	metricData: metricData{
-		// 		name:       "testCounter",
-		// 		value:      "100",
-		// 		metricType: storage.CounterType,
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusOK,
-		// 	wantError:   false,
-		// },
-		// {
-		// 	name: "test metric handler #11",
-		// 	metricData: metricData{
-		// 		name:       "",
-		// 		value:      "",
-		// 		metricType: storage.CounterType,
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusNotFound,
-		// 	wantError:   true,
-		// },
-		// {
-		// 	name: "test metric handler #12",
-		// 	metricData: metricData{
-		// 		name:       "testCounter",
-		// 		value:      "none",
-		// 		metricType: storage.CounterType,
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusUnsupportedMediaType,
-		// 	wantError:   true,
-		// },
-		// {
-		// 	name: "test metric handler #13",
-		// 	metricData: metricData{
-		// 		name:       "testGauge",
-		// 		value:      "100",
-		// 		metricType: storage.GuageType,
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusOK,
-		// 	wantError:   false,
-		// },
-		// {
-		// 	name: "test metric handler #14",
-		// 	metricData: metricData{
-		// 		name:       "",
-		// 		value:      "100",
-		// 		metricType: storage.GuageType,
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusNotFound,
-		// 	wantError:   true,
-		// },
-		// {
-		// 	name: "test metric handler #15",
-		// 	metricData: metricData{
-		// 		name:       "testGauge",
-		// 		value:      "none",
-		// 		metricType: storage.GuageType,
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusUnsupportedMediaType,
-		// 	wantError:   true,
-		// },
-		// {
-		// 	name: "test metric handler #16",
-		// 	metricData: metricData{
-		// 		name:       "testGauge",
-		// 		value:      "100",
-		// 		metricType: "unknown",
-		// 	},
-		// 	contentType: "text/plain; charset=utf-8",
-		// 	httpMethod:  http.MethodPost,
-		// 	wantCode:    http.StatusNotImplemented,
-		// 	wantError:   true,
-		// },
 		{
 			name: "TestIteration2/TestCounterHandlers/update",
 			metricData: metricData{
@@ -345,6 +163,215 @@ func TestUpdateMetric(t *testing.T) {
 					assert.Contains(t, storageMetrics.GetGauges(), tt.metricData.name)
 				}
 			}
+		})
+	}
+}
+
+func TestGetMetric(t *testing.T) {
+
+	storageMetrics := storage.MetricsData{}
+	storageMetrics.Update("testGauge", "100.023", storage.GuageType)
+	storageMetrics.Update("testCounter", "100", storage.CounterType)
+
+	type metricData struct {
+		name       string
+		metricType string
+	}
+
+	tests := []struct {
+		name       string
+		metricData metricData
+
+		contentType string
+		httpMethod  string
+		wantCode    int
+		wantValue   string
+		wantError   bool
+	}{
+		{
+			name: "TestIteration2/TestGaugeGetHandlers/value",
+			metricData: metricData{
+				name:       "testGauge",
+				metricType: storage.GuageType,
+			},
+			contentType: "text/plain",
+			httpMethod:  http.MethodGet,
+			wantCode:    http.StatusOK,
+			wantValue:   "100.023",
+
+			wantError: false,
+		},
+		{
+			name: "TestIteration2/TestGaugeGetHandlers/without_id",
+			metricData: metricData{
+				metricType: storage.GuageType,
+			},
+			contentType: "text/plain",
+			httpMethod:  http.MethodGet,
+			wantCode:    http.StatusNotFound,
+
+			wantError: true,
+		},
+		{
+			name: "TestIteration2/TestGaugeGetHandlers/uncorrect_type",
+			metricData: metricData{
+				name: "testGauge",
+			},
+			contentType: "text/plain",
+			httpMethod:  http.MethodGet,
+			wantCode:    http.StatusNotFound,
+
+			wantError: true,
+		},
+		{
+			name:        "TestIteration2/TestGaugeGetHandlers/without_id_type",
+			metricData:  metricData{},
+			contentType: "text/plain",
+			httpMethod:  http.MethodGet,
+			wantCode:    http.StatusNotFound,
+
+			wantError: true,
+		},
+		{
+			name: "TestIteration2/TestCounterGetHandlers/value",
+			metricData: metricData{
+				name:       "testCounter",
+				metricType: storage.CounterType,
+			},
+			contentType: "text/plain",
+			httpMethod:  http.MethodGet,
+			wantCode:    http.StatusOK,
+			wantValue:   "100",
+
+			wantError: false,
+		},
+		{
+			name: "TestIteration2/TestCounterGetHandlers/without_id",
+			metricData: metricData{
+				metricType: storage.CounterType,
+			},
+			contentType: "text/plain",
+			httpMethod:  http.MethodGet,
+			wantCode:    http.StatusNotFound,
+
+			wantError: true,
+		},
+		{
+			name: "TestIteration2/TestCounterGetHandlers/without_type",
+			metricData: metricData{
+				name: "testCounter",
+			},
+			contentType: "text/plain",
+			httpMethod:  http.MethodGet,
+			wantCode:    http.StatusNotFound,
+
+			wantError: true,
+		},
+		{
+			name:        "TestIteration2/TestCounterGetHandlers/without_type_id",
+			metricData:  metricData{},
+			contentType: "text/plain",
+			httpMethod:  http.MethodGet,
+			wantCode:    http.StatusNotFound,
+
+			wantError: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			target := PartURLValue
+			if len(tt.metricData.metricType) > 0 {
+				target += tt.metricData.metricType
+			}
+
+			if len(tt.metricData.name) > 0 {
+				if target[len(target)-1] != '/' {
+					target += "/"
+				}
+
+				target += tt.metricData.name
+			}
+
+			request := httptest.NewRequest(tt.httpMethod, target, nil)
+			request.Header.Set("Content-Type", tt.contentType)
+
+			w := httptest.NewRecorder()
+			h := http.HandlerFunc(GetMetric(&storageMetrics))
+			h.ServeHTTP(w, request)
+
+			response := w.Result()
+			defer response.Body.Close()
+
+			require.Equal(t, tt.wantCode, response.StatusCode)
+
+			got, err := io.ReadAll(response.Body)
+
+			if !tt.wantError {
+				require.NoError(t, err)
+				require.Equal(t, tt.contentType, response.Header.Get("Content-Type"))
+				assert.Equal(t, string(got), tt.wantValue)
+			}
+
+		})
+	}
+}
+
+func TestGetMetrics(t *testing.T) {
+	storageMetrics := storage.MetricsData{}
+	storageMetrics.Update("testGauge1", "100.023", storage.GuageType)
+
+	type metricData struct {
+		name       string
+		value      string
+		metricType string
+	}
+
+	tests := []struct {
+		name       string
+		metricData metricData
+
+		contentType string
+		httpMethod  string
+		wantCode    int
+		wantValue   string
+		wantError   bool
+	}{
+		{
+			name: "TestIteration2/TestIndexPage/",
+			metricData: metricData{
+				name:       "testGauge1",
+				value:      "100.023",
+				metricType: storage.GuageType,
+			},
+			contentType: "text/html",
+			httpMethod:  http.MethodGet,
+			wantCode:    http.StatusOK,
+			wantValue:   "testGauge1 100.023 <br/>",
+			wantError:   true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(tt.httpMethod, "/", nil)
+			request.Header.Set("Content-Type", tt.contentType)
+
+			w := httptest.NewRecorder()
+			h := http.HandlerFunc(GetMetrics(&storageMetrics))
+			h.ServeHTTP(w, request)
+
+			response := w.Result()
+			defer response.Body.Close()
+
+			require.Equal(t, tt.wantCode, response.StatusCode)
+
+			got, err := io.ReadAll(response.Body)
+
+			if !tt.wantError {
+				require.NoError(t, err)
+				require.Equal(t, tt.contentType, response.Header.Get("Content-Type"))
+				assert.Equal(t, string(got), tt.wantValue)
+			}
+
 		})
 	}
 }

@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"errors"
-	"io"
 	"math/rand"
 	"net/http"
 	"runtime"
@@ -12,6 +11,8 @@ import (
 	"time"
 
 	"metrics-and-alerting/internal/storage"
+
+	"github.com/go-resty/resty/v2"
 )
 
 type AgentMetrics interface {
@@ -89,7 +90,7 @@ func (agent *AgentMeticsData) regularUpdate(ctx context.Context, wg *sync.WaitGr
 // Отправление всех метрик
 func (agent *AgentMeticsData) reportAll(ctx context.Context) {
 
-	client := &http.Client{}
+	client := resty.New()
 
 	for metricName, metricValue := range agent.Metrics.GetGauges() {
 		agent.report(ctx, client, metricName, float64ToString(metricValue), storage.GuageType)
@@ -101,7 +102,7 @@ func (agent *AgentMeticsData) reportAll(ctx context.Context) {
 }
 
 // Обновление метрики
-func (agent *AgentMeticsData) report(ctx context.Context, client *http.Client, nameMetric, valueMetric, typeMetric string) error {
+func (agent *AgentMeticsData) report(ctx context.Context, client *resty.Client, nameMetric, valueMetric, typeMetric string) error {
 
 	if len(nameMetric) < 1 {
 		return errors.New("name metric can not be empty")
@@ -115,28 +116,19 @@ func (agent *AgentMeticsData) report(ctx context.Context, client *http.Client, n
 		return errors.New("type metric can not be empty")
 	}
 
-	urlMetric := agent.ServerURL + "/" + string(typeMetric) + "/" + nameMetric + "/" + valueMetric
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlMetric, nil)
+	resp, err := client.R().SetPathParams(map[string]string{
+		"type":  typeMetric,
+		"name":  nameMetric,
+		"value": valueMetric,
+	}).Post(agent.ServerURL + "/{type}/{name}/{value}")
+
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("Content-Type", "text/plain; charset=utf-8")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		} else {
-			return errors.New("failed update metric: " + resp.Status + ". Reason: " + string(respBody))
-		}
+	if resp.StatusCode() != http.StatusOK {
+		respBody := resp.Body()
+		return errors.New("failed update metric: " + resp.Status() + ". " + string(respBody))
 	}
 
 	return nil
