@@ -41,7 +41,6 @@ func (monitor *MetricsData) Add(name, value, t string) int {
 
 		metricValue, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			//fmt.Println("uncorrect metric value '" + value + "' for type '" + GuageType + "'")
 			return http.StatusBadRequest
 		}
 
@@ -54,14 +53,12 @@ func (monitor *MetricsData) Add(name, value, t string) int {
 
 		metricValue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			//fmt.Println("uncorrect metric value '" + value + "' of type '" + CounterType + "'")
 			return http.StatusBadRequest
 		}
 
 		monitor.metricsCounter[name] += metricValue
 
 	default:
-		//fmt.Println("unknown  metric type: '" + t + "'")
 		return http.StatusNotImplemented
 	}
 
@@ -80,7 +77,6 @@ func (monitor *MetricsData) Set(name, value, t string) int {
 
 		metricValue, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			//fmt.Println("uncorrect metric value '" + value + "' for type '" + GuageType + "'")
 			return http.StatusBadRequest
 		}
 
@@ -93,14 +89,12 @@ func (monitor *MetricsData) Set(name, value, t string) int {
 
 		metricValue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			//fmt.Println("uncorrect metric value '" + value + "' of type '" + CounterType + "'")
 			return http.StatusBadRequest
 		}
 
 		monitor.metricsCounter[name] = metricValue
 
 	default:
-		//fmt.Println("unknown  metric type: '" + t + "'")
 		return http.StatusNotImplemented
 	}
 
