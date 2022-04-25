@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"errors"
-	"io"
 	"math/rand"
 	"net/http"
 	"runtime"
@@ -12,6 +11,8 @@ import (
 	"time"
 
 	"metrics-and-alerting/internal/storage"
+
+	"github.com/go-resty/resty/v2"
 )
 
 type AgentMetrics interface {
@@ -89,7 +90,7 @@ func (agent *AgentMeticsData) regularUpdate(ctx context.Context, wg *sync.WaitGr
 // Отправление всех метрик
 func (agent *AgentMeticsData) reportAll(ctx context.Context) {
 
-	client := &http.Client{}
+	client := resty.New()
 
 	for metricName, metricValue := range agent.Metrics.GetGauges() {
 		agent.report(ctx, client, metricName, float64ToString(metricValue), storage.GuageType)
@@ -98,10 +99,12 @@ func (agent *AgentMeticsData) reportAll(ctx context.Context) {
 	for metricName, metricValue := range agent.Metrics.GetCounters() {
 		agent.report(ctx, client, metricName, int64ToString(metricValue), storage.CounterType)
 	}
+
+	agent.Metrics.Set("PollCount", "0", storage.CounterType)
 }
 
 // Обновление метрики
-func (agent *AgentMeticsData) report(ctx context.Context, client *http.Client, nameMetric, valueMetric, typeMetric string) error {
+func (agent *AgentMeticsData) report(ctx context.Context, client *resty.Client, nameMetric, valueMetric, typeMetric string) error {
 
 	if len(nameMetric) < 1 {
 		return errors.New("name metric can not be empty")
@@ -115,28 +118,19 @@ func (agent *AgentMeticsData) report(ctx context.Context, client *http.Client, n
 		return errors.New("type metric can not be empty")
 	}
 
-	urlMetric := agent.ServerURL + "/" + string(typeMetric) + "/" + nameMetric + "/" + valueMetric
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlMetric, nil)
+	resp, err := client.R().SetPathParams(map[string]string{
+		"type":  typeMetric,
+		"name":  nameMetric,
+		"value": valueMetric,
+	}).Post(agent.ServerURL + "/{type}/{name}/{value}")
+
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("Content-Type", "text/plain; charset=utf-8")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		} else {
-			return errors.New("failed update metric: " + resp.Status + ". Reason: " + string(respBody))
-		}
+	if resp.StatusCode() != http.StatusOK {
+		respBody := resp.Body()
+		return errors.New("failed update metric: " + resp.Status() + ". " + string(respBody))
 	}
 
 	return nil
@@ -150,33 +144,33 @@ func (agent *AgentMeticsData) updateAll() {
 
 	generator := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	agent.Metrics.Update("RandomValue", float64ToString(generator.Float64()), storage.GuageType)
-	agent.Metrics.Update("Alloc", uint64ToString(memstats.Alloc), storage.GuageType)
-	agent.Metrics.Update("BuckHashSys", uint64ToString(memstats.BuckHashSys), storage.GuageType)
-	agent.Metrics.Update("Frees", uint64ToString(memstats.Frees), storage.GuageType)
-	agent.Metrics.Update("GCCPUFraction", float64ToString(memstats.GCCPUFraction), storage.GuageType)
-	agent.Metrics.Update("GCSys", uint64ToString(memstats.GCSys), storage.GuageType)
-	agent.Metrics.Update("HeapAlloc", uint64ToString(memstats.HeapAlloc), storage.GuageType)
-	agent.Metrics.Update("HeapIdle", uint64ToString(memstats.HeapIdle), storage.GuageType)
-	agent.Metrics.Update("HeapInuse", uint64ToString(memstats.HeapInuse), storage.GuageType)
-	agent.Metrics.Update("HeapObjects", uint64ToString(memstats.HeapObjects), storage.GuageType)
-	agent.Metrics.Update("HeapReleased", uint64ToString(memstats.HeapReleased), storage.GuageType)
-	agent.Metrics.Update("HeapSys", uint64ToString(memstats.HeapSys), storage.GuageType)
-	agent.Metrics.Update("LastGC", uint64ToString(memstats.LastGC), storage.GuageType)
-	agent.Metrics.Update("Lookups", uint64ToString(memstats.Lookups), storage.GuageType)
-	agent.Metrics.Update("MCacheInuse", uint64ToString(memstats.MCacheInuse), storage.GuageType)
-	agent.Metrics.Update("MCacheSys", uint64ToString(memstats.MCacheSys), storage.GuageType)
-	agent.Metrics.Update("MSpanInuse", uint64ToString(memstats.MSpanInuse), storage.GuageType)
-	agent.Metrics.Update("MSpanSys", uint64ToString(memstats.MSpanSys), storage.GuageType)
-	agent.Metrics.Update("Mallocs", uint64ToString(memstats.Mallocs), storage.GuageType)
-	agent.Metrics.Update("NextGC", uint64ToString(memstats.NextGC), storage.GuageType)
-	agent.Metrics.Update("NumForcedGC", uint64ToString(uint64(memstats.NumForcedGC)), storage.GuageType)
-	agent.Metrics.Update("NumGC", uint64ToString(uint64(memstats.NumGC)), storage.GuageType)
-	agent.Metrics.Update("OtherSys", uint64ToString(memstats.OtherSys), storage.GuageType)
-	agent.Metrics.Update("PauseTotalNs", uint64ToString(memstats.PauseTotalNs), storage.GuageType)
-	agent.Metrics.Update("StackInuse", uint64ToString(memstats.StackInuse), storage.GuageType)
-	agent.Metrics.Update("StackSys", uint64ToString(memstats.StackSys), storage.GuageType)
-	agent.Metrics.Update("Sys", uint64ToString(memstats.Sys), storage.GuageType)
-	agent.Metrics.Update("TotalAlloc", uint64ToString(memstats.TotalAlloc), storage.GuageType)
-	agent.Metrics.Update("PollCount", uint64ToString(memstats.TotalAlloc), storage.CounterType)
+	agent.Metrics.Set("RandomValue", float64ToString(generator.Float64()), storage.GuageType)
+	agent.Metrics.Set("Alloc", uint64ToString(memstats.Alloc), storage.GuageType)
+	agent.Metrics.Set("BuckHashSys", uint64ToString(memstats.BuckHashSys), storage.GuageType)
+	agent.Metrics.Set("Frees", uint64ToString(memstats.Frees), storage.GuageType)
+	agent.Metrics.Set("GCCPUFraction", float64ToString(memstats.GCCPUFraction), storage.GuageType)
+	agent.Metrics.Set("GCSys", uint64ToString(memstats.GCSys), storage.GuageType)
+	agent.Metrics.Set("HeapAlloc", uint64ToString(memstats.HeapAlloc), storage.GuageType)
+	agent.Metrics.Set("HeapIdle", uint64ToString(memstats.HeapIdle), storage.GuageType)
+	agent.Metrics.Set("HeapInuse", uint64ToString(memstats.HeapInuse), storage.GuageType)
+	agent.Metrics.Set("HeapObjects", uint64ToString(memstats.HeapObjects), storage.GuageType)
+	agent.Metrics.Set("HeapReleased", uint64ToString(memstats.HeapReleased), storage.GuageType)
+	agent.Metrics.Set("HeapSys", uint64ToString(memstats.HeapSys), storage.GuageType)
+	agent.Metrics.Set("LastGC", uint64ToString(memstats.LastGC), storage.GuageType)
+	agent.Metrics.Set("Lookups", uint64ToString(memstats.Lookups), storage.GuageType)
+	agent.Metrics.Set("MCacheInuse", uint64ToString(memstats.MCacheInuse), storage.GuageType)
+	agent.Metrics.Set("MCacheSys", uint64ToString(memstats.MCacheSys), storage.GuageType)
+	agent.Metrics.Set("MSpanInuse", uint64ToString(memstats.MSpanInuse), storage.GuageType)
+	agent.Metrics.Set("MSpanSys", uint64ToString(memstats.MSpanSys), storage.GuageType)
+	agent.Metrics.Set("Mallocs", uint64ToString(memstats.Mallocs), storage.GuageType)
+	agent.Metrics.Set("NextGC", uint64ToString(memstats.NextGC), storage.GuageType)
+	agent.Metrics.Set("NumForcedGC", uint64ToString(uint64(memstats.NumForcedGC)), storage.GuageType)
+	agent.Metrics.Set("NumGC", uint64ToString(uint64(memstats.NumGC)), storage.GuageType)
+	agent.Metrics.Set("OtherSys", uint64ToString(memstats.OtherSys), storage.GuageType)
+	agent.Metrics.Set("PauseTotalNs", uint64ToString(memstats.PauseTotalNs), storage.GuageType)
+	agent.Metrics.Set("StackInuse", uint64ToString(memstats.StackInuse), storage.GuageType)
+	agent.Metrics.Set("StackSys", uint64ToString(memstats.StackSys), storage.GuageType)
+	agent.Metrics.Set("Sys", uint64ToString(memstats.Sys), storage.GuageType)
+	agent.Metrics.Set("TotalAlloc", uint64ToString(memstats.TotalAlloc), storage.GuageType)
+	agent.Metrics.Add("PollCount", int64ToString(1), storage.CounterType)
 }

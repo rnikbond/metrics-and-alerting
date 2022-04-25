@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/go-resty/resty/v2"
 )
 
 func TestAgentMeticsData_report(t *testing.T) {
@@ -73,7 +75,7 @@ func TestAgentMeticsData_report(t *testing.T) {
 		},
 	}
 
-	client := server.Client()
+	client := resty.New()
 
 	for _, tt := range tests {
 

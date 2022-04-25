@@ -7,13 +7,14 @@ import (
 	"os/signal"
 	"syscall"
 
-	serverMetrics "metrics-and-alerting/internal/server"
+	servermetrics "metrics-and-alerting/internal/server"
 )
 
 func main() {
 
 	waitChan := make(chan struct{})
-	server := serverMetrics.StartMetricsHTTPServer()
+
+	server := servermetrics.StartMetricsHTTPServer()
 
 	go func() {
 		sigChan := make(chan os.Signal, 1)

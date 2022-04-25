@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/go-chi/chi"
+
 	handler "metrics-and-alerting/internal/server/handlers"
 	storage "metrics-and-alerting/internal/storage"
 )
@@ -14,9 +16,15 @@ var (
 
 func StartMetricsHTTPServer() *http.Server {
 
-	http.HandleFunc(handler.PartURLUpdate, handler.UpdateMetric(&metrics))
+	r := chi.NewRouter()
+	r.Get("/", handler.GetMetrics(&metrics))
+	r.Get(handler.PartURLValue+"*", handler.GetMetric(&metrics))
+	r.Post(handler.PartURLUpdate+"*", handler.UpdateMetric(&metrics))
 
-	serverHTTP := &http.Server{Addr: ":8080"}
+	serverHTTP := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
+	}
 
 	go func() {
 		if err := serverHTTP.ListenAndServe(); err != http.ErrServerClosed {
