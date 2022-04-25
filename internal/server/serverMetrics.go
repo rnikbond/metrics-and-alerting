@@ -20,6 +20,7 @@ func StartMetricsHTTPServer() *http.Server {
 	r.Get("/", handler.GetMetrics(&metrics))
 	r.Get(handler.PartURLValue+"*", handler.GetMetric(&metrics))
 	r.Post(handler.PartURLUpdate+"*", handler.UpdateMetric(&metrics))
+
 	serverHTTP := &http.Server{
 		Addr:    ":8080",
 		Handler: r,
