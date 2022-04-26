@@ -2,15 +2,16 @@ package agent
 
 import (
 	"context"
-	"metrics-and-alerting/internal/storage"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"metrics-and-alerting/internal/storage"
+
 	"github.com/go-resty/resty/v2"
 )
 
-func TestAgentMeticsData_report(t *testing.T) {
+func TestAgent_report(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {}))
 	defer server.Close()
@@ -23,13 +24,13 @@ func TestAgentMeticsData_report(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		agent   *AgentMeticsData
+		agent   *Agent
 		args    args
 		wantErr bool
 	}{
 		{
 			name: "test agent metrics #1",
-			agent: &AgentMeticsData{
+			agent: &Agent{
 				ServerURL: server.URL,
 				Metrics:   &storage.MetricsData{},
 			},
@@ -37,13 +38,13 @@ func TestAgentMeticsData_report(t *testing.T) {
 				ctx:         context.Background(),
 				nameMetric:  "Alloc",
 				valueMetric: "1.1",
-				typeMetric:  storage.GuageType,
+				typeMetric:  storage.GaugeType,
 			},
 			wantErr: false,
 		},
 		{
 			name: "test agent metrics #2",
-			agent: &AgentMeticsData{
+			agent: &Agent{
 				Metrics: &storage.MetricsData{},
 			},
 			args: args{
@@ -53,7 +54,7 @@ func TestAgentMeticsData_report(t *testing.T) {
 		},
 		{
 			name: "test agent metrics #3",
-			agent: &AgentMeticsData{
+			agent: &Agent{
 				Metrics: &storage.MetricsData{},
 			},
 			args: args{
@@ -64,7 +65,7 @@ func TestAgentMeticsData_report(t *testing.T) {
 		},
 		{
 			name: "test agent metrics #4",
-			agent: &AgentMeticsData{
+			agent: &Agent{
 				Metrics: &storage.MetricsData{},
 			},
 			args: args{

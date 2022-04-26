@@ -2,10 +2,11 @@ package handler
 
 import (
 	"io"
-	"metrics-and-alerting/internal/storage"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"metrics-and-alerting/internal/storage"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -83,7 +84,7 @@ func TestUpdateMetric(t *testing.T) {
 			metricData: metricData{
 				name:       "testGauge",
 				value:      "100",
-				metricType: storage.GuageType,
+				metricType: storage.GaugeType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodPost,
@@ -95,7 +96,7 @@ func TestUpdateMetric(t *testing.T) {
 			metricData: metricData{
 				name:       "",
 				value:      "",
-				metricType: storage.GuageType,
+				metricType: storage.GaugeType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodPost,
@@ -107,7 +108,7 @@ func TestUpdateMetric(t *testing.T) {
 			metricData: metricData{
 				name:       "testGauge",
 				value:      "none",
-				metricType: storage.GuageType,
+				metricType: storage.GaugeType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodPost,
@@ -170,7 +171,7 @@ func TestUpdateMetric(t *testing.T) {
 func TestGetMetric(t *testing.T) {
 
 	storageMetrics := storage.MetricsData{}
-	storageMetrics.Set("testGauge", "100.023", storage.GuageType)
+	storageMetrics.Set("testGauge", "100.023", storage.GaugeType)
 	storageMetrics.Set("testCounter", "100", storage.CounterType)
 
 	type metricData struct {
@@ -192,7 +193,7 @@ func TestGetMetric(t *testing.T) {
 			name: "TestIteration2/TestGaugeGetHandlers/value",
 			metricData: metricData{
 				name:       "testGauge",
-				metricType: storage.GuageType,
+				metricType: storage.GaugeType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodGet,
@@ -204,7 +205,7 @@ func TestGetMetric(t *testing.T) {
 		{
 			name: "TestIteration2/TestGaugeGetHandlers/without_id",
 			metricData: metricData{
-				metricType: storage.GuageType,
+				metricType: storage.GaugeType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodGet,
@@ -318,7 +319,7 @@ func TestGetMetric(t *testing.T) {
 
 func TestGetMetrics(t *testing.T) {
 	storageMetrics := storage.MetricsData{}
-	storageMetrics.Set("testGauge1", "100.023", storage.GuageType)
+	storageMetrics.Set("testGauge1", "100.023", storage.GaugeType)
 
 	type metricData struct {
 		name       string
@@ -341,7 +342,7 @@ func TestGetMetrics(t *testing.T) {
 			metricData: metricData{
 				name:       "testGauge1",
 				value:      "100.023",
-				metricType: storage.GuageType,
+				metricType: storage.GaugeType,
 			},
 			contentType: "text/html",
 			httpMethod:  http.MethodGet,

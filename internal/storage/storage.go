@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	GuageType   string = "gauge"
+	GaugeType   string = "gauge"
 	CounterType string = "counter"
 )
 
@@ -34,7 +34,7 @@ func (monitor *MetricsData) Add(name, value, t string) int {
 	defer monitor.mu.Unlock()
 
 	switch t {
-	case GuageType:
+	case GaugeType:
 		if monitor.metricsGauge == nil {
 			monitor.metricsGauge = make(map[string]float64)
 		}
@@ -70,7 +70,7 @@ func (monitor *MetricsData) Set(name, value, t string) int {
 	defer monitor.mu.Unlock()
 
 	switch t {
-	case GuageType:
+	case GaugeType:
 		if monitor.metricsGauge == nil {
 			monitor.metricsGauge = make(map[string]float64)
 		}
@@ -128,7 +128,7 @@ func (monitor *MetricsData) GetCounter(name string) (int64, int) {
 func (monitor *MetricsData) Get(t, name string) (string, int) {
 
 	switch t {
-	case GuageType:
+	case GaugeType:
 		val, code := monitor.GetGauge(name)
 		return strconv.FormatFloat(val, 'f', 3, 64), code
 	case CounterType:
