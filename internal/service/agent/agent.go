@@ -48,33 +48,30 @@ func uint64ToString(value uint64) string {
 }
 
 // Start Запуск агента для сбора и отправки метрик
-func (agent *Agent) Start(ctx context.Context, wg *sync.WaitGroup) {
+func (agent *Agent) Start(ctx context.Context) {
 	// запуск горутины для обновления метрик
-	go agent.regularUpdate(ctx, wg)
+	go agent.regularUpdate(ctx)
 
 	// запуск горутины для отправки метрик
-	go agent.regularReport(ctx, wg)
+	go agent.regularReport(ctx)
 
 }
 
 // Отправка метрик с частотой агента
-func (agent *Agent) regularReport(ctx context.Context, wg *sync.WaitGroup) {
-	wg.Add(1)
+func (agent *Agent) regularReport(ctx context.Context) {
 
 	for {
 		select {
 		case <-time.After(agent.ReportInterval * time.Second):
 			agent.reportAll(ctx)
 		case <-ctx.Done():
-			wg.Done()
 			return
 		}
 	}
 }
 
 // Обновление метрик с частотой агента
-func (agent *Agent) regularUpdate(ctx context.Context, wg *sync.WaitGroup) {
-	wg.Add(1)
+func (agent *Agent) regularUpdate(ctx context.Context) {
 	agent.updateAll()
 
 	for {
@@ -82,7 +79,6 @@ func (agent *Agent) regularUpdate(ctx context.Context, wg *sync.WaitGroup) {
 		case <-time.After(agent.PollInterval * time.Second):
 			agent.updateAll()
 		case <-ctx.Done():
-			wg.Done()
 			return
 		}
 	}
