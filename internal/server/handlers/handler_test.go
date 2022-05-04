@@ -14,7 +14,7 @@ import (
 
 func TestUpdateMetric(t *testing.T) {
 
-	storageMetrics := storage.MetricsData{}
+	st := storage.MemoryStorage{}
 
 	type metricData struct {
 		name       string
@@ -118,7 +118,7 @@ func TestUpdateMetric(t *testing.T) {
 	}
 	for _, tt := range tests {
 
-		storageMetrics.Clear()
+		st.Clear()
 
 		t.Run(tt.name, func(t *testing.T) {
 
@@ -147,7 +147,7 @@ func TestUpdateMetric(t *testing.T) {
 			request.Header.Set("Content-Type", tt.contentType)
 
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(UpdateMetric(&storageMetrics))
+			h := http.HandlerFunc(UpdateMetric(&st))
 			h.ServeHTTP(w, request)
 
 			response := w.Result()
@@ -158,11 +158,8 @@ func TestUpdateMetric(t *testing.T) {
 			if !tt.wantError {
 				require.Equal(t, tt.contentType, response.Header.Get("Content-Type"))
 
-				if tt.metricData.metricType == storage.CounterType {
-					assert.Contains(t, storageMetrics.GetCounters(), tt.metricData.name)
-				} else {
-					assert.Contains(t, storageMetrics.GetGauges(), tt.metricData.name)
-				}
+				_, err := st.Get(tt.metricData.metricType, tt.metricData.name)
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -170,9 +167,9 @@ func TestUpdateMetric(t *testing.T) {
 
 func TestGetMetric(t *testing.T) {
 
-	storageMetrics := storage.MetricsData{}
-	storageMetrics.Set("testGauge", "100.023", storage.GaugeType)
-	storageMetrics.Set("testCounter", "100", storage.CounterType)
+	st := storage.MemoryStorage{}
+	st.Set(storage.GaugeType, "testGauge", 100.023)
+	st.Set(storage.CounterType, "testCounter", 100)
 
 	type metricData struct {
 		name       string
@@ -297,7 +294,7 @@ func TestGetMetric(t *testing.T) {
 			request.Header.Set("Content-Type", tt.contentType)
 
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(GetMetric(&storageMetrics))
+			h := http.HandlerFunc(GetMetric(&st))
 			h.ServeHTTP(w, request)
 
 			response := w.Result()
@@ -318,8 +315,8 @@ func TestGetMetric(t *testing.T) {
 }
 
 func TestGetMetrics(t *testing.T) {
-	storageMetrics := storage.MetricsData{}
-	storageMetrics.Set("testGauge1", "100.023", storage.GaugeType)
+	st := storage.MemoryStorage{}
+	st.Set(storage.GaugeType, "testGauge1", 100.023)
 
 	type metricData struct {
 		name       string
@@ -357,7 +354,7 @@ func TestGetMetrics(t *testing.T) {
 			request.Header.Set("Content-Type", tt.contentType)
 
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(GetMetrics(&storageMetrics))
+			h := http.HandlerFunc(GetMetrics(&st))
 			h.ServeHTTP(w, request)
 
 			response := w.Result()

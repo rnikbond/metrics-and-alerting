@@ -2,11 +2,10 @@ package handler
 
 import (
 	"net/http"
-	"sort"
-	"strconv"
 	"strings"
 
 	"metrics-and-alerting/internal/storage"
+	errst "metrics-and-alerting/pkg/errorsstorage"
 )
 
 const (
@@ -22,7 +21,7 @@ const (
 	PartURLValue  = "/value/"
 )
 
-func GetMetrics(metrics storage.Metrics) http.HandlerFunc {
+func GetMetrics(st storage.IStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 
@@ -32,29 +31,18 @@ func GetMetrics(metrics storage.Metrics) http.HandlerFunc {
 		}
 
 		html := ""
+		types := []string{storage.GaugeType, storage.CounterType}
 
-		// Gauges
-		gauges := metrics.GetGauges()
-
-		keysGauges := make([]string, 0, len(gauges))
-		for k := range gauges {
-			keysGauges = append(keysGauges, k)
-		}
-		sort.Strings(keysGauges)
-
-		for _, k := range keysGauges {
-			html += k + ":" + strconv.FormatFloat(gauges[k], 'f', 3, 64) + "<br/>"
-		}
-
-		// Counters
-		counters := metrics.GetCounters()
-		keysCounters := make([]string, 0, len(counters))
-		for k := range counters {
-			keysCounters = append(keysCounters, k)
-		}
-
-		for _, k := range keysCounters {
-			html += k + ":" + strconv.FormatInt(counters[k], 10) + "<br/>"
+		for _, typeMetric := range types {
+			names := st.Names(typeMetric)
+			for _, metric := range names {
+				val, err := st.Get(typeMetric, metric)
+				if err == nil {
+					html += metric + ":" + val + "<br/>"
+				} else {
+					//log.Printf("error get value metric %s/%s\n", typeMetric, metric)
+				}
+			}
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -62,7 +50,7 @@ func GetMetrics(metrics storage.Metrics) http.HandlerFunc {
 	}
 }
 
-func GetMetric(metrics storage.Metrics) http.HandlerFunc {
+func GetMetric(st storage.IStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "text/plain")
@@ -73,7 +61,6 @@ func GetMetric(metrics storage.Metrics) http.HandlerFunc {
 		}
 
 		// @TODO если проверять Content-Type - на github не проходят тесты :(
-
 		// if r.Header.Get("Content-Type") != "text/plain" {
 		// 	fmt.Println(r.Header.Get("Content-Type"))
 		// 	http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
@@ -87,17 +74,28 @@ func GetMetric(metrics storage.Metrics) http.HandlerFunc {
 		metric := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLValue, ""), "/")
 
 		if len(metric) != sizeDataGetMetric {
-			http.Error(w, "uncorrect request get metric", http.StatusNotFound)
+			//log.Printf("error request get metric %v - %s", metric, r.URL)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 
-		value, code := metrics.Get(metric[idxMetricType], metric[idxMetricName])
-		w.WriteHeader(code)
-		w.Write([]byte(value))
+		val, err := st.Get(metric[idxMetricType], metric[idxMetricName])
+		if err != nil {
+			//log.Printf("error get value metric %s/%s - %s",
+			//	metric[idxMetricName],
+			//	metric[idxMetricType],
+			//	err.Error())
+
+			http.Error(w, err.Error(), errst.ConvertToHTTP(err))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(val))
 	}
 }
 
-func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
+func UpdateMetric(st storage.IStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "text/plain")
@@ -108,7 +106,6 @@ func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
 		}
 
 		// @TODO если проверять Content-Type - на github не проходят тесты :(
-
 		// if r.Header.Get("Content-Type") != "text/plain" {
 		// 	fmt.Println(r.Header.Get("Content-Type"))
 		// 	http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
@@ -123,20 +120,20 @@ func UpdateMetric(metrics storage.Metrics) http.HandlerFunc {
 		metric := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLUpdate, ""), "/")
 
 		if len(metric) != sizeDataUpdateMetric {
-			http.Error(w, "uncorrect request update metric", http.StatusNotFound)
+			//log.Printf("error request update metric. Requaest  %v - %s", metric, r.URL)
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 
-		var status int
+		err := st.Update(metric[idxMetricType], metric[idxMetricName], metric[idxMetricValue])
+		if err != nil {
+			//log.Printf("error update metric %s/%s/%s - %s",
+			//	metric[idxMetricName],
+			//	metric[idxMetricValue],
+			//	metric[idxMetricType],
+			//	err.Error())
 
-		if metric[idxMetricType] == storage.CounterType {
-			status = metrics.Add(metric[idxMetricName], metric[idxMetricValue], metric[idxMetricType])
-		} else {
-			status = metrics.Set(metric[idxMetricName], metric[idxMetricValue], metric[idxMetricType])
-		}
-
-		if status != http.StatusOK {
-			http.Error(w, "fail update metric", status)
+			http.Error(w, err.Error(), errst.ConvertToHTTP(err))
 			return
 		}
 
