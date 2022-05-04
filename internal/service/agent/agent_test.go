@@ -29,7 +29,7 @@ func TestAgent_report(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "test agent metrics #1",
+			name: "TestAgentReport-GaugeType =>[OK]",
 			agent: &Agent{
 				ServerURL: server.URL,
 				Storage:   &storage.MemoryStorage{},
@@ -43,7 +43,7 @@ func TestAgent_report(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "test agent metrics #2",
+			name: "TestAgentReport-EmptyMetric =>[Error]",
 			agent: &Agent{
 				Storage: &storage.MemoryStorage{},
 			},
@@ -53,7 +53,7 @@ func TestAgent_report(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "test agent metrics #3",
+			name: "TestAgentReport-Without: Type and Value =>[Error]",
 			agent: &Agent{
 				Storage: &storage.MemoryStorage{},
 			},
@@ -64,7 +64,7 @@ func TestAgent_report(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "test agent metrics #4",
+			name: "TestAgentReport-Without: Type and Name =>[Error]",
 			agent: &Agent{
 				Storage: &storage.MemoryStorage{},
 			},

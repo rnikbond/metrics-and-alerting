@@ -32,7 +32,7 @@ func TestUpdateMetric(t *testing.T) {
 		wantError   bool
 	}{
 		{
-			name: "TestIteration2/TestCounterHandlers/update",
+			name: "TestUpdateMetric - Type {Counter} => [OK]",
 			metricData: metricData{
 				name:       "testGauge",
 				value:      "100",
@@ -44,7 +44,7 @@ func TestUpdateMetric(t *testing.T) {
 			wantError:   false,
 		},
 		{
-			name: "TestIteration2/TestCounterHandlers/without_id",
+			name: "TestUpdateMetric - Type {Counter}, Without {Name, Value} => [Error]",
 			metricData: metricData{
 				name:       "",
 				value:      "",
@@ -56,7 +56,7 @@ func TestUpdateMetric(t *testing.T) {
 			wantError:   true,
 		},
 		{
-			name: "TestIteration2/TestCounterHandlers/invalid_value",
+			name: "TestUpdateMetric - Type {Counter}, Without {Name, Value} => [Error]",
 			metricData: metricData{
 				name:       "testCounter",
 				value:      "none",
@@ -68,7 +68,7 @@ func TestUpdateMetric(t *testing.T) {
 			wantError:   true,
 		},
 		{
-			name: "TestIteration2/TestCounterHandlers/invalid_value",
+			name: "TestUpdateMetric - Type {Counter}, Invalid {Value} => [Error]",
 			metricData: metricData{
 				name:       "testCounter",
 				value:      "none",
@@ -80,7 +80,7 @@ func TestUpdateMetric(t *testing.T) {
 			wantError:   true,
 		},
 		{
-			name: "TestIteration2/TestGaugeHandlers/update",
+			name: "TestUpdateMetric - Type {Gauge} => [OK]",
 			metricData: metricData{
 				name:       "testGauge",
 				value:      "100",
@@ -92,7 +92,7 @@ func TestUpdateMetric(t *testing.T) {
 			wantError:   false,
 		},
 		{
-			name: "TestIteration2/TestGaugeHandlers/without_id",
+			name: "TestUpdateMetric - Type {Gauge}, Without {Name, Value} => [Error]",
 			metricData: metricData{
 				name:       "",
 				value:      "",
@@ -104,7 +104,7 @@ func TestUpdateMetric(t *testing.T) {
 			wantError:   true,
 		},
 		{
-			name: "TestIteration2/TestGaugeHandlers/invalid_value",
+			name: "TestUpdateMetric - Type {Gauge}, Invalid {Value} => [Error]",
 			metricData: metricData{
 				name:       "testGauge",
 				value:      "none",
@@ -187,7 +187,7 @@ func TestGetMetric(t *testing.T) {
 		wantError   bool
 	}{
 		{
-			name: "TestIteration2/TestGaugeGetHandlers/value",
+			name: "TestGetMetric - Type {Gauge} => [OK]",
 			metricData: metricData{
 				name:       "testGauge",
 				metricType: storage.GaugeType,
@@ -200,7 +200,7 @@ func TestGetMetric(t *testing.T) {
 			wantError: false,
 		},
 		{
-			name: "TestIteration2/TestGaugeGetHandlers/without_id",
+			name: "TestGetMetric - Type {Gauge}, Without {Name} => [Error]",
 			metricData: metricData{
 				metricType: storage.GaugeType,
 			},
@@ -211,7 +211,7 @@ func TestGetMetric(t *testing.T) {
 			wantError: true,
 		},
 		{
-			name: "TestIteration2/TestGaugeGetHandlers/uncorrect_type",
+			name: "TestGetMetric - Without {Type} => [Error]",
 			metricData: metricData{
 				name: "testGauge",
 			},
@@ -222,7 +222,7 @@ func TestGetMetric(t *testing.T) {
 			wantError: true,
 		},
 		{
-			name:        "TestIteration2/TestGaugeGetHandlers/without_id_type",
+			name:        "TestGetMetric - Without {Type, Name} => [Error]",
 			metricData:  metricData{},
 			contentType: "text/plain",
 			httpMethod:  http.MethodGet,
@@ -231,7 +231,7 @@ func TestGetMetric(t *testing.T) {
 			wantError: true,
 		},
 		{
-			name: "TestIteration2/TestCounterGetHandlers/value",
+			name: "TestGetMetric - Type {Counter} => [OK]",
 			metricData: metricData{
 				name:       "testCounter",
 				metricType: storage.CounterType,
@@ -244,7 +244,7 @@ func TestGetMetric(t *testing.T) {
 			wantError: false,
 		},
 		{
-			name: "TestIteration2/TestCounterGetHandlers/without_id",
+			name: "TestGetMetric - Type {Counter}, Without {Name} => [Error]",
 			metricData: metricData{
 				metricType: storage.CounterType,
 			},
@@ -255,7 +255,7 @@ func TestGetMetric(t *testing.T) {
 			wantError: true,
 		},
 		{
-			name: "TestIteration2/TestCounterGetHandlers/without_type",
+			name: "TestGetMetric - Without {Type} => [Error]",
 			metricData: metricData{
 				name: "testCounter",
 			},
@@ -266,7 +266,7 @@ func TestGetMetric(t *testing.T) {
 			wantError: true,
 		},
 		{
-			name:        "TestIteration2/TestCounterGetHandlers/without_type_id",
+			name:        "TestGetMetric - Without {Type, Name} => [Error]",
 			metricData:  metricData{},
 			contentType: "text/plain",
 			httpMethod:  http.MethodGet,
@@ -335,7 +335,7 @@ func TestGetMetrics(t *testing.T) {
 		wantError   bool
 	}{
 		{
-			name: "TestIteration2/TestIndexPage/",
+			name: "TestGetMetrics => [OK]",
 			metricData: metricData{
 				name:       "testGauge1",
 				value:      "100.023",
@@ -344,8 +344,8 @@ func TestGetMetrics(t *testing.T) {
 			contentType: "text/html",
 			httpMethod:  http.MethodGet,
 			wantCode:    http.StatusOK,
-			wantValue:   "testGauge1 100.023 <br/>",
-			wantError:   true,
+			wantValue:   "testGauge1:100.023<br/>",
+			wantError:   false,
 		},
 	}
 	for _, tt := range tests {
