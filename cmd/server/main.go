@@ -2,13 +2,21 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	servermetrics "metrics-and-alerting/internal/server"
 )
+
+func testUInt() uint64 {
+	return 1
+}
+
+func getValue() interface{} {
+	return testUInt()
+}
 
 func main() {
 
@@ -21,11 +29,15 @@ func main() {
 		signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 		<-sigChan
 
+		log.Println("start metrics server")
+
 		if err := server.Shutdown(context.Background()); err != nil {
-			fmt.Printf("HTTP server Shutdown: %v\n", err)
+			log.Printf("HTTP server Shutdown: %v\n", err)
 		}
 		close(waitChan)
 	}()
 
+	log.Println("server running ...")
 	<-waitChan
+	log.Println("stop metrics server")
 }

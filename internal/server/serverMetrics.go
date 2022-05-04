@@ -10,16 +10,14 @@ import (
 	storage "metrics-and-alerting/internal/storage"
 )
 
-var (
-	metrics = storage.MetricsData{}
-)
-
 func StartMetricsHTTPServer() *http.Server {
 
+	memoryStorage := storage.MemoryStorage{}
+
 	r := chi.NewRouter()
-	r.Get("/", handler.GetMetrics(&metrics))
-	r.Get(handler.PartURLValue+"*", handler.GetMetric(&metrics))
-	r.Post(handler.PartURLUpdate+"*", handler.UpdateMetric(&metrics))
+	r.Get("/", handler.GetMetrics(&memoryStorage))
+	r.Get(handler.PartURLValue+"*", handler.GetMetric(&memoryStorage))
+	r.Post(handler.PartURLUpdate+"*", handler.UpdateMetric(&memoryStorage))
 
 	serverHTTP := &http.Server{
 		Addr:    ":8080",

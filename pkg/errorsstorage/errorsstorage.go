@@ -8,6 +8,7 @@ import (
 var (
 	ErrorNotFound       = errors.New("metric not found")
 	ErrorUnknownType    = errors.New("metric has unknown type")
+	ErrorIncorrectName  = errors.New("metric has incorrect name")
 	ErrorIncorrectValue = errors.New("metric has incorrect value")
 )
 

@@ -32,7 +32,7 @@ func TestAgent_report(t *testing.T) {
 			name: "test agent metrics #1",
 			agent: &Agent{
 				ServerURL: server.URL,
-				Metrics:   &storage.MetricsData{},
+				Storage:   &storage.MemoryStorage{},
 			},
 			args: args{
 				ctx:         context.Background(),
@@ -45,7 +45,7 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "test agent metrics #2",
 			agent: &Agent{
-				Metrics: &storage.MetricsData{},
+				Storage: &storage.MemoryStorage{},
 			},
 			args: args{
 				ctx: context.Background(),
@@ -55,7 +55,7 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "test agent metrics #3",
 			agent: &Agent{
-				Metrics: &storage.MetricsData{},
+				Storage: &storage.MemoryStorage{},
 			},
 			args: args{
 				ctx:        context.Background(),
@@ -66,7 +66,7 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "test agent metrics #4",
 			agent: &Agent{
-				Metrics: &storage.MetricsData{},
+				Storage: &storage.MemoryStorage{},
 			},
 			args: args{
 				ctx:         context.Background(),

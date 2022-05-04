@@ -1,9 +1,12 @@
 package storage
 
 import (
-	"net/http"
+	"reflect"
+	"sort"
 	"strconv"
 	"sync"
+
+	errst "metrics-and-alerting/pkg/errorsstorage"
 )
 
 const (
@@ -11,166 +14,285 @@ const (
 	CounterType string = "counter"
 )
 
-type Metrics interface {
-	Set(name, value, t string) int
-	Add(name, value, t string) int
-	GetGauge(name string) (float64, int)
-	GetCounter(name string) (int64, int)
-	GetGauges() map[string]float64
-	GetGaugesString() map[string]string
-	GetCounters() map[string]int64
-	Get(t, name string) (string, int)
+type IStorage interface {
+	Get(typeMetric, name string) (string, error)
+	Names(typeMetric string) []string
+	Count(typeMetric string) int
 	Clear()
+
+	Set(typeMetric, name string, value interface{}) error
+	Add(typeMetric, name string, value interface{}) error
+	Update(typeMetric, name string, value interface{}) error
+
+	Lock()
+	Unlock()
+
+	String() string
 }
 
-type MetricsData struct {
-	mu             sync.Mutex
-	metricsGauge   map[string]float64
-	metricsCounter map[string]int64
+type MemoryStorage struct {
+	mu       sync.Mutex
+	gauges   map[string]float64
+	counters map[string]int64
 }
 
-func (monitor *MetricsData) Add(name, value, t string) int {
-	monitor.mu.Lock()
-	defer monitor.mu.Unlock()
+// Update Обновление значения метрики.
+// Для типа "gauge" - значение обновляется на value
+// Для типа "counter" -  старому значению добавляется новое значение value
+func (st *MemoryStorage) Update(typeMetric, name string, value interface{}) error {
 
-	switch t {
+	if len(name) < 1 {
+		return errst.ErrorIncorrectName
+	}
+
+	switch typeMetric {
 	case GaugeType:
-		if monitor.metricsGauge == nil {
-			monitor.metricsGauge = make(map[string]float64)
-		}
-
-		metricValue, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return http.StatusBadRequest
-		}
-
-		monitor.metricsGauge[name] += metricValue
-
+		return st.Set(typeMetric, name, value)
 	case CounterType:
-		if monitor.metricsCounter == nil {
-			monitor.metricsCounter = make(map[string]int64)
+		return st.Add(typeMetric, name, value)
+	default:
+		return errst.ErrorUnknownType
+	}
+}
+
+// Set Изменение значения метрики
+// Для типа "gauge" - value должно преобразовываться в float64
+// Для типа "counter" - value должно преобразовываться в int64
+func (st *MemoryStorage) Set(typeMetric, name string, value interface{}) error {
+
+	if len(name) < 1 {
+		return errst.ErrorIncorrectName
+	}
+
+	switch typeMetric {
+	case GaugeType:
+		if st.gauges == nil {
+			st.gauges = make(map[string]float64)
 		}
 
-		metricValue, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return http.StatusBadRequest
+		reflVal := reflect.ValueOf(value)
+
+		switch reflVal.Kind() {
+		case reflect.Float32, reflect.Float64:
+			st.gauges[name] = reflVal.Float()
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			st.gauges[name] = float64(reflVal.Int())
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			st.gauges[name] = float64(reflVal.Uint())
+		case reflect.String:
+			val, err := strconv.ParseFloat(reflVal.String(), 64)
+			if err != nil {
+				//log.Printf("MemoryStorage.Set() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
+				return errst.ErrorIncorrectValue
+			}
+			st.gauges[name] = val
+		default:
+			//log.Printf("MemoryStorage.Set() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
+			return errst.ErrorIncorrectValue
+		}
+	case CounterType:
+		if st.counters == nil {
+			st.counters = make(map[string]int64)
 		}
 
-		monitor.metricsCounter[name] += metricValue
+		reflVal := reflect.ValueOf(value)
+
+		switch reflVal.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			st.counters[name] = reflVal.Int()
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			st.counters[name] = int64(reflVal.Uint())
+		case reflect.String:
+			val, err := strconv.ParseInt(reflVal.String(), 10, 64)
+			if err != nil {
+				//log.Printf("MemoryStorage.Set() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
+				return errst.ErrorIncorrectValue
+			}
+			st.counters[name] = val
+		default:
+			//log.Printf("MemoryStorage.Set() error type %v for metric: %s/%s", reflVal.Kind(), typeMetric, name)
+			return errst.ErrorIncorrectValue
+		}
+
+		st.counters[name] = reflVal.Int()
 
 	default:
-		return http.StatusNotImplemented
+		return errst.ErrorUnknownType
 	}
 
-	return http.StatusOK
+	return nil
 }
 
-func (monitor *MetricsData) Set(name, value, t string) int {
-	monitor.mu.Lock()
-	defer monitor.mu.Unlock()
+// Add Изменение значения метрики
+// Для типа "gauge" - value должно преобразовываться в float64
+// Для типа "counter" - value должно преобразовываться в int64
+func (st *MemoryStorage) Add(typeMetric, name string, value interface{}) error {
+	if len(name) < 1 {
+		return errst.ErrorIncorrectName
+	}
 
-	switch t {
+	switch typeMetric {
 	case GaugeType:
-		if monitor.metricsGauge == nil {
-			monitor.metricsGauge = make(map[string]float64)
+		if st.gauges == nil {
+			st.gauges = make(map[string]float64)
 		}
 
-		metricValue, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return http.StatusBadRequest
+		reflVal := reflect.ValueOf(value)
+		if reflVal.Kind() != reflect.Float64 {
+			return errst.ErrorIncorrectValue
 		}
 
-		monitor.metricsGauge[name] = metricValue
+		switch reflVal.Kind() {
+		case reflect.Float32, reflect.Float64:
+			st.gauges[name] += reflVal.Float()
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			st.gauges[name] += float64(reflVal.Int())
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			st.gauges[name] += float64(reflVal.Uint())
+		case reflect.String:
+			val, err := strconv.ParseFloat(reflVal.String(), 64)
+			if err == nil {
+				//log.Printf("MemoryStorage.Set() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
+				return errst.ErrorIncorrectValue
+			}
+
+			st.gauges[name] += val
+
+		default:
+			//log.Printf("MemoryStorage.Add() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
+			return errst.ErrorIncorrectValue
+		}
 
 	case CounterType:
-		if monitor.metricsCounter == nil {
-			monitor.metricsCounter = make(map[string]int64)
+		if st.counters == nil {
+			st.counters = make(map[string]int64)
 		}
 
-		metricValue, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return http.StatusBadRequest
-		}
+		reflVal := reflect.ValueOf(value)
 
-		monitor.metricsCounter[name] = metricValue
+		switch reflVal.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			st.counters[name] += reflVal.Int()
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			st.counters[name] += int64(reflVal.Uint())
+		case reflect.String:
+			val, err := strconv.ParseInt(reflVal.String(), 10, 64)
+			if err != nil {
+				//log.Printf("MemoryStorage.Set() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
+				return errst.ErrorIncorrectValue
+			}
+			st.counters[name] += val
+		default:
+			//log.Printf("MemoryStorage.Add() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
+			return errst.ErrorIncorrectValue
+		}
 
 	default:
-		return http.StatusNotImplemented
+		//log.Printf("MemoryStorage.Add() error unknown type %s\n", typeMetric)
+		return errst.ErrorUnknownType
 	}
 
-	return http.StatusOK
+	return nil
 }
 
-func (monitor *MetricsData) GetGauge(name string) (float64, int) {
-	monitor.mu.Lock()
-	defer monitor.mu.Unlock()
+// Get Получение значения метрики
+func (st *MemoryStorage) Get(typeMetric, name string) (string, error) {
 
-	value, exist := monitor.metricsGauge[name]
-	if !exist {
-		return 0, http.StatusNotFound
+	if len(name) < 1 {
+		return "", errst.ErrorNotFound
 	}
 
-	return value, http.StatusOK
-}
-
-func (monitor *MetricsData) GetCounter(name string) (int64, int) {
-	monitor.mu.Lock()
-	defer monitor.mu.Unlock()
-
-	value, exist := monitor.metricsCounter[name]
-	if !exist {
-		return 0, http.StatusNotFound
-	}
-
-	return value, http.StatusOK
-}
-
-func (monitor *MetricsData) Get(t, name string) (string, int) {
-
-	switch t {
+	switch typeMetric {
 	case GaugeType:
-		val, code := monitor.GetGauge(name)
-		return strconv.FormatFloat(val, 'f', 3, 64), code
+		if st.gauges == nil {
+			return "", errst.ErrorNotFound
+		}
+
+		if value, found := st.gauges[name]; found {
+			return strconv.FormatFloat(value, 'f', 3, 64), nil
+		}
+
 	case CounterType:
-		val, code := monitor.GetCounter(name)
-		return strconv.FormatInt(val, 10), code
+		if st.counters == nil {
+			return "", errst.ErrorNotFound
+		}
+
+		if value, found := st.counters[name]; found {
+			return strconv.FormatInt(value, 10), nil
+		}
 	}
 
-	return "", http.StatusNotFound
+	return "", errst.ErrorNotFound
 }
 
-func (monitor *MetricsData) GetGauges() map[string]float64 {
-	return monitor.metricsGauge
+func (st *MemoryStorage) Names(typeMetric string) []string {
+
+	var keys []string
+
+	switch typeMetric {
+	case GaugeType:
+		if st.gauges == nil {
+			return []string{}
+		}
+
+		for key := range st.gauges {
+			keys = append(keys, key)
+		}
+
+	case CounterType:
+		if st.counters == nil {
+			return []string{}
+		}
+
+		for key := range st.counters {
+			keys = append(keys, key)
+		}
+	}
+
+	sort.Strings(keys)
+	return keys
 }
 
-func (monitor *MetricsData) GetGaugesString() map[string]string {
-	if monitor.metricsGauge == nil {
-		monitor.metricsGauge = make(map[string]float64)
+// Count количество метрик типа typeMetric
+func (st *MemoryStorage) Count(typeMetric string) int {
+
+	switch typeMetric {
+	case GaugeType:
+		return len(st.gauges)
+	case CounterType:
+		return len(st.counters)
 	}
 
-	metrics := make(map[string]string)
-
-	for k, v := range monitor.metricsGauge {
-		metrics[k] = strconv.FormatFloat(v, 'f', 3, 64)
-	}
-
-	return metrics
+	return 0
 }
 
-func (monitor *MetricsData) GetCounters() map[string]int64 {
-	return monitor.metricsCounter
+func (st *MemoryStorage) Clear() {
+	st.gauges = make(map[string]float64)
+	st.counters = make(map[string]int64)
 }
 
-func (monitor *MetricsData) Clear() {
+func (st *MemoryStorage) String() string {
 
-	monitor.mu.Lock()
-	defer monitor.mu.Unlock()
+	var s string
 
-	if monitor.metricsGauge != nil {
-		monitor.metricsGauge = make(map[string]float64)
+	types := []string{GaugeType, CounterType}
+	for _, typeMetric := range types {
+		names := st.Names(typeMetric)
+		for _, name := range names {
+			val, err := st.Get(typeMetric, name)
+			if err == nil {
+				s += typeMetric + "/" + name + "/" + val + "\n"
+			}
+		}
 	}
 
-	if monitor.metricsCounter != nil {
-		monitor.metricsCounter = make(map[string]int64)
-	}
+	return s
+}
+
+func (st *MemoryStorage) Lock() {
+	st.mu.Lock()
+}
+
+func (st *MemoryStorage) Unlock() {
+	st.mu.Unlock()
 }
