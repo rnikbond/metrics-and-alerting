@@ -153,6 +153,11 @@ func UpdateMetricJSON(st storage.IStorage) http.HandlerFunc {
 			return
 		}
 
+		if r.Header.Get("Content-Type") != "application/json" {
+			http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
+			return
+		}
+
 		defer r.Body.Close()
 
 		data, err := io.ReadAll(r.Body)

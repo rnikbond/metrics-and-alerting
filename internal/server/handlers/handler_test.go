@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -370,6 +372,146 @@ func TestGetMetrics(t *testing.T) {
 				assert.Equal(t, string(got), tt.wantValue)
 			}
 
+		})
+	}
+}
+
+func TestUpdateMetricJSON(t *testing.T) {
+
+	st := storage.MemoryStorage{}
+
+	var value float64 = 123.123
+	var delta int64 = 123
+
+	tests := []struct {
+		name        string
+		httpMethod  string
+		contentType string
+		metric      storage.Metrics
+		wantStatus  int
+	}{
+		{
+			name:        "Update gauge Post/JSON => [OK]",
+			httpMethod:  http.MethodPost,
+			contentType: "application/json",
+			metric: storage.Metrics{
+				ID:    "testGauge",
+				MType: storage.GaugeType,
+				Value: &value,
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:        "Update gauge Get/JSON => [ERROR]",
+			httpMethod:  http.MethodGet,
+			contentType: "application/json",
+			wantStatus:  http.StatusMethodNotAllowed,
+		},
+		{
+			name:        "Update gauge Post/Text => [ERROR]",
+			httpMethod:  http.MethodPost,
+			contentType: "text/plain",
+			wantStatus:  http.StatusUnsupportedMediaType,
+		},
+		{
+			name:        "Update gauge Post/JSON Without{ID} => [ERROR]",
+			httpMethod:  http.MethodPost,
+			contentType: "application/json",
+			metric: storage.Metrics{
+				MType: storage.GaugeType,
+				Value: &value,
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "Update gauge Post/JSON Without{Value} => [ERROR]",
+			httpMethod:  http.MethodPost,
+			contentType: "application/json",
+			metric: storage.Metrics{
+				ID:    "testGauge",
+				MType: storage.GaugeType,
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "Update gauge Post/JSON Without{Type,Value} => [ERROR]",
+			httpMethod:  http.MethodPost,
+			contentType: "application/json",
+			metric: storage.Metrics{
+				ID: "testGauge",
+			},
+			wantStatus: http.StatusNotImplemented,
+		},
+
+		{
+			name:        "Update counter Post/JSON => [OK]",
+			httpMethod:  http.MethodPost,
+			contentType: "application/json",
+			metric: storage.Metrics{
+				ID:    "testCounter",
+				MType: storage.CounterType,
+				Delta: &delta,
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:        "Update counter Get/JSON => [ERROR]",
+			httpMethod:  http.MethodGet,
+			contentType: "application/json",
+			wantStatus:  http.StatusMethodNotAllowed,
+		},
+		{
+			name:        "Update counter Post/Text => [ERROR]",
+			httpMethod:  http.MethodPost,
+			contentType: "text/plain",
+			wantStatus:  http.StatusUnsupportedMediaType,
+		},
+		{
+			name:        "Update counter Post/JSON Without{ID} => [ERROR]",
+			httpMethod:  http.MethodPost,
+			contentType: "application/json",
+			metric: storage.Metrics{
+				MType: storage.CounterType,
+				Delta: &delta,
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "Update counter Post/JSON Without{Delta} => [ERROR]",
+			httpMethod:  http.MethodPost,
+			contentType: "application/json",
+			metric: storage.Metrics{
+				ID:    "testCounter",
+				MType: storage.CounterType,
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "Update counter Post/JSON Without{Type,Delta} => [ERROR]",
+			httpMethod:  http.MethodPost,
+			contentType: "application/json",
+			metric: storage.Metrics{
+				ID: "testCounter",
+			},
+			wantStatus: http.StatusNotImplemented,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			data, _ := json.Marshal(tt.metric)
+
+			request := httptest.NewRequest(tt.httpMethod, PartURLUpdate, bytes.NewReader(data))
+			request.Header.Set("Content-Type", tt.contentType)
+
+			w := httptest.NewRecorder()
+			h := http.HandlerFunc(UpdateMetricJSON(&st))
+			h.ServeHTTP(w, request)
+
+			response := w.Result()
+			defer response.Body.Close()
+
+			assert.Equal(t, tt.wantStatus, response.StatusCode)
 		})
 	}
 }

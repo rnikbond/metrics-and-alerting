@@ -21,7 +21,7 @@ func ConvertToHTTP(err error) int {
 		return http.StatusNotFound
 	case ErrorUnknownType:
 		return http.StatusNotImplemented
-	case ErrorInvalidValue, ErrorInvalidJSON:
+	case ErrorInvalidName, ErrorInvalidValue, ErrorInvalidJSON:
 		return http.StatusBadRequest
 	case ErrorInternal:
 		return http.StatusInternalServerError
