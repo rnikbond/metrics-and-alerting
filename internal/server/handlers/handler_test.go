@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUpdateMetric(t *testing.T) {
+func TestUpdateMetricURL(t *testing.T) {
 
 	st := storage.MemoryStorage{}
 
@@ -122,7 +122,7 @@ func TestUpdateMetric(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 
-			target := PartURLUpdate
+			target := PartURLUpdate + "/"
 			if len(tt.metricData.metricType) > 0 {
 				target += tt.metricData.metricType
 			}
@@ -147,7 +147,7 @@ func TestUpdateMetric(t *testing.T) {
 			request.Header.Set("Content-Type", tt.contentType)
 
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(UpdateMetric(&st))
+			h := http.HandlerFunc(UpdateMetricURL(&st))
 			h.ServeHTTP(w, request)
 
 			response := w.Result()
@@ -277,7 +277,7 @@ func TestGetMetric(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			target := PartURLValue
+			target := PartURLValue + "/"
 			if len(tt.metricData.metricType) > 0 {
 				target += tt.metricData.metricType
 			}

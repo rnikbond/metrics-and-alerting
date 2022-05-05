@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"io"
 	"net/http"
 	"strings"
 
@@ -17,8 +18,8 @@ const (
 	sizeDataUpdateMetric = 3
 )
 const (
-	PartURLUpdate = "/update/"
-	PartURLValue  = "/value/"
+	PartURLUpdate = "/update"
+	PartURLValue  = "/value"
 )
 
 func GetMetrics(st storage.IStorage) http.HandlerFunc {
@@ -71,7 +72,7 @@ func GetMetric(st storage.IStorage) http.HandlerFunc {
 		// затем разбиваем на массив:
 		// [0] - Тип метрики
 		// [1] - Название метрики
-		metric := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLValue, ""), "/")
+		metric := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLValue+"/", ""), "/")
 
 		if len(metric) != sizeDataGetMetric {
 			//log.Printf("error request get metric %v - %s", metric, r.URL)
@@ -95,7 +96,7 @@ func GetMetric(st storage.IStorage) http.HandlerFunc {
 	}
 }
 
-func UpdateMetric(st storage.IStorage) http.HandlerFunc {
+func UpdateMetricURL(st storage.IStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "text/plain")
@@ -117,7 +118,7 @@ func UpdateMetric(st storage.IStorage) http.HandlerFunc {
 		// [0] - Тип метрики
 		// [1] - Название метрики
 		// [2] - Значение метрики
-		metric := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLUpdate, ""), "/")
+		metric := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLUpdate+"/", ""), "/")
 
 		if len(metric) != sizeDataUpdateMetric {
 			//log.Printf("error request update metric. Requaest  %v - %s", metric, r.URL)
@@ -138,6 +139,62 @@ func UpdateMetric(st storage.IStorage) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success update metric"))
+		w.Write([]byte("success URL update metric"))
+	}
+}
+
+func UpdateMetricJSON(st storage.IStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		w.Header().Set("Content-Type", "text/plain")
+
+		if r.Method != http.MethodPost {
+			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
+			return
+		}
+
+		defer r.Body.Close()
+
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "can not read request body", http.StatusBadRequest)
+			return
+		}
+
+		if err = st.UpdateJSON(data); err != nil {
+			http.Error(w, err.Error(), errst.ConvertToHTTP(err))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("success JSON update metric"))
+	}
+}
+
+func GetMetricJSON(st storage.IStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.Method != http.MethodPost {
+			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
+			return
+		}
+
+		defer r.Body.Close()
+
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "can not read request body", http.StatusBadRequest)
+			return
+		}
+
+		metric, err := st.FillJSON(data)
+		if err != nil {
+			http.Error(w, err.Error(), errst.ConvertToHTTP(err))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write(metric)
 	}
 }

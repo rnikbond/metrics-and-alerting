@@ -10,14 +10,6 @@ import (
 	servermetrics "metrics-and-alerting/internal/server"
 )
 
-func testUInt() uint64 {
-	return 1
-}
-
-func getValue() interface{} {
-	return testUInt()
-}
-
 func main() {
 
 	waitChan := make(chan struct{})

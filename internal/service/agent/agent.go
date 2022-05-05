@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"math/rand"
@@ -23,7 +24,8 @@ type Service interface {
 	regularUpdate(ctx context.Context, wg *sync.WaitGroup)
 
 	reportAll(ctx context.Context) error
-	report(ctx context.Context, nameMetric, valueMetric, typeMetric string) error
+	reportURL(ctx context.Context, nameMetric, valueMetric, typeMetric string) error
+	reportJSON(ctx context.Context, nameMetric, valueMetric, typeMetric string) error
 
 	updateAll()
 }
@@ -104,9 +106,13 @@ func (agent *Agent) reportAll(ctx context.Context) {
 				continue
 			}
 
-			if err = agent.report(ctx, client, typeMetric, name, value); err != nil {
+			if err = agent.reportJSON(ctx, client, typeMetric, name, value); err != nil {
 				log.Println(err.Error())
 			}
+
+			//if err = agent.reportURL(ctx, client, typeMetric, name, value); err != nil {
+			//	log.Println(err.Error())
+			//}
 		}
 	}
 
@@ -116,13 +122,64 @@ func (agent *Agent) reportAll(ctx context.Context) {
 }
 
 // Обновление метрики
-func (agent *Agent) report(ctx context.Context, client *resty.Client, typeMetric, nameMetric, valueMetric string) error {
+func (agent *Agent) reportURL(ctx context.Context, client *resty.Client, typeMetric, nameMetric, valueMetric string) error {
 
 	resp, err := client.R().SetPathParams(map[string]string{
 		"type":  typeMetric,
 		"name":  nameMetric,
 		"value": valueMetric,
 	}).SetContext(ctx).Post(agent.ServerURL + "/{type}/{name}/{value}")
+
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		respBody := resp.Body()
+		return errors.New("failed update metric: " + resp.Status() + ". " + string(respBody))
+	}
+
+	return nil
+}
+
+func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, typeMetric, nameMetric, valueMetric string) error {
+
+	var metric storage.Metrics
+
+	switch typeMetric {
+	case storage.GaugeType:
+		val, err := strconv.ParseFloat(valueMetric, 64)
+		if err != nil {
+			return err
+		}
+
+		metric = storage.Metrics{
+			ID:    nameMetric,
+			MType: typeMetric,
+			Value: &val,
+		}
+	case storage.CounterType:
+		val, err := strconv.ParseInt(valueMetric, 10, 64)
+		if err != nil {
+			return err
+		}
+
+		metric = storage.Metrics{
+			ID:    nameMetric,
+			MType: typeMetric,
+			Delta: &val,
+		}
+	}
+
+	data, err := json.Marshal(metric)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.R().
+		SetBody(data).
+		SetContext(ctx).
+		Post(agent.ServerURL)
 
 	if err != nil {
 		return err

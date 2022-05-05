@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"reflect"
+	"encoding/json"
 	"sort"
 	"strconv"
 	"sync"
@@ -16,6 +16,7 @@ const (
 
 type IStorage interface {
 	Get(typeMetric, name string) (string, error)
+	FillJSON(data []byte) ([]byte, error)
 	Names(typeMetric string) []string
 	Count(typeMetric string) int
 	Clear()
@@ -23,11 +24,19 @@ type IStorage interface {
 	Set(typeMetric, name string, value interface{}) error
 	Add(typeMetric, name string, value interface{}) error
 	Update(typeMetric, name string, value interface{}) error
+	UpdateJSON(data []byte) error
 
 	Lock()
 	Unlock()
 
 	String() string
+}
+
+type Metrics struct {
+	ID    string   `json:"id"`              // имя метрики
+	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
+	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
+	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
 }
 
 type MemoryStorage struct {
@@ -36,13 +45,39 @@ type MemoryStorage struct {
 	counters map[string]int64
 }
 
+func (st *MemoryStorage) UpdateJSON(data []byte) error {
+
+	var metric Metrics
+
+	if err := json.Unmarshal(data, &metric); err != nil {
+		return errst.ErrorInvalidJSON
+	}
+
+	switch metric.MType {
+	case GaugeType:
+		if metric.Value == nil {
+			return errst.ErrorInvalidValue
+		}
+
+		return st.Update(metric.MType, metric.ID, *metric.Value)
+	case CounterType:
+		if metric.Delta == nil {
+			return errst.ErrorInvalidValue
+		}
+
+		return st.Update(metric.MType, metric.ID, *metric.Delta)
+	default:
+		return errst.ErrorUnknownType
+	}
+}
+
 // Update Обновление значения метрики.
-// Для типа "gauge" - значение обновляется на value
-// Для типа "counter" -  старому значению добавляется новое значение value
+// Для типа "gauge" - значение обновляется на value.
+// Для типа "counter" -  старому значению добавляется новое значение value.
 func (st *MemoryStorage) Update(typeMetric, name string, value interface{}) error {
 
 	if len(name) < 1 {
-		return errst.ErrorIncorrectName
+		return errst.ErrorInvalidName
 	}
 
 	switch typeMetric {
@@ -55,13 +90,13 @@ func (st *MemoryStorage) Update(typeMetric, name string, value interface{}) erro
 	}
 }
 
-// Set Изменение значения метрики
-// Для типа "gauge" - value должно преобразовываться в float64
-// Для типа "counter" - value должно преобразовываться в int64
+// Set Изменение значения метрики.
+// Для типа "gauge" - value должно преобразовываться в float64.
+// Для типа "counter" - value должно преобразовываться в int64.
 func (st *MemoryStorage) Set(typeMetric, name string, value interface{}) error {
 
 	if len(name) < 1 {
-		return errst.ErrorIncorrectName
+		return errst.ErrorInvalidName
 	}
 
 	switch typeMetric {
@@ -70,51 +105,22 @@ func (st *MemoryStorage) Set(typeMetric, name string, value interface{}) error {
 			st.gauges = make(map[string]float64)
 		}
 
-		reflVal := reflect.ValueOf(value)
-
-		switch reflVal.Kind() {
-		case reflect.Float32, reflect.Float64:
-			st.gauges[name] = reflVal.Float()
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			st.gauges[name] = float64(reflVal.Int())
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			st.gauges[name] = float64(reflVal.Uint())
-		case reflect.String:
-			val, err := strconv.ParseFloat(reflVal.String(), 64)
-			if err != nil {
-				//log.Printf("MemoryStorage.Set() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
-				return errst.ErrorIncorrectValue
-			}
+		if val, err := ToFloat64(value); err != nil {
+			return err
+		} else {
 			st.gauges[name] = val
-		default:
-			//log.Printf("MemoryStorage.Set() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
-			return errst.ErrorIncorrectValue
 		}
+
 	case CounterType:
 		if st.counters == nil {
 			st.counters = make(map[string]int64)
 		}
 
-		reflVal := reflect.ValueOf(value)
-
-		switch reflVal.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			st.counters[name] = reflVal.Int()
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			st.counters[name] = int64(reflVal.Uint())
-		case reflect.String:
-			val, err := strconv.ParseInt(reflVal.String(), 10, 64)
-			if err != nil {
-				//log.Printf("MemoryStorage.Set() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
-				return errst.ErrorIncorrectValue
-			}
+		if val, err := ToInt64(value); err != nil {
+			return err
+		} else {
 			st.counters[name] = val
-		default:
-			//log.Printf("MemoryStorage.Set() error type %v for metric: %s/%s", reflVal.Kind(), typeMetric, name)
-			return errst.ErrorIncorrectValue
 		}
-
-		st.counters[name] = reflVal.Int()
 
 	default:
 		return errst.ErrorUnknownType
@@ -123,12 +129,12 @@ func (st *MemoryStorage) Set(typeMetric, name string, value interface{}) error {
 	return nil
 }
 
-// Add Изменение значения метрики
-// Для типа "gauge" - value должно преобразовываться в float64
-// Для типа "counter" - value должно преобразовываться в int64
+// Add Изменение значения метрики.
+// Для типа "gauge" - value должно преобразовываться в float64.
+// Для типа "counter" - value должно преобразовываться в int64.
 func (st *MemoryStorage) Add(typeMetric, name string, value interface{}) error {
 	if len(name) < 1 {
-		return errst.ErrorIncorrectName
+		return errst.ErrorInvalidName
 	}
 
 	switch typeMetric {
@@ -137,30 +143,10 @@ func (st *MemoryStorage) Add(typeMetric, name string, value interface{}) error {
 			st.gauges = make(map[string]float64)
 		}
 
-		reflVal := reflect.ValueOf(value)
-		if reflVal.Kind() != reflect.Float64 {
-			return errst.ErrorIncorrectValue
-		}
-
-		switch reflVal.Kind() {
-		case reflect.Float32, reflect.Float64:
-			st.gauges[name] += reflVal.Float()
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			st.gauges[name] += float64(reflVal.Int())
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			st.gauges[name] += float64(reflVal.Uint())
-		case reflect.String:
-			val, err := strconv.ParseFloat(reflVal.String(), 64)
-			if err == nil {
-				//log.Printf("MemoryStorage.Set() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
-				return errst.ErrorIncorrectValue
-			}
-
+		if val, err := ToFloat64(value); err != nil {
+			return err
+		} else {
 			st.gauges[name] += val
-
-		default:
-			//log.Printf("MemoryStorage.Add() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
-			return errst.ErrorIncorrectValue
 		}
 
 	case CounterType:
@@ -168,31 +154,46 @@ func (st *MemoryStorage) Add(typeMetric, name string, value interface{}) error {
 			st.counters = make(map[string]int64)
 		}
 
-		reflVal := reflect.ValueOf(value)
-
-		switch reflVal.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			st.counters[name] += reflVal.Int()
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			st.counters[name] += int64(reflVal.Uint())
-		case reflect.String:
-			val, err := strconv.ParseInt(reflVal.String(), 10, 64)
-			if err != nil {
-				//log.Printf("MemoryStorage.Set() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
-				return errst.ErrorIncorrectValue
-			}
+		if val, err := ToInt64(value); err != nil {
+			return err
+		} else {
 			st.counters[name] += val
-		default:
-			//log.Printf("MemoryStorage.Add() error type %v for metric: %s/%s\n", reflVal.Kind(), typeMetric, name)
-			return errst.ErrorIncorrectValue
 		}
 
 	default:
-		//log.Printf("MemoryStorage.Add() error unknown type %s\n", typeMetric)
 		return errst.ErrorUnknownType
 	}
 
 	return nil
+}
+
+func (st *MemoryStorage) FillJSON(data []byte) ([]byte, error) {
+	var metric Metrics
+
+	if err := json.Unmarshal(data, &metric); err != nil {
+		return []byte{}, errst.ErrorInvalidJSON
+	}
+
+	val, err := st.Get(metric.MType, metric.ID)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	switch metric.MType {
+	case GaugeType:
+		valFloat, _ := strconv.ParseFloat(val, 64)
+		metric.Value = &valFloat
+	case CounterType:
+		valInt, _ := strconv.ParseInt(val, 10, 64)
+		metric.Delta = &valInt
+	}
+
+	readyData, err := json.Marshal(&metric)
+	if err != nil {
+		return []byte{}, errst.ErrorInternal
+	}
+
+	return readyData, nil
 }
 
 // Get Получение значения метрики
