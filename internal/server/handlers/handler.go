@@ -40,8 +40,6 @@ func GetMetrics(st storage.IStorage) http.HandlerFunc {
 				val, err := st.Get(typeMetric, metric)
 				if err == nil {
 					html += metric + ":" + val + "<br/>"
-				} else {
-					//log.Printf("error get value metric %s/%s\n", typeMetric, metric)
 				}
 			}
 		}

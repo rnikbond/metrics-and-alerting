@@ -380,7 +380,7 @@ func TestUpdateMetricJSON(t *testing.T) {
 
 	st := storage.MemoryStorage{}
 
-	var value float64 = 123.123
+	value := 123.123
 	var delta int64 = 123
 
 	tests := []struct {
@@ -519,7 +519,7 @@ func TestUpdateMetricJSON(t *testing.T) {
 func TestGetMetricJSON(t *testing.T) {
 	st := storage.MemoryStorage{}
 
-	var value float64 = 123.123
+	value := 123.123
 	var delta int64 = 123
 
 	st.Update(storage.GaugeType, "testGauge", value)
