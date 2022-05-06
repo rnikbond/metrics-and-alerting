@@ -134,6 +134,10 @@ func (agent *Agent) reportAll(ctx context.Context) {
 // Обновление метрики
 func (agent *Agent) reportURL(ctx context.Context, client *resty.Client, typeMetric, nameMetric, valueMetric string) error {
 
+	if len(typeMetric) < 1 || len(nameMetric) < 1 || len(valueMetric) < 1 {
+		return errors.New("invalid metric params")
+	}
+
 	resp, err := client.R().SetPathParams(map[string]string{
 		"type":  typeMetric,
 		"name":  nameMetric,
