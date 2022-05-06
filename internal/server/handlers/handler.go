@@ -34,6 +34,9 @@ func GetMetrics(st storage.IStorage) http.HandlerFunc {
 		html := ""
 		types := []string{storage.GaugeType, storage.CounterType}
 
+		st.Lock()
+		defer st.Unlock()
+
 		for _, typeMetric := range types {
 			names := st.Names(typeMetric)
 			for _, metric := range names {
@@ -77,6 +80,9 @@ func GetMetric(st storage.IStorage) http.HandlerFunc {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
+
+		st.Lock()
+		defer st.Unlock()
 
 		val, err := st.Get(metric[idxMetricType], metric[idxMetricName])
 		if err != nil {
@@ -124,6 +130,9 @@ func UpdateMetricURL(st storage.IStorage) http.HandlerFunc {
 			return
 		}
 
+		st.Lock()
+		defer st.Unlock()
+
 		err := st.Update(metric[idxMetricType], metric[idxMetricName], metric[idxMetricValue])
 		if err != nil {
 			//log.Printf("error update metric %s/%s/%s - %s",
@@ -164,6 +173,8 @@ func UpdateMetricJSON(st storage.IStorage) http.HandlerFunc {
 			return
 		}
 
+		st.Lock()
+		defer st.Unlock()
 		if err = st.UpdateJSON(data); err != nil {
 			http.Error(w, err.Error(), errst.ConvertToHTTP(err))
 			return

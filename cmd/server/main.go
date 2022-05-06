@@ -8,13 +8,17 @@ import (
 	"syscall"
 
 	servermetrics "metrics-and-alerting/internal/server"
+	"metrics-and-alerting/pkg/config"
 )
 
 func main() {
 
 	waitChan := make(chan struct{})
 
-	server := servermetrics.StartMetricsHTTPServer()
+	cfg := config.Config{}
+	cfg.Read()
+
+	server := servermetrics.StartMetricsHTTPServer(&cfg)
 
 	go func() {
 		sigChan := make(chan os.Signal, 1)

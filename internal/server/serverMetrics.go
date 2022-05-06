@@ -6,21 +6,12 @@ import (
 
 	handler "metrics-and-alerting/internal/server/handlers"
 	"metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/pkg/config"
 
-	"github.com/caarlos0/env"
 	"github.com/go-chi/chi"
 )
 
-type Config struct {
-	Addr string `env:"ADDRESS"`
-}
-
-func StartMetricsHTTPServer() *http.Server {
-
-	var cfg Config
-	if err := env.Parse(&cfg); err != nil {
-		cfg.Addr = "127.0.0.1:8080"
-	}
+func StartMetricsHTTPServer(cfg *config.Config) *http.Server {
 
 	memoryStorage := storage.MemoryStorage{}
 
@@ -40,7 +31,7 @@ func StartMetricsHTTPServer() *http.Server {
 
 	go func() {
 		if err := serverHTTP.ListenAndServe(); err != http.ErrServerClosed {
-			fmt.Printf("HTTP server ListenAndServe: %v", err)
+			fmt.Printf("HTTP server ListenAndServe: %v\n", err)
 		}
 	}()
 

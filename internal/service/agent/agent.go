@@ -9,10 +9,13 @@ import (
 	"net/http"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	handler "metrics-and-alerting/internal/server/handlers"
 	"metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/pkg/config"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -31,10 +34,8 @@ type Service interface {
 }
 
 type Agent struct {
-	ServerURL      string
-	PollInterval   time.Duration
-	ReportInterval time.Duration
-	Storage        storage.IStorage
+	Config  *config.Config
+	Storage storage.IStorage
 }
 
 func float64ToString(value float64) string {
@@ -51,6 +52,15 @@ func uint64ToString(value uint64) string {
 
 // Start Запуск агента для сбора и отправки метрик
 func (agent *Agent) Start(ctx context.Context) {
+
+	if agent.Config == nil {
+		panic(errors.New("not configured"))
+	}
+
+	if !strings.Contains(agent.Config.Addr, "http://") {
+		agent.Config.Addr = "http://" + agent.Config.Addr
+	}
+
 	// запуск горутины для обновления метрик
 	go agent.regularUpdate(ctx)
 
@@ -64,7 +74,7 @@ func (agent *Agent) regularReport(ctx context.Context) {
 
 	for {
 		select {
-		case <-time.After(agent.ReportInterval * time.Second):
+		case <-time.After(agent.Config.ReportInterval):
 			agent.reportAll(ctx)
 		case <-ctx.Done():
 			return
@@ -78,7 +88,7 @@ func (agent *Agent) regularUpdate(ctx context.Context) {
 
 	for {
 		select {
-		case <-time.After(agent.PollInterval * time.Second):
+		case <-time.After(agent.Config.PollInterval):
 			agent.updateAll()
 		case <-ctx.Done():
 			return
@@ -128,7 +138,7 @@ func (agent *Agent) reportURL(ctx context.Context, client *resty.Client, typeMet
 		"type":  typeMetric,
 		"name":  nameMetric,
 		"value": valueMetric,
-	}).SetContext(ctx).Post(agent.ServerURL + "/{type}/{name}/{value}")
+	}).SetContext(ctx).Post(agent.Config.Addr + handler.PartURLUpdate + "/{type}/{name}/{value}")
 
 	if err != nil {
 		return err
@@ -180,7 +190,7 @@ func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, typeMe
 		SetHeader("Content-Type", "application/json").
 		SetBody(data).
 		SetContext(ctx).
-		Post(agent.ServerURL)
+		Post(agent.Config.Addr + handler.PartURLUpdate)
 
 	if err != nil {
 		return err
