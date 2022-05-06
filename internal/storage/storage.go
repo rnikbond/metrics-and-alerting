@@ -210,7 +210,7 @@ func (st *MemoryStorage) Get(typeMetric, name string) (string, error) {
 		}
 
 		if value, found := st.gauges[name]; found {
-			return strconv.FormatFloat(value, 'f', 3, 64), nil
+			return strconv.FormatFloat(value, 'f', -1, 64), nil
 		}
 
 	case CounterType:
