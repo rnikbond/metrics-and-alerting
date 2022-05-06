@@ -18,7 +18,9 @@ func StartMetricsHTTPServer() *http.Server {
 	r.Get("/", handler.GetMetrics(&memoryStorage))
 	r.Get(handler.PartURLValue+"/*", handler.GetMetric(&memoryStorage))
 	r.Post(handler.PartURLValue, handler.GetMetricJSON(&memoryStorage))
+	r.Post(handler.PartURLValue+"/", handler.GetMetricJSON(&memoryStorage))
 	r.Post(handler.PartURLUpdate, handler.UpdateMetricJSON(&memoryStorage))
+	r.Post(handler.PartURLUpdate+"/", handler.UpdateMetricJSON(&memoryStorage))
 	r.Post(handler.PartURLUpdate+"/*", handler.UpdateMetricURL(&memoryStorage))
 
 	serverHTTP := &http.Server{

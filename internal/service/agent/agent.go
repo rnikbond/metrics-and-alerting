@@ -177,6 +177,7 @@ func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, typeMe
 	}
 
 	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
 		SetBody(data).
 		SetContext(ctx).
 		Post(agent.ServerURL)
