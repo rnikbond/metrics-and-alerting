@@ -4,13 +4,23 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-chi/chi"
-
 	handler "metrics-and-alerting/internal/server/handlers"
-	storage "metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/internal/storage"
+
+	"github.com/caarlos0/env"
+	"github.com/go-chi/chi"
 )
 
+type Config struct {
+	Addr string `env:"ADDRESS"`
+}
+
 func StartMetricsHTTPServer() *http.Server {
+
+	var cfg Config
+	if err := env.Parse(&cfg); err != nil {
+		cfg.Addr = "127.0.0.1:8080"
+	}
 
 	memoryStorage := storage.MemoryStorage{}
 
@@ -24,7 +34,7 @@ func StartMetricsHTTPServer() *http.Server {
 	r.Post(handler.PartURLUpdate+"/*", handler.UpdateMetricURL(&memoryStorage))
 
 	serverHTTP := &http.Server{
-		Addr:    ":8080",
+		Addr:    cfg.Addr,
 		Handler: r,
 	}
 
