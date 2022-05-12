@@ -91,12 +91,11 @@ func (metric *Metrics) UnmarshalJSON(data []byte) error {
 	metric.Delta = nil
 	metric.Value = nil
 
-	if deserializer.Delta != 0 {
-		metric.Delta = &deserializer.Delta
-	}
-
-	if deserializer.Value != 0 {
+	switch deserializer.MType {
+	case GaugeType:
 		metric.Value = &deserializer.Value
+	case CounterType:
+		metric.Delta = &deserializer.Delta
 	}
 
 	return nil

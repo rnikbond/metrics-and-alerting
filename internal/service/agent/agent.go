@@ -202,7 +202,9 @@ func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, typeMe
 
 	if resp.StatusCode() != http.StatusOK {
 		respBody := resp.Body()
-		return errors.New("failed update metric: " + resp.Status() + ". " + string(respBody))
+		return errors.New(" \nJSON: " + string(data) +
+			".\nMetric: " + typeMetric + "/" + nameMetric + "/" + valueMetric +
+			".\nFailed update metric: " + resp.Status() + ". " + string(respBody))
 	}
 
 	return nil
