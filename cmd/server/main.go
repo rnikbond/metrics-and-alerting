@@ -25,8 +25,6 @@ func main() {
 		signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 		<-sigChan
 
-		log.Println("start metrics server")
-
 		if err := server.Shutdown(context.Background()); err != nil {
 			log.Printf("HTTP server Shutdown: %v\n", err)
 		}

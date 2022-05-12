@@ -46,7 +46,6 @@ type SerializeMetric struct {
 }
 
 func createMetric(typeMetric, id string) *Metrics {
-
 	return &Metrics{
 		ID:    id,
 		MType: typeMetric,

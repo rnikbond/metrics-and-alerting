@@ -161,7 +161,7 @@ func (st *MemoryStorage) Add(typeMetric, id string, value interface{}) error {
 }
 
 func (st *MemoryStorage) FillJSON(data []byte) ([]byte, error) {
-	var metric Metrics
+	var metric SerializeMetric
 
 	if err := json.Unmarshal(data, &metric); err != nil {
 		return []byte{}, errst.ErrorInvalidJSON
@@ -174,11 +174,9 @@ func (st *MemoryStorage) FillJSON(data []byte) ([]byte, error) {
 
 	switch metric.MType {
 	case GaugeType:
-		valFloat, _ := strconv.ParseFloat(val, 64)
-		metric.Value = &valFloat
+		metric.Value = val
 	case CounterType:
-		valInt, _ := strconv.ParseInt(val, 10, 64)
-		metric.Delta = &valInt
+		metric.Delta = val
 	}
 
 	readyData, err := json.Marshal(&metric)
