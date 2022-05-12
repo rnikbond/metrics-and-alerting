@@ -199,16 +199,26 @@ func (st *FileStorage) Add(typeMetric, id string, value interface{}) error {
 	switch typeMetric {
 	case GaugeType:
 
-		if val, err := ToFloat64(value); err != nil {
+		val, err := ToFloat64(value)
+		if err != nil {
 			return err
+		}
+
+		if st.metrics[metricIdx].Value == nil {
+			st.metrics[metricIdx].Value = &val
 		} else {
 			*st.metrics[metricIdx].Value += val
 		}
 
 	case CounterType:
 
-		if val, err := ToInt64(value); err != nil {
+		val, err := ToInt64(value)
+		if err != nil {
 			return err
+		}
+
+		if st.metrics[metricIdx].Delta == nil {
+			st.metrics[metricIdx].Delta = &val
 		} else {
 			*st.metrics[metricIdx].Delta += val
 		}
