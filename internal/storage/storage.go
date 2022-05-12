@@ -3,8 +3,6 @@ package storage
 import (
 	"encoding/json"
 	"strconv"
-
-	errst "metrics-and-alerting/pkg/errorsstorage"
 )
 
 const (
@@ -39,10 +37,10 @@ type Metrics struct {
 }
 
 type SerializeMetric struct {
-	ID    string `json:"id"`              // имя метрики
-	MType string `json:"type"`            // параметр, принимающий значение gauge или counter
-	Delta string `json:"delta,omitempty"` // значение метрики в случае передачи counter
-	Value string `json:"value,omitempty"` // значение метрики в случае передачи gauge
+	ID    string          `json:"id"`              // имя метрики
+	MType string          `json:"type"`            // параметр, принимающий значение gauge или counter
+	Delta json.RawMessage `json:"delta,omitempty"` // значение метрики в случае передачи counter
+	Value json.RawMessage `json:"value,omitempty"` // значение метрики в случае передачи gauge
 }
 
 func createMetric(typeMetric, id string) *Metrics {
@@ -68,51 +66,47 @@ func (metric *Metrics) String() string {
 	return s
 }
 
-func (metric Metrics) MarshalJSON() ([]byte, error) {
-
-	aliasValue := SerializeMetric{
-		ID:    metric.ID,
-		MType: metric.MType,
-	}
-
-	switch metric.MType {
-	case GaugeType:
-		if metric.Value != nil {
-			aliasValue.Value = strconv.FormatFloat(*metric.Value, 'f', -1, 64)
-		}
-
-	case CounterType:
-		if metric.Delta != nil {
-			aliasValue.Delta = strconv.FormatInt(*metric.Delta, 10)
-		}
-	}
-
-	return json.Marshal(&aliasValue)
-}
-
-func (metric *Metrics) UnmarshalJSON(data []byte) error {
-
-	deserializer := SerializeMetric{}
-	if err := json.Unmarshal(data, &deserializer); err != nil {
-		return errst.ErrorInvalidJSON
-	}
-
-	metric.ID = deserializer.ID
-	metric.MType = deserializer.MType
-	metric.Delta = nil
-	metric.Value = nil
-
-	switch deserializer.MType {
-	case GaugeType:
-		if val, err := strconv.ParseFloat(deserializer.Value, 64); err == nil {
-			metric.Value = &val
-		}
-
-	case CounterType:
-		if val, err := strconv.ParseInt(deserializer.Delta, 10, 64); err == nil {
-			metric.Delta = &val
-		}
-	}
-
-	return nil
-}
+//func (metric Metrics) MarshalJSON() ([]byte, error) {
+//
+//	aliasValue := SerializeMetric{
+//		ID:    metric.ID,
+//		MType: metric.MType,
+//	}
+//
+//	switch metric.MType {
+//	case GaugeType:
+//		if metric.Value != nil {
+//			aliasValue.Value = *metric.Value
+//		}
+//
+//	case CounterType:
+//		if metric.Delta != nil {
+//			aliasValue.Delta = *metric.Delta
+//		}
+//	}
+//
+//	return json.Marshal(&aliasValue)
+//}
+//
+//func (metric *Metrics) UnmarshalJSON(data []byte) error {
+//
+//	deserializer := SerializeMetric{}
+//	if err := json.Unmarshal(data, &deserializer); err != nil {
+//		return errst.ErrorInvalidJSON
+//	}
+//
+//	metric.ID = deserializer.ID
+//	metric.MType = deserializer.MType
+//	metric.Delta = nil
+//	metric.Value = nil
+//
+//	switch deserializer.MType {
+//	case GaugeType:
+//		metric.Value = &deserializer.Value
+//
+//	case CounterType:
+//		metric.Delta = &deserializer.Delta
+//	}
+//
+//	return nil
+//}
