@@ -109,16 +109,9 @@ func (st *FileStorage) UpdateJSON(data []byte) error {
 
 	switch metric.MType {
 	case GaugeType:
-		if metric.Value == nil {
-			return errst.ErrorInvalidValue
-		}
-
 		return st.Update(metric.MType, metric.ID, *metric.Value)
-	case CounterType:
-		if metric.Delta == nil {
-			return errst.ErrorInvalidValue
-		}
 
+	case CounterType:
 		return st.Update(metric.MType, metric.ID, *metric.Delta)
 	default:
 		return errst.ErrorUnknownType
