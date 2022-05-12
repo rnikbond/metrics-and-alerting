@@ -43,9 +43,11 @@ func (st *MemoryStorage) SetStorageLocal(isStore bool, path string, interval tim
 	go func() {
 		timer := time.NewTimer(st.interval)
 
-		select {
-		case <-timer.C:
-			st.Save()
+		for {
+			<-timer.C
+			if err := st.Save(); err != nil {
+				log.Println(err.Error())
+			}
 		}
 	}()
 }
