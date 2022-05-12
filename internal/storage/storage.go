@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/json"
 	"strconv"
+	"time"
 )
 
 const (
@@ -27,6 +28,10 @@ type IStorage interface {
 	Unlock()
 
 	String() string
+
+	SetStorageLocal(isStore bool, path string, interval time.Duration)
+	Save() error
+	Restore() error
 }
 
 type Metrics struct {

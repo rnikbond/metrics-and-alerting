@@ -1,10 +1,15 @@
 package storage
 
 import (
+	"bufio"
 	"encoding/json"
+	"errors"
+	"log"
+	"os"
 	"sort"
 	"strconv"
 	"sync"
+	"time"
 
 	errst "metrics-and-alerting/pkg/errorsstorage"
 )
@@ -12,6 +17,91 @@ import (
 type MemoryStorage struct {
 	mu      sync.Mutex
 	metrics []Metrics
+
+	isStore  bool
+	filePath string
+	interval time.Duration
+}
+
+func (st *MemoryStorage) File(flag int) (*os.File, error) {
+	if len(st.filePath) < 1 {
+		return nil, errors.New("invalid path file")
+	}
+
+	return os.OpenFile(st.filePath, flag, 0777)
+}
+
+func (st *MemoryStorage) SetStorageLocal(isStore bool, path string, interval time.Duration) {
+	st.isStore = isStore
+	st.filePath = path
+	st.interval = interval
+
+	if !st.isStore || st.interval == 0 {
+		return
+	}
+
+	go func() {
+		timer := time.NewTimer(st.interval)
+
+		select {
+		case <-timer.C:
+			st.Save()
+		}
+	}()
+}
+
+func (st *MemoryStorage) Save() error {
+	file, err := st.File(os.O_CREATE | os.O_WRONLY | os.O_TRUNC)
+	if err != nil {
+		log.Println("error open file for write: ", err)
+		return err
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	for _, metric := range st.metrics {
+
+		data, err := json.Marshal(&metric)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		if _, err = writer.Write(data); err == nil {
+			writer.WriteByte('\n')
+		} else {
+			log.Println("can not write data: ", err)
+		}
+	}
+
+	return writer.Flush()
+}
+
+func (st *MemoryStorage) Restore() error {
+	st.metrics = []Metrics{}
+
+	file, err := st.File(os.O_RDONLY)
+	if err != nil {
+		log.Println("error open file fo read: ", err)
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		data := scanner.Bytes()
+		metric := Metrics{}
+
+		if err := json.Unmarshal(data, &metric); err != nil {
+			log.Println(err)
+			continue
+		}
+
+		st.metrics = append(st.metrics, metric)
+	}
+
+	return nil
 }
 
 func (st *MemoryStorage) MetricIdx(typeMetric, id string) (int, error) {
@@ -112,6 +202,10 @@ func (st *MemoryStorage) Set(typeMetric, id string, value interface{}) error {
 		return errst.ErrorUnknownType
 	}
 
+	if st.isStore && st.interval == 0 {
+		st.Save()
+	}
+
 	return nil
 }
 
@@ -155,6 +249,10 @@ func (st *MemoryStorage) Add(typeMetric, id string, value interface{}) error {
 
 	default:
 		return errst.ErrorUnknownType
+	}
+
+	if st.isStore && st.interval == 0 {
+		st.Save()
 	}
 
 	return nil

@@ -61,6 +61,8 @@ func (agent *Agent) Start(ctx context.Context) {
 		agent.Config.Addr = "http://" + agent.Config.Addr
 	}
 
+	agent.Storage.SetStorageLocal(false, "", 0)
+
 	// запуск горутины для обновления метрик
 	go agent.regularUpdate(ctx)
 
