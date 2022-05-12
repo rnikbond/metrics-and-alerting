@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"strconv"
 
 	errst "metrics-and-alerting/pkg/errorsstorage"
 )
@@ -38,10 +39,10 @@ type Metrics struct {
 }
 
 type SerializeMetric struct {
-	ID    string  `json:"id"`              // имя метрики
-	MType string  `json:"type"`            // параметр, принимающий значение gauge или counter
-	Delta int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
-	Value float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+	ID    string `json:"id"`              // имя метрики
+	MType string `json:"type"`            // параметр, принимающий значение gauge или counter
+	Delta string `json:"delta,omitempty"` // значение метрики в случае передачи counter
+	Value string `json:"value,omitempty"` // значение метрики в случае передачи gauge
 }
 
 func createMetric(typeMetric, id string) *Metrics {
@@ -56,24 +57,37 @@ func createMetric(typeMetric, id string) *Metrics {
 	}
 }
 
-func (metric Metrics) MarshalJSON() ([]byte, error) {
-
-	var delta int64
-	var value float64
+func (metric *Metrics) String() string {
+	s := metric.MType + "/" + metric.ID
 
 	if metric.Delta != nil {
-		delta = *metric.Delta
+		s += "/" + strconv.FormatInt(*metric.Delta, 10)
 	}
 
 	if metric.Value != nil {
-		value = *metric.Value
+		s += "/" + strconv.FormatFloat(*metric.Value, 'f', -1, 64)
 	}
+
+	return s
+}
+
+func (metric Metrics) MarshalJSON() ([]byte, error) {
 
 	aliasValue := SerializeMetric{
 		ID:    metric.ID,
 		MType: metric.MType,
-		Delta: delta,
-		Value: value,
+	}
+
+	switch metric.MType {
+	case GaugeType:
+		if metric.Value != nil {
+			aliasValue.Value = strconv.FormatFloat(*metric.Value, 'f', -1, 64)
+		}
+
+	case CounterType:
+		if metric.Delta != nil {
+			aliasValue.Delta = strconv.FormatInt(*metric.Delta, 10)
+		}
 	}
 
 	return json.Marshal(&aliasValue)
@@ -93,9 +107,14 @@ func (metric *Metrics) UnmarshalJSON(data []byte) error {
 
 	switch deserializer.MType {
 	case GaugeType:
-		metric.Value = &deserializer.Value
+		if val, err := strconv.ParseFloat(deserializer.Value, 64); err == nil {
+			metric.Value = &val
+		}
+
 	case CounterType:
-		metric.Delta = &deserializer.Delta
+		if val, err := strconv.ParseInt(deserializer.Delta, 10, 64); err == nil {
+			metric.Delta = &val
+		}
 	}
 
 	return nil

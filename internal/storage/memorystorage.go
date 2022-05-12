@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"sync"
@@ -40,6 +41,8 @@ func (st *MemoryStorage) UpdateJSON(data []byte) error {
 	if err := json.Unmarshal(data, &metric); err != nil {
 		return errst.ErrorInvalidJSON
 	}
+
+	fmt.Println("Metric: ", metric.String())
 
 	switch metric.MType {
 	case GaugeType:
