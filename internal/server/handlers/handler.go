@@ -170,7 +170,7 @@ func UpdateMetricJSON(st storage.IStorage) http.HandlerFunc {
 		st.Lock()
 		defer st.Unlock()
 		if err = st.UpdateJSON(data); err != nil {
-			http.Error(w, err.Error(), errst.ConvertToHTTP(err))
+			http.Error(w, "JSON request: "+string(data)+"\n"+err.Error(), errst.ConvertToHTTP(err))
 			return
 		}
 

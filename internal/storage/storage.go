@@ -46,14 +46,12 @@ type SerializeMetric struct {
 }
 
 func createMetric(typeMetric, id string) *Metrics {
-	var delta int64
-	var value float64
 
 	return &Metrics{
 		ID:    id,
 		MType: typeMetric,
-		Delta: &delta,
-		Value: &value,
+		Delta: nil,
+		Value: nil,
 	}
 }
 
