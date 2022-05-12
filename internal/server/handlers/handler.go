@@ -135,12 +135,6 @@ func UpdateMetricURL(st storage.IStorage) http.HandlerFunc {
 
 		err := st.Update(metric[idxMetricType], metric[idxMetricName], metric[idxMetricValue])
 		if err != nil {
-			//log.Printf("error update metric %s/%s/%s - %s",
-			//	metric[idxMetricName],
-			//	metric[idxMetricValue],
-			//	metric[idxMetricType],
-			//	err.Error())
-
 			http.Error(w, err.Error(), errst.ConvertToHTTP(err))
 			return
 		}

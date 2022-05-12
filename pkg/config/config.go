@@ -32,7 +32,7 @@ func (cfg *Config) Read() {
 	// - Путь к файлу для сохранения под Windows и не Windows
 	if strings.Contains(runtime.GOOS, "windows") {
 		if usr, err := user.Current(); err == nil {
-			cfg.StoreFile = usr.HomeDir + "/devops-metrics-db.json"
+			cfg.StoreFile = usr.HomeDir + "\\devops-metrics-db.json"
 		} else {
 			log.Printf("error getting the path to the user directory: %s\n", err.Error())
 		}

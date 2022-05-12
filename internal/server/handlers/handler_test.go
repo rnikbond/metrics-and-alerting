@@ -16,7 +16,7 @@ import (
 
 func TestUpdateMetricURL(t *testing.T) {
 
-	st := storage.MemoryStorage{}
+	memoryStorage := storage.MemoryStorage{}
 
 	type metricData struct {
 		name       string
@@ -25,7 +25,8 @@ func TestUpdateMetricURL(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
+		name string
+
 		metricData metricData
 
 		contentType string
@@ -36,7 +37,7 @@ func TestUpdateMetricURL(t *testing.T) {
 		{
 			name: "TestUpdateMetric - Type {Counter} => [OK]",
 			metricData: metricData{
-				name:       "testGauge",
+				name:       "testCounter",
 				value:      "100",
 				metricType: storage.CounterType,
 			},
@@ -120,7 +121,7 @@ func TestUpdateMetricURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 
-		st.Clear()
+		memoryStorage.Clear()
 
 		t.Run(tt.name, func(t *testing.T) {
 
@@ -149,7 +150,7 @@ func TestUpdateMetricURL(t *testing.T) {
 			request.Header.Set("Content-Type", tt.contentType)
 
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(UpdateMetricURL(&st))
+			h := http.HandlerFunc(UpdateMetricURL(&memoryStorage))
 			h.ServeHTTP(w, request)
 
 			response := w.Result()
@@ -160,7 +161,7 @@ func TestUpdateMetricURL(t *testing.T) {
 			if !tt.wantError {
 				require.Equal(t, tt.contentType, response.Header.Get("Content-Type"))
 
-				_, err := st.Get(tt.metricData.metricType, tt.metricData.name)
+				_, err := memoryStorage.Get(tt.metricData.metricType, tt.metricData.name)
 				assert.NoError(t, err)
 			}
 		})
