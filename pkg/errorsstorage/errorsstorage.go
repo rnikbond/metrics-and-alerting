@@ -28,12 +28,10 @@ func ConvertToHTTP(err error) int {
 		ErrorInvalidType,
 		ErrorInvalidValue,
 		ErrorInvalidJSON:
-			
+
 		return http.StatusBadRequest
 
 	default:
 		return http.StatusInternalServerError
 	}
-
-	return http.StatusOK
 }

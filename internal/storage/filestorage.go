@@ -332,7 +332,7 @@ func (st *FileStorage) Clear() {
 
 }
 
-func (st FileStorage) String() string {
+func (st *FileStorage) String() string {
 
 	if err := st.Read(); err != nil {
 		return ""

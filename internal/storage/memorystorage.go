@@ -230,7 +230,7 @@ func (st *MemoryStorage) Count(typeMetric string) int {
 	return count
 }
 
-func (st MemoryStorage) String() string {
+func (st *MemoryStorage) String() string {
 
 	var s string
 
