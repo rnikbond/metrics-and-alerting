@@ -32,26 +32,28 @@ func prepareConfig() {
 	}
 
 	if addr != nil {
-		parsedAddr := strings.Split(*addr, ":")
-		if len(parsedAddr) != 2 {
-			log.Println("need address in a form host:port")
-			os.Exit(1)
-		}
-
-		if parsedAddr[0] != "localhost" {
-			if ip := net.ParseIP(parsedAddr[0]); ip == nil {
-				log.Println("incorrect ip: " + parsedAddr[0])
-				os.Exit(1)
-			}
-		}
-
-		if _, err := strconv.Atoi(parsedAddr[1]); err != nil {
-			log.Println("incorrect port: " + parsedAddr[1])
-			os.Exit(1)
-		}
-
-		cfg.Addr = *addr
+		return
 	}
+
+	parsedAddr := strings.Split(*addr, ":")
+	if len(parsedAddr) != 2 {
+		log.Println("need address in a form host:port")
+		return
+	}
+
+	if parsedAddr[0] != "localhost" {
+		if ip := net.ParseIP(parsedAddr[0]); ip == nil {
+			log.Println("incorrect ip: " + parsedAddr[0])
+			return
+		}
+	}
+
+	if _, err := strconv.Atoi(parsedAddr[1]); err != nil {
+		log.Println("incorrect port: " + parsedAddr[1])
+		return
+	}
+
+	cfg.Addr = *addr
 }
 
 func main() {

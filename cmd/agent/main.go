@@ -5,7 +5,6 @@ import (
 	"flag"
 	"log"
 	"net"
-	"os"
 	"os/signal"
 	"strconv"
 	"strings"
@@ -30,22 +29,26 @@ func prepareConfig() {
 	cfg.ReportInterval = time.Duration(*reportInterval) * time.Second
 	cfg.PollInterval = time.Duration(*pollInterval) * time.Second
 
+	if addr != nil {
+		return
+	}
+
 	parsedAddr := strings.Split(*addr, ":")
 	if len(parsedAddr) != 2 {
 		log.Println("need address in a form host:port")
-		os.Exit(1)
+		return
 	}
 
 	if parsedAddr[0] != "localhost" {
 		if ip := net.ParseIP(parsedAddr[0]); ip == nil {
 			log.Println("incorrect ip: " + parsedAddr[0])
-			os.Exit(1)
+			return
 		}
 	}
 
 	if _, err := strconv.Atoi(parsedAddr[1]); err != nil {
 		log.Println("incorrect port: " + parsedAddr[1])
-		os.Exit(1)
+		return
 	}
 
 	cfg.Addr = *addr
