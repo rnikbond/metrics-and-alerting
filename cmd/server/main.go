@@ -38,9 +38,11 @@ func prepareConfig() {
 			os.Exit(1)
 		}
 
-		if ip := net.ParseIP(parsedAddr[0]); ip == nil {
-			log.Println("incorrect ip: " + parsedAddr[0])
-			os.Exit(1)
+		if parsedAddr[0] != "localhost" {
+			if ip := net.ParseIP(parsedAddr[0]); ip == nil {
+				log.Println("incorrect ip: " + parsedAddr[0])
+				os.Exit(1)
+			}
 		}
 
 		if _, err := strconv.Atoi(parsedAddr[1]); err != nil {
