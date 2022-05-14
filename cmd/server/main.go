@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	servermetrics "metrics-and-alerting/internal/server"
 	"metrics-and-alerting/pkg/config"
@@ -23,13 +22,9 @@ func prepareConfig() {
 
 	flag.BoolVar(&cfg.Restore, "r", cfg.Restore, "bool - restore metrics")
 	flag.StringVar(&cfg.StoreFile, "f", cfg.StoreFile, "string - path to file storage")
-	storeInterval := flag.Int64("i", int64(cfg.StoreInterval.Seconds()), "sec - interval store metrics")
+	flag.DurationVar(&cfg.StoreInterval, "i", cfg.StoreInterval, "duration - interval store metrics")
 	addr := flag.String("a", cfg.Addr, "string - host:port")
 	flag.Parse()
-
-	if storeInterval != nil {
-		cfg.StoreInterval = time.Duration(*storeInterval) * time.Second
-	}
 
 	if addr == nil {
 		return

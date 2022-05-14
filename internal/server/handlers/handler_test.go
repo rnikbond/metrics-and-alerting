@@ -496,6 +496,17 @@ func TestUpdateMetricJSON(t *testing.T) {
 			},
 			wantStatus: http.StatusNotImplemented,
 		},
+		{
+			name:        "Update counter Post/JSON (YandexTest) => [OK]",
+			httpMethod:  http.MethodPost,
+			contentType: "application/json",
+			metric: storage.Metrics{
+				ID:    "GetSet87",
+				MType: storage.CounterType,
+				Delta: &delta,
+			},
+			wantStatus: http.StatusOK,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

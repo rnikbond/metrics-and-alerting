@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"metrics-and-alerting/internal/service/agent"
 	"metrics-and-alerting/internal/storage"
@@ -21,13 +20,10 @@ var cfg config.Config
 func prepareConfig() {
 	cfg.ReadVarsEnv()
 
-	reportInterval := flag.Int64("r", int64(cfg.ReportInterval.Seconds()), "report interval")
-	pollInterval := flag.Int64("p", int64(cfg.PollInterval.Seconds()), "poll interval")
+	flag.DurationVar(&cfg.ReportInterval, "r", cfg.ReportInterval, "duration - report interval")
+	flag.DurationVar(&cfg.PollInterval, "p", cfg.PollInterval, "duration - poll interval")
 	addr := flag.String("a", cfg.Addr, "ip address: ip:port")
 	flag.Parse()
-
-	cfg.ReportInterval = time.Duration(*reportInterval) * time.Second
-	cfg.PollInterval = time.Duration(*pollInterval) * time.Second
 
 	if addr == nil {
 		return
