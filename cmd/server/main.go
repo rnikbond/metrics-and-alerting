@@ -31,7 +31,7 @@ func prepareConfig() {
 		cfg.StoreInterval = time.Duration(*storeInterval) * time.Second
 	}
 
-	if addr != nil {
+	if addr == nil {
 		return
 	}
 

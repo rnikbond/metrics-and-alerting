@@ -29,7 +29,7 @@ func prepareConfig() {
 	cfg.ReportInterval = time.Duration(*reportInterval) * time.Second
 	cfg.PollInterval = time.Duration(*pollInterval) * time.Second
 
-	if addr != nil {
+	if addr == nil {
 		return
 	}
 
