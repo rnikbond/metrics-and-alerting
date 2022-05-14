@@ -19,7 +19,7 @@ type Config struct {
 	Restore        bool          `env:"RESTORE"`
 }
 
-func (cfg *Config) Read() {
+func (cfg *Config) ReadVarsEnv() {
 
 	// Инициализация значений по умолчанию
 	cfg.Addr = "127.0.0.1:8080"

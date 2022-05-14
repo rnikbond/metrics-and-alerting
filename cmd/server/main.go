@@ -2,22 +2,61 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
+	"net"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
+	"time"
 
 	servermetrics "metrics-and-alerting/internal/server"
 	"metrics-and-alerting/pkg/config"
 )
 
+var cfg config.Config
+
+func prepareConfig() {
+	cfg.ReadVarsEnv()
+
+	flag.BoolVar(&cfg.Restore, "r", cfg.Restore, "bool - restore metrics")
+	flag.StringVar(&cfg.StoreFile, "f", cfg.StoreFile, "string - path to file storage")
+	storeInterval := flag.Int64("i", int64(cfg.StoreInterval.Seconds()), "sec - interval store metrics")
+	addr := flag.String("a", cfg.Addr, "string - host:port")
+	flag.Parse()
+
+	if storeInterval != nil {
+		cfg.StoreInterval = time.Duration(*storeInterval) * time.Second
+	}
+
+	if addr != nil {
+		parsedAddr := strings.Split(*addr, ":")
+		if len(parsedAddr) != 2 {
+			log.Println("need address in a form host:port")
+			os.Exit(1)
+		}
+
+		if ip := net.ParseIP(parsedAddr[0]); ip == nil {
+			log.Println("incorrect ip: " + parsedAddr[0])
+			os.Exit(1)
+		}
+
+		if _, err := strconv.Atoi(parsedAddr[1]); err != nil {
+			log.Println("incorrect port: " + parsedAddr[1])
+			os.Exit(1)
+		}
+
+		cfg.Addr = *addr
+	}
+}
+
 func main() {
 
+	prepareConfig()
+
 	waitChan := make(chan struct{})
-
-	cfg := config.Config{}
-	cfg.Read()
-
 	server := servermetrics.StartMetricsHTTPServer(&cfg)
 
 	go func() {
