@@ -11,37 +11,44 @@ import (
 	"sync"
 	"time"
 
+	"metrics-and-alerting/pkg/config"
 	errst "metrics-and-alerting/pkg/errorsstorage"
 )
 
 type MemoryStorage struct {
 	mu      sync.Mutex
 	metrics []Metrics
+	cfg     config.Config
+}
 
-	isStore  bool
-	filePath string
-	interval time.Duration
+func (st *MemoryStorage) isStore() bool {
+
+	return len(st.cfg.StoreFile) > 0
+}
+
+func (st *MemoryStorage) isStoreSync() bool {
+
+	return st.isStore() && st.cfg.StoreInterval == 0
 }
 
 func (st *MemoryStorage) File(flag int) (*os.File, error) {
-	if len(st.filePath) < 1 {
+
+	if len(st.cfg.StoreFile) < 1 {
 		return nil, errors.New("invalid path file")
 	}
 
-	return os.OpenFile(st.filePath, flag, 0777)
+	return os.OpenFile(st.cfg.StoreFile, flag, 0777)
 }
 
-func (st *MemoryStorage) SetStorageLocal(isStore bool, path string, interval time.Duration) {
-	st.isStore = isStore
-	st.filePath = path
-	st.interval = interval
+func (st *MemoryStorage) SetExternalStorage(cfg *config.Config) {
+	st.cfg = *cfg
 
-	if !st.isStore || st.interval == 0 {
+	if st.isStoreSync() {
 		return
 	}
 
 	go func() {
-		timer := time.NewTimer(st.interval)
+		timer := time.NewTimer(st.cfg.StoreInterval)
 
 		for {
 			<-timer.C
@@ -204,7 +211,7 @@ func (st *MemoryStorage) Set(typeMetric, id string, value interface{}) error {
 		return errst.ErrorUnknownType
 	}
 
-	if st.isStore && st.interval == 0 {
+	if st.isStoreSync() {
 		st.Save()
 	}
 
@@ -253,7 +260,7 @@ func (st *MemoryStorage) Add(typeMetric, id string, value interface{}) error {
 		return errst.ErrorUnknownType
 	}
 
-	if st.isStore && st.interval == 0 {
+	if st.isStoreSync() {
 		st.Save()
 	}
 

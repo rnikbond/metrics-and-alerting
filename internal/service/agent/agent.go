@@ -61,7 +61,8 @@ func (agent *Agent) Start(ctx context.Context) {
 		agent.Config.Addr = "http://" + agent.Config.Addr
 	}
 
-	agent.Storage.SetStorageLocal(false, "", 0)
+	agent.Config.StoreFile = ""
+	agent.Storage.SetExternalStorage(agent.Config)
 
 	// запуск горутины для обновления метрик
 	go agent.regularUpdate(ctx)
@@ -223,35 +224,43 @@ func (agent *Agent) updateAll() {
 
 	generator := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	agent.Storage.Set(storage.GaugeType, "RandomValue", generator.Float64())
-	agent.Storage.Set(storage.GaugeType, "Alloc", ms.Alloc)
-	agent.Storage.Set(storage.GaugeType, "BuckHashSys", ms.BuckHashSys)
-	agent.Storage.Set(storage.GaugeType, "Frees", ms.Frees)
-	agent.Storage.Set(storage.GaugeType, "GCCPUFraction", ms.GCCPUFraction)
-	agent.Storage.Set(storage.GaugeType, "GCSys", ms.GCSys)
-	agent.Storage.Set(storage.GaugeType, "HeapAlloc", ms.HeapAlloc)
-	agent.Storage.Set(storage.GaugeType, "HeapIdle", ms.HeapIdle)
-	agent.Storage.Set(storage.GaugeType, "HeapInuse", ms.HeapInuse)
-	agent.Storage.Set(storage.GaugeType, "HeapObjects", ms.HeapObjects)
-	agent.Storage.Set(storage.GaugeType, "HeapReleased", ms.HeapReleased)
-	agent.Storage.Set(storage.GaugeType, "HeapSys", ms.HeapSys)
-	agent.Storage.Set(storage.GaugeType, "LastGC", ms.LastGC)
-	agent.Storage.Set(storage.GaugeType, "Lookups", ms.Lookups)
-	agent.Storage.Set(storage.GaugeType, "MCacheInuse", ms.MCacheInuse)
-	agent.Storage.Set(storage.GaugeType, "MCacheSys", ms.MCacheSys)
-	agent.Storage.Set(storage.GaugeType, "MSpanInuse", ms.MSpanInuse)
-	agent.Storage.Set(storage.GaugeType, "MSpanSys", ms.MSpanSys)
-	agent.Storage.Set(storage.GaugeType, "Mallocs", ms.Mallocs)
-	agent.Storage.Set(storage.GaugeType, "NextGC", ms.NextGC)
-	agent.Storage.Set(storage.GaugeType, "NumForcedGC", ms.NumForcedGC)
-	agent.Storage.Set(storage.GaugeType, "NumGC", ms.NumGC)
-	agent.Storage.Set(storage.GaugeType, "OtherSys", ms.OtherSys)
-	agent.Storage.Set(storage.GaugeType, "PauseTotalNs", ms.PauseTotalNs)
-	agent.Storage.Set(storage.GaugeType, "StackInuse", ms.StackInuse)
-	agent.Storage.Set(storage.GaugeType, "StackSys", ms.StackSys)
-	agent.Storage.Set(storage.GaugeType, "Sys", ms.Sys)
-	agent.Storage.Set(storage.GaugeType, "TotalAlloc", ms.TotalAlloc)
-	agent.Storage.Add(storage.CounterType, "PollCount", 1)
+	gaugeMetrics := make(map[string]interface{})
+	gaugeMetrics["RandomValue"] = generator.Float64()
+	gaugeMetrics["Alloc"] = ms.Alloc
+	gaugeMetrics["BuckHashSys"] = ms.BuckHashSys
+	gaugeMetrics["Frees"] = ms.Frees
+	gaugeMetrics["GCCPUFraction"] = ms.GCCPUFraction
+	gaugeMetrics["GCSys"] = ms.GCSys
+	gaugeMetrics["HeapAlloc"] = ms.HeapAlloc
+	gaugeMetrics["HeapIdle"] = ms.HeapIdle
+	gaugeMetrics["HeapInuse"] = ms.HeapInuse
+	gaugeMetrics["HeapObjects"] = ms.HeapObjects
+	gaugeMetrics["HeapReleased"] = ms.HeapReleased
+	gaugeMetrics["HeapSys"] = ms.HeapSys
+	gaugeMetrics["LastGC"] = ms.LastGC
+	gaugeMetrics["Lookups"] = ms.Lookups
+	gaugeMetrics["MCacheInuse"] = ms.MCacheInuse
+	gaugeMetrics["MCacheSys"] = ms.MCacheSys
+	gaugeMetrics["MSpanInuse"] = ms.MSpanInuse
+	gaugeMetrics["MSpanSys"] = ms.MSpanSys
+	gaugeMetrics["Mallocs"] = ms.Mallocs
+	gaugeMetrics["NextGC"] = ms.NextGC
+	gaugeMetrics["NumForcedGC"] = ms.NumForcedGC
+	gaugeMetrics["NumGC"] = ms.NumGC
+	gaugeMetrics["OtherSys"] = ms.OtherSys
+	gaugeMetrics["PauseTotalNs"] = ms.PauseTotalNs
+	gaugeMetrics["StackInuse"] = ms.StackInuse
+	gaugeMetrics["StackSys"] = ms.StackSys
+	gaugeMetrics["Sys"] = ms.Sys
+	gaugeMetrics["TotalAlloc"] = ms.TotalAlloc
 
-	//log.Println(agent.Storage)
+	for id, value := range gaugeMetrics {
+		if err := agent.Storage.Add(storage.GaugeType, id, value); err != nil {
+			log.Printf("error set value metric %s/%s/%v: %s\n", storage.GaugeType, id, value, err.Error())
+		}
+	}
+
+	if err := agent.Storage.Add(storage.CounterType, "PollCount", 1); err != nil {
+		log.Printf("error set value metric %s/%s/%v: %s\n", storage.GaugeType, "PollCount", 1, err.Error())
+	}
 }

@@ -1,9 +1,9 @@
 package storage
 
 import (
-	"encoding/json"
 	"strconv"
-	"time"
+
+	"metrics-and-alerting/pkg/config"
 )
 
 const (
@@ -29,9 +29,9 @@ type IStorage interface {
 
 	String() string
 
-	SetStorageLocal(isStore bool, path string, interval time.Duration)
 	Save() error
 	Restore() error
+	SetExternalStorage(cfg *config.Config)
 }
 
 type Metrics struct {
@@ -39,13 +39,6 @@ type Metrics struct {
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
 	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
-}
-
-type SerializeMetric struct {
-	ID    string          `json:"id"`              // имя метрики
-	MType string          `json:"type"`            // параметр, принимающий значение gauge или counter
-	Delta json.RawMessage `json:"delta,omitempty"` // значение метрики в случае передачи counter
-	Value json.RawMessage `json:"value,omitempty"` // значение метрики в случае передачи gauge
 }
 
 func createMetric(typeMetric, id string) *Metrics {

@@ -14,7 +14,7 @@ import (
 func StartMetricsHTTPServer(cfg *config.Config) *http.Server {
 
 	memoryStorage := storage.MemoryStorage{}
-	memoryStorage.SetStorageLocal(true, cfg.StoreFile, cfg.StoreInterval)
+	memoryStorage.SetExternalStorage(cfg)
 
 	if cfg.Restore {
 		memoryStorage.Restore()
