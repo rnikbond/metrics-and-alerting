@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"sort"
@@ -108,6 +109,10 @@ func (st *MemoryStorage) Restore() error {
 		}
 
 		st.metrics = append(st.metrics, metric)
+	}
+
+	for _, metric := range st.metrics {
+		fmt.Printf("success restore metric: %s", metric.String())
 	}
 
 	return nil

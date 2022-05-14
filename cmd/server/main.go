@@ -20,6 +20,7 @@ var cfg config.Config
 
 func prepareConfig() {
 	cfg.ReadVarsEnv()
+	fmt.Printf("Config after read env: \n%s\n", cfg.String())
 
 	flag.BoolVar(&cfg.Restore, "r", cfg.Restore, "bool - restore metrics")
 	flag.StringVar(&cfg.StoreFile, "f", cfg.StoreFile, "string - path to file storage")
@@ -54,9 +55,11 @@ func prepareConfig() {
 
 func main() {
 
+	fmt.Printf("server args: %s\n", os.Args)
+
 	prepareConfig()
 
-	fmt.Printf("Config: \n%s\n", cfg.String())
+	fmt.Printf("Config after read args: \n%s\n", cfg.String())
 
 	waitChan := make(chan struct{})
 	server := servermetrics.StartMetricsHTTPServer(&cfg)
