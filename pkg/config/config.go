@@ -57,11 +57,6 @@ func (cfg *Config) ReadVarsEnv() {
 		log.Println(err)
 	}
 
-	// Убираем сохранение в файл, если путь не указан
-	if len(cfg.StoreFile) < 1 {
-		cfg.Restore = false
-	}
-
 	// Убираем пробелы из адреса
 	cfg.Addr = strings.TrimSpace(cfg.Addr)
 }
