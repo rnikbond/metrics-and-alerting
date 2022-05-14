@@ -37,7 +37,7 @@ func (st *MemoryStorage) File(flag int) (*os.File, error) {
 		return nil, errors.New("invalid path file")
 	}
 
-	return os.OpenFile(st.cfg.StoreFile, flag, 0777)
+	return os.OpenFile(st.cfg.StoreFile, flag, 0600)
 }
 
 func (st *MemoryStorage) SetExternalStorage(cfg *config.Config) {
@@ -62,7 +62,7 @@ func (st *MemoryStorage) SetExternalStorage(cfg *config.Config) {
 func (st *MemoryStorage) Save() error {
 	file, err := st.File(os.O_CREATE | os.O_WRONLY | os.O_TRUNC)
 	if err != nil {
-		log.Println("error open file for write: ", err)
+		log.Println("error open file for write: ", err, ". Path: ", st.cfg.StoreFile)
 		return err
 	}
 	defer file.Close()
@@ -91,7 +91,7 @@ func (st *MemoryStorage) Restore() error {
 
 	file, err := st.File(os.O_RDONLY)
 	if err != nil {
-		log.Println("error open file fo read: ", err)
+		log.Println("error open file fo read: ", err, ". Path: ", st.cfg.StoreFile)
 		return err
 	}
 	defer file.Close()
