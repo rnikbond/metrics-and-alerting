@@ -31,13 +31,13 @@ func (st *MemoryStorage) isStoreSync() bool {
 	return st.isStore() && st.cfg.StoreInterval == 0
 }
 
-func (st *MemoryStorage) File(flag int) (*os.File, error) {
+func (st *MemoryStorage) File(flag int, perm os.FileMode) (*os.File, error) {
 
 	if len(st.cfg.StoreFile) < 1 {
 		return nil, errors.New("invalid path file")
 	}
 
-	return os.OpenFile(st.cfg.StoreFile, flag, 0600)
+	return os.OpenFile(st.cfg.StoreFile, flag, perm)
 }
 
 func (st *MemoryStorage) SetExternalStorage(cfg *config.Config) {
@@ -60,9 +60,9 @@ func (st *MemoryStorage) SetExternalStorage(cfg *config.Config) {
 }
 
 func (st *MemoryStorage) Save() error {
-	file, err := st.File(os.O_CREATE | os.O_WRONLY | os.O_TRUNC)
+	file, err := st.File(os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
-		log.Println("error open file for write: ", err, ". Path: ", st.cfg.StoreFile)
+		log.Println("error open file for write - " + err.Error() + ". Path: " + st.cfg.StoreFile)
 		return err
 	}
 	defer file.Close()
@@ -89,9 +89,9 @@ func (st *MemoryStorage) Save() error {
 func (st *MemoryStorage) Restore() error {
 	st.metrics = []Metrics{}
 
-	file, err := st.File(os.O_RDONLY)
+	file, err := st.File(os.O_RDONLY, 0400)
 	if err != nil {
-		log.Println("error open file fo read: ", err, ". Path: ", st.cfg.StoreFile)
+		log.Println("error open file for read - " + err.Error() + ". Path: " + st.cfg.StoreFile)
 		return err
 	}
 	defer file.Close()

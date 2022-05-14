@@ -4,6 +4,7 @@ import (
 	"log"
 	"os/user"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,17 @@ type Config struct {
 	StoreInterval  time.Duration `env:"STORE_INTERVAL"`
 	StoreFile      string        `env:"STORE_FILE"`
 	Restore        bool          `env:"RESTORE"`
+}
+
+func (cfg *Config) String() string {
+	s := "ADDRESS: " + cfg.Addr + "\n"
+	s += "REPORT_INTERVAL: " + cfg.ReportInterval.String() + "\n"
+	s += "POLL_INTERVAL: " + cfg.ReportInterval.String() + "\n"
+	s += "STORE_INTERVAL: " + cfg.StoreInterval.String() + "\n"
+	s += "STORE_FILE: " + cfg.StoreFile + "\n"
+	s += "RESTORE: " + strconv.FormatBool(cfg.Restore) + "\n"
+
+	return s
 }
 
 func (cfg *Config) ReadVarsEnv() {

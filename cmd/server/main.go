@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -54,6 +55,8 @@ func prepareConfig() {
 func main() {
 
 	prepareConfig()
+
+	fmt.Printf("Config: \n%s\n", cfg.String())
 
 	waitChan := make(chan struct{})
 	server := servermetrics.StartMetricsHTTPServer(&cfg)
