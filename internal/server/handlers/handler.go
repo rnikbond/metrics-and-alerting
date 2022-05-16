@@ -231,9 +231,6 @@ func GetMetricJSON(st storage.IStorage) http.HandlerFunc {
 			return
 		}
 
-		if r.Header.Get(`Content-Encoding`) == `gzip` {
-		}
-
 		defer r.Body.Close()
 
 		data, err := io.ReadAll(r.Body)
