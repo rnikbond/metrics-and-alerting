@@ -17,15 +17,14 @@ import (
 
 var cfg config.Config
 
-func prepareConfig() {
-	cfg.ReadVarsEnv()
+func parseFlags() {
 
 	flag.DurationVar(&cfg.ReportInterval, "r", cfg.ReportInterval, "duration - report interval")
 	flag.DurationVar(&cfg.PollInterval, "p", cfg.PollInterval, "duration - poll interval")
 	addr := flag.String("a", cfg.Addr, "ip address: ip:port")
 	flag.Parse()
 
-	if addr == nil {
+	if addr == nil || *addr == "" {
 		return
 	}
 
@@ -52,7 +51,9 @@ func prepareConfig() {
 
 func main() {
 
-	prepareConfig()
+	cfg.SetDefault()
+	parseFlags()
+	cfg.ReadEnvVars()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	agent := agent.Agent{

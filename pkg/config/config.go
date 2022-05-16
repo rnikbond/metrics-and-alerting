@@ -20,6 +20,16 @@ type Config struct {
 	Restore        bool          `env:"RESTORE"`
 }
 
+// SetDefault Инициализация значений по умолчанию
+func (cfg *Config) SetDefault() {
+
+	cfg.Addr = "127.0.0.1:8080"
+	cfg.PollInterval = 2 * time.Second
+	cfg.ReportInterval = 10 * time.Second
+	cfg.StoreInterval = 300 * time.Second
+	cfg.Restore = true
+}
+
 func (cfg *Config) String() string {
 	s := "ADDRESS: " + cfg.Addr + "\n"
 	s += "REPORT_INTERVAL: " + cfg.ReportInterval.String() + "\n"
@@ -31,14 +41,7 @@ func (cfg *Config) String() string {
 	return s
 }
 
-func (cfg *Config) ReadVarsEnv() {
-
-	// Инициализация значений по умолчанию
-	cfg.Addr = "127.0.0.1:8080"
-	cfg.PollInterval = 2 * time.Second
-	cfg.ReportInterval = 10 * time.Second
-	cfg.StoreInterval = 300 * time.Second
-	cfg.Restore = true
+func (cfg *Config) ReadEnvVars() {
 
 	// Инициализация значений по умолчанию
 	// - Путь к файлу для сохранения под Windows и не Windows
