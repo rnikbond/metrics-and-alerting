@@ -21,6 +21,7 @@ func StartMetricsHTTPServer(cfg *config.Config) *http.Server {
 	}
 
 	r := chi.NewRouter()
+	r.Use(handler.GZipHandle)
 	r.Get("/", handler.GetMetrics(&memoryStorage))
 	r.Get(handler.PartURLValue+"/*", handler.GetMetric(&memoryStorage))
 	r.Post(handler.PartURLValue, handler.GetMetricJSON(&memoryStorage))

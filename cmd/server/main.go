@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -53,16 +52,9 @@ func parseFlags() {
 
 func main() {
 
-	fmt.Printf("server args: %s\n", os.Args)
-
 	cfg.SetDefault()
-	fmt.Printf("\tConfig default: \n%s\n", cfg.String())
-
 	parseFlags()
-	fmt.Printf("\tConfig after read args: \n%s\n", cfg.String())
-
 	cfg.ReadEnvVars()
-	fmt.Printf("\tConfig after read env: \n%s\n", cfg.String())
 
 	waitChan := make(chan struct{})
 	server := servermetrics.StartMetricsHTTPServer(&cfg)

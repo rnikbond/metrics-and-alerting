@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"compress/gzip"
 	"io"
 	"net/http"
 	"strings"
@@ -21,6 +22,35 @@ const (
 	PartURLUpdate = "/update"
 	PartURLValue  = "/value"
 )
+
+type gzipWriter struct {
+	http.ResponseWriter
+	Writer io.Writer
+}
+
+func (w gzipWriter) Write(b []byte) (int, error) {
+	return w.Writer.Write(b)
+}
+
+func GZipHandle(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+		if err != nil {
+			io.WriteString(w, err.Error())
+			return
+		}
+		defer gz.Close()
+
+		w.Header().Set("Content-Encoding", "gzip")
+		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
+	})
+}
 
 func GetMetrics(st storage.IStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -47,8 +77,15 @@ func GetMetrics(st storage.IStorage) http.HandlerFunc {
 			}
 		}
 
+		if r.Header.Get("Accept_Encoding") == "gzip" {
+			if _, err := io.WriteString(w, html); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		} else {
+			w.Write([]byte(html))
+		}
+
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(html))
 	}
 }
 
@@ -95,8 +132,16 @@ func GetMetric(st storage.IStorage) http.HandlerFunc {
 			return
 		}
 
+		if r.Header.Get("Accept_Encoding") == "gzip" {
+			if _, err := io.WriteString(w, val); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			w.Write([]byte(val))
+		}
+
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(val))
 	}
 }
 
@@ -140,7 +185,6 @@ func UpdateMetricURL(st storage.IStorage) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success URL update metric"))
 	}
 }
 
@@ -175,7 +219,6 @@ func UpdateMetricJSON(st storage.IStorage) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success JSON update metric"))
 	}
 }
 
@@ -186,6 +229,9 @@ func GetMetricJSON(st storage.IStorage) http.HandlerFunc {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
 			return
+		}
+
+		if r.Header.Get(`Content-Encoding`) == `gzip` {
 		}
 
 		defer r.Body.Close()
@@ -202,7 +248,15 @@ func GetMetricJSON(st storage.IStorage) http.HandlerFunc {
 			return
 		}
 
+		if r.Header.Get("Accept_Encoding") == "gzip" {
+			if _, err := io.WriteString(w, string(metric)); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			w.Write(metric)
+		}
+
 		w.WriteHeader(http.StatusOK)
-		w.Write(metric)
 	}
 }
