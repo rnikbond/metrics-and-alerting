@@ -28,7 +28,7 @@ const (
 	ContentEncoding = "Content-Encoding"
 	AcceptEncoding  = "Accept-Encoding"
 
-	TextHtml        = "text/html"
+	TextHTML        = "text/html"
 	ApplicationJSON = "application/json"
 	GZip            = "gzip"
 )
@@ -64,7 +64,7 @@ func GZipHandle(next http.Handler) http.Handler {
 
 func GetMetrics(st storage.IStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set(ContentType, TextHtml)
+		w.Header().Set(ContentType, TextHTML)
 
 		if r.Method != http.MethodGet {
 			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
