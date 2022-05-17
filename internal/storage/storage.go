@@ -1,7 +1,10 @@
 package storage
 
 import (
+	"bytes"
+	"fmt"
 	"strconv"
+	"text/tabwriter"
 
 	"metrics-and-alerting/pkg/config"
 )
@@ -50,16 +53,28 @@ func createMetric(typeMetric, id string) *Metrics {
 	}
 }
 
-func (metric *Metrics) String() string {
-	s := metric.MType + "/" + metric.ID
+func (metric Metrics) String() string {
+
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 0, 3, ' ', tabwriter.AlignRight)
+	fmt.Fprintln(w, "ID\t", metric.ID)
+	fmt.Fprintln(w, "TYPE\t", metric.MType)
 
 	if metric.Delta != nil {
-		s += "/" + strconv.FormatInt(*metric.Delta, 10)
+		fmt.Fprintln(w, "DELTA\t", strconv.FormatInt(*metric.Delta, 10))
+	} else {
+		fmt.Fprintln(w, "DELTA\tnil")
 	}
 
 	if metric.Value != nil {
-		s += "/" + strconv.FormatFloat(*metric.Value, 'f', -1, 64)
+		fmt.Fprintln(w, "VALUE\t", strconv.FormatFloat(*metric.Value, 'f', -1, 64))
+	} else {
+		fmt.Fprintln(w, "VALUE\tnil")
 	}
 
-	return s
+	if err := w.Flush(); err != nil {
+		return err.Error()
+	}
+
+	return buf.String()
 }

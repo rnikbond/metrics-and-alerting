@@ -62,7 +62,7 @@ func prepareConfig() {
 func main() {
 
 	prepareConfig()
-	fmt.Println(cfg.String())
+	fmt.Println(cfg)
 
 	memoryStorage := storage.MemoryStorage{}
 	memoryStorage.SetExternalStorage(&cfg)

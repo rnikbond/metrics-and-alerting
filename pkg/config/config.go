@@ -1,9 +1,12 @@
 package config
 
 import (
+	"bytes"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/caarlos0/env"
@@ -29,15 +32,22 @@ func (cfg *Config) SetDefault() {
 	cfg.StoreFile = "/tmp/devops-metrics-db.json"
 }
 
-func (cfg *Config) String() string {
-	s := "ADDRESS: " + cfg.Addr + "\n"
-	s += "REPORT_INTERVAL: " + cfg.ReportInterval.String() + "\n"
-	s += "POLL_INTERVAL: " + cfg.ReportInterval.String() + "\n"
-	s += "STORE_INTERVAL: " + cfg.StoreInterval.String() + "\n"
-	s += "STORE_FILE: " + cfg.StoreFile + "\n"
-	s += "RESTORE: " + strconv.FormatBool(cfg.Restore) + "\n"
+func (cfg Config) String() string {
 
-	return s
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 0, 3, ' ', tabwriter.AlignRight)
+	fmt.Fprintln(w, "ADDRESS\t", cfg.Addr)
+	fmt.Fprintln(w, "REPORT_INTERVAL\t", cfg.ReportInterval.String())
+	fmt.Fprintln(w, "POLL_INTERVAL\t", cfg.PollInterval.String())
+	fmt.Fprintln(w, "STORE_INTERVAL\t", cfg.StoreInterval.String())
+	fmt.Fprintln(w, "STORE_FILE\t", cfg.StoreFile)
+	fmt.Fprintln(w, "RESTORE\t", strconv.FormatBool(cfg.Restore))
+
+	if err := w.Flush(); err != nil {
+		return err.Error()
+	}
+
+	return buf.String()
 }
 
 func (cfg *Config) ReadEnvVars() {
