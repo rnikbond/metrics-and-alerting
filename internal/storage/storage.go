@@ -1,9 +1,12 @@
 package storage
 
 import (
-	"net/http"
+	"bytes"
+	"fmt"
 	"strconv"
-	"sync"
+	"text/tabwriter"
+
+	"metrics-and-alerting/pkg/config"
 )
 
 const (
@@ -11,166 +14,67 @@ const (
 	CounterType string = "counter"
 )
 
-type Metrics interface {
-	Set(name, value, t string) int
-	Add(name, value, t string) int
-	GetGauge(name string) (float64, int)
-	GetCounter(name string) (int64, int)
-	GetGauges() map[string]float64
-	GetGaugesString() map[string]string
-	GetCounters() map[string]int64
-	Get(t, name string) (string, int)
+type IStorage interface {
+	Get(typeMetric, id string) (string, error)
+	FillJSON(data []byte) ([]byte, error)
+	Names(typeMetric string) []string
+	Count(typeMetric string) int
+
 	Clear()
+
+	Set(typeMetric, id string, value interface{}) error
+	Add(typeMetric, id string, value interface{}) error
+	Update(typeMetric, id string, value interface{}) error
+	UpdateJSON(data []byte) error
+
+	Lock()
+	Unlock()
+
+	String() string
+
+	Save() error
+	Restore() error
+	SetExternalStorage(cfg *config.Config)
 }
 
-type MetricsData struct {
-	mu             sync.Mutex
-	metricsGauge   map[string]float64
-	metricsCounter map[string]int64
+type Metrics struct {
+	ID    string   `json:"id"`              // имя метрики
+	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
+	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
+	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
 }
 
-func (monitor *MetricsData) Add(name, value, t string) int {
-	monitor.mu.Lock()
-	defer monitor.mu.Unlock()
+func createMetric(typeMetric, id string) *Metrics {
+	return &Metrics{
+		ID:    id,
+		MType: typeMetric,
+		Delta: nil,
+		Value: nil,
+	}
+}
 
-	switch t {
-	case GaugeType:
-		if monitor.metricsGauge == nil {
-			monitor.metricsGauge = make(map[string]float64)
-		}
+func (metric Metrics) String() string {
 
-		metricValue, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return http.StatusBadRequest
-		}
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 0, 3, ' ', tabwriter.AlignRight)
+	fmt.Fprintln(w, "ID\t", metric.ID)
+	fmt.Fprintln(w, "TYPE\t", metric.MType)
 
-		monitor.metricsGauge[name] += metricValue
-
-	case CounterType:
-		if monitor.metricsCounter == nil {
-			monitor.metricsCounter = make(map[string]int64)
-		}
-
-		metricValue, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return http.StatusBadRequest
-		}
-
-		monitor.metricsCounter[name] += metricValue
-
-	default:
-		return http.StatusNotImplemented
+	if metric.Delta != nil {
+		fmt.Fprintln(w, "DELTA\t", strconv.FormatInt(*metric.Delta, 10))
+	} else {
+		fmt.Fprintln(w, "DELTA\tnil")
 	}
 
-	return http.StatusOK
-}
-
-func (monitor *MetricsData) Set(name, value, t string) int {
-	monitor.mu.Lock()
-	defer monitor.mu.Unlock()
-
-	switch t {
-	case GaugeType:
-		if monitor.metricsGauge == nil {
-			monitor.metricsGauge = make(map[string]float64)
-		}
-
-		metricValue, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return http.StatusBadRequest
-		}
-
-		monitor.metricsGauge[name] = metricValue
-
-	case CounterType:
-		if monitor.metricsCounter == nil {
-			monitor.metricsCounter = make(map[string]int64)
-		}
-
-		metricValue, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return http.StatusBadRequest
-		}
-
-		monitor.metricsCounter[name] = metricValue
-
-	default:
-		return http.StatusNotImplemented
+	if metric.Value != nil {
+		fmt.Fprintln(w, "VALUE\t", strconv.FormatFloat(*metric.Value, 'f', -1, 64))
+	} else {
+		fmt.Fprintln(w, "VALUE\tnil")
 	}
 
-	return http.StatusOK
-}
-
-func (monitor *MetricsData) GetGauge(name string) (float64, int) {
-	monitor.mu.Lock()
-	defer monitor.mu.Unlock()
-
-	value, exist := monitor.metricsGauge[name]
-	if !exist {
-		return 0, http.StatusNotFound
+	if err := w.Flush(); err != nil {
+		return err.Error()
 	}
 
-	return value, http.StatusOK
-}
-
-func (monitor *MetricsData) GetCounter(name string) (int64, int) {
-	monitor.mu.Lock()
-	defer monitor.mu.Unlock()
-
-	value, exist := monitor.metricsCounter[name]
-	if !exist {
-		return 0, http.StatusNotFound
-	}
-
-	return value, http.StatusOK
-}
-
-func (monitor *MetricsData) Get(t, name string) (string, int) {
-
-	switch t {
-	case GaugeType:
-		val, code := monitor.GetGauge(name)
-		return strconv.FormatFloat(val, 'f', 3, 64), code
-	case CounterType:
-		val, code := monitor.GetCounter(name)
-		return strconv.FormatInt(val, 10), code
-	}
-
-	return "", http.StatusNotFound
-}
-
-func (monitor *MetricsData) GetGauges() map[string]float64 {
-	return monitor.metricsGauge
-}
-
-func (monitor *MetricsData) GetGaugesString() map[string]string {
-	if monitor.metricsGauge == nil {
-		monitor.metricsGauge = make(map[string]float64)
-	}
-
-	metrics := make(map[string]string)
-
-	for k, v := range monitor.metricsGauge {
-		metrics[k] = strconv.FormatFloat(v, 'f', 3, 64)
-	}
-
-	return metrics
-}
-
-func (monitor *MetricsData) GetCounters() map[string]int64 {
-	return monitor.metricsCounter
-}
-
-func (monitor *MetricsData) Clear() {
-
-	monitor.mu.Lock()
-	defer monitor.mu.Unlock()
-
-	if monitor.metricsGauge != nil {
-		monitor.metricsGauge = make(map[string]float64)
-	}
-
-	if monitor.metricsCounter != nil {
-		monitor.metricsCounter = make(map[string]int64)
-	}
+	return buf.String()
 }

@@ -2,15 +2,20 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log"
 	"math/rand"
 	"net/http"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	handler "metrics-and-alerting/internal/server/handlers"
 	"metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/pkg/config"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -22,16 +27,15 @@ type Service interface {
 	regularUpdate(ctx context.Context, wg *sync.WaitGroup)
 
 	reportAll(ctx context.Context) error
-	report(ctx context.Context, nameMetric, valueMetric, typeMetric string) error
+	reportURL(ctx context.Context, nameMetric, valueMetric, typeMetric string) error
+	reportJSON(ctx context.Context, nameMetric, valueMetric, typeMetric string) error
 
 	updateAll()
 }
 
 type Agent struct {
-	ServerURL      string
-	PollInterval   time.Duration
-	ReportInterval time.Duration
-	Metrics        storage.Metrics
+	Config  *config.Config
+	Storage storage.IStorage
 }
 
 func float64ToString(value float64) string {
@@ -46,42 +50,50 @@ func uint64ToString(value uint64) string {
 	return strconv.FormatUint(value, 10)
 }
 
-// Запуск агента для сбора и отправки метрик
-func (agent *Agent) Start(ctx context.Context, wg *sync.WaitGroup) {
+// Start Запуск агента для сбора и отправки метрик
+func (agent *Agent) Start(ctx context.Context) {
+
+	if agent.Config == nil {
+		panic(errors.New("not configured"))
+	}
+
+	if !strings.Contains(agent.Config.Addr, "http://") {
+		agent.Config.Addr = "http://" + agent.Config.Addr
+	}
+
+	agent.Config.StoreFile = ""
+	agent.Storage.SetExternalStorage(agent.Config)
+
 	// запуск горутины для обновления метрик
-	go agent.regularUpdate(ctx, wg)
+	go agent.regularUpdate(ctx)
 
 	// запуск горутины для отправки метрик
-	go agent.regularReport(ctx, wg)
+	go agent.regularReport(ctx)
 
 }
 
 // Отправка метрик с частотой агента
-func (agent *Agent) regularReport(ctx context.Context, wg *sync.WaitGroup) {
-	wg.Add(1)
+func (agent *Agent) regularReport(ctx context.Context) {
 
 	for {
 		select {
-		case <-time.After(agent.ReportInterval * time.Second):
+		case <-time.After(agent.Config.ReportInterval):
 			agent.reportAll(ctx)
 		case <-ctx.Done():
-			wg.Done()
 			return
 		}
 	}
 }
 
 // Обновление метрик с частотой агента
-func (agent *Agent) regularUpdate(ctx context.Context, wg *sync.WaitGroup) {
-	wg.Add(1)
+func (agent *Agent) regularUpdate(ctx context.Context) {
 	agent.updateAll()
 
 	for {
 		select {
-		case <-time.After(agent.PollInterval * time.Second):
+		case <-time.After(agent.Config.PollInterval):
 			agent.updateAll()
 		case <-ctx.Done():
-			wg.Done()
 			return
 		}
 	}
@@ -90,39 +102,50 @@ func (agent *Agent) regularUpdate(ctx context.Context, wg *sync.WaitGroup) {
 // Отправление всех метрик
 func (agent *Agent) reportAll(ctx context.Context) {
 
+	agent.Storage.Lock()
+	defer agent.Storage.Unlock()
+
 	client := resty.New()
+	types := []string{storage.GaugeType, storage.CounterType}
 
-	for metricName, metricValue := range agent.Metrics.GetGauges() {
-		agent.report(ctx, client, metricName, float64ToString(metricValue), storage.GaugeType)
+	for _, typeMetric := range types {
+		names := agent.Storage.Names(typeMetric)
+
+		for _, name := range names {
+			value, err := agent.Storage.Get(typeMetric, name)
+			if err != nil {
+				log.Printf("Agent.reportAll() - error report metric %s/%s - %s",
+					typeMetric, name, err.Error())
+				continue
+			}
+
+			if err = agent.reportJSON(ctx, client, typeMetric, name, value); err != nil {
+				log.Println(err.Error())
+			}
+
+			//if err = agent.reportURL(ctx, client, typeMetric, name, value); err != nil {
+			//	log.Println(err.Error())
+			//}
+		}
 	}
 
-	for metricName, metricValue := range agent.Metrics.GetCounters() {
-		agent.report(ctx, client, metricName, int64ToString(metricValue), storage.CounterType)
+	if err := agent.Storage.Set(storage.CounterType, "PollCount", 0); err != nil {
+		log.Println(err.Error())
 	}
-
-	agent.Metrics.Set("PollCount", "0", storage.CounterType)
 }
 
 // Обновление метрики
-func (agent *Agent) report(ctx context.Context, client *resty.Client, nameMetric, valueMetric, typeMetric string) error {
+func (agent *Agent) reportURL(ctx context.Context, client *resty.Client, typeMetric, nameMetric, valueMetric string) error {
 
-	if len(nameMetric) < 1 {
-		return errors.New("name metric can not be empty")
-	}
-
-	if len(valueMetric) < 1 {
-		return errors.New("value metric can not be empty")
-	}
-
-	if len(typeMetric) < 1 {
-		return errors.New("type metric can not be empty")
+	if len(typeMetric) < 1 || len(nameMetric) < 1 || len(valueMetric) < 1 {
+		return errors.New("invalid metric params")
 	}
 
 	resp, err := client.R().SetPathParams(map[string]string{
 		"type":  typeMetric,
 		"name":  nameMetric,
 		"value": valueMetric,
-	}).Post(agent.ServerURL + "/{type}/{name}/{value}")
+	}).SetContext(ctx).Post(agent.Config.Addr + handler.PartURLUpdate + "/{type}/{name}/{value}")
 
 	if err != nil {
 		return err
@@ -136,41 +159,108 @@ func (agent *Agent) report(ctx context.Context, client *resty.Client, nameMetric
 	return nil
 }
 
+func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, typeMetric, nameMetric, valueMetric string) error {
+
+	var metric storage.Metrics
+
+	switch typeMetric {
+	case storage.GaugeType:
+		val, err := strconv.ParseFloat(valueMetric, 64)
+		if err != nil {
+			return err
+		}
+
+		metric = storage.Metrics{
+			ID:    nameMetric,
+			MType: typeMetric,
+			Value: &val,
+		}
+	case storage.CounterType:
+		val, err := strconv.ParseInt(valueMetric, 10, 64)
+		if err != nil {
+			return err
+		}
+
+		metric = storage.Metrics{
+			ID:    nameMetric,
+			MType: typeMetric,
+			Delta: &val,
+		}
+	}
+
+	data, err := json.Marshal(metric)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(data).
+		SetContext(ctx).
+		Post(agent.Config.Addr + handler.PartURLUpdate)
+
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		respBody := resp.Body()
+		return errors.New(" \nJSON: " + string(data) +
+			".\nMetric: " + typeMetric + "/" + nameMetric + "/" + valueMetric +
+			".\nFailed update metric: " + resp.Status() + ". " + string(respBody))
+	}
+
+	return nil
+}
+
 // Обновление всех метрик
 func (agent *Agent) updateAll() {
+
+	agent.Storage.Lock()
+	defer agent.Storage.Unlock()
 
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
 
 	generator := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	agent.Metrics.Set("RandomValue", float64ToString(generator.Float64()), storage.GaugeType)
-	agent.Metrics.Set("Alloc", uint64ToString(ms.Alloc), storage.GaugeType)
-	agent.Metrics.Set("BuckHashSys", uint64ToString(ms.BuckHashSys), storage.GaugeType)
-	agent.Metrics.Set("Frees", uint64ToString(ms.Frees), storage.GaugeType)
-	agent.Metrics.Set("GCCPUFraction", float64ToString(ms.GCCPUFraction), storage.GaugeType)
-	agent.Metrics.Set("GCSys", uint64ToString(ms.GCSys), storage.GaugeType)
-	agent.Metrics.Set("HeapAlloc", uint64ToString(ms.HeapAlloc), storage.GaugeType)
-	agent.Metrics.Set("HeapIdle", uint64ToString(ms.HeapIdle), storage.GaugeType)
-	agent.Metrics.Set("HeapInuse", uint64ToString(ms.HeapInuse), storage.GaugeType)
-	agent.Metrics.Set("HeapObjects", uint64ToString(ms.HeapObjects), storage.GaugeType)
-	agent.Metrics.Set("HeapReleased", uint64ToString(ms.HeapReleased), storage.GaugeType)
-	agent.Metrics.Set("HeapSys", uint64ToString(ms.HeapSys), storage.GaugeType)
-	agent.Metrics.Set("LastGC", uint64ToString(ms.LastGC), storage.GaugeType)
-	agent.Metrics.Set("Lookups", uint64ToString(ms.Lookups), storage.GaugeType)
-	agent.Metrics.Set("MCacheInuse", uint64ToString(ms.MCacheInuse), storage.GaugeType)
-	agent.Metrics.Set("MCacheSys", uint64ToString(ms.MCacheSys), storage.GaugeType)
-	agent.Metrics.Set("MSpanInuse", uint64ToString(ms.MSpanInuse), storage.GaugeType)
-	agent.Metrics.Set("MSpanSys", uint64ToString(ms.MSpanSys), storage.GaugeType)
-	agent.Metrics.Set("Mallocs", uint64ToString(ms.Mallocs), storage.GaugeType)
-	agent.Metrics.Set("NextGC", uint64ToString(ms.NextGC), storage.GaugeType)
-	agent.Metrics.Set("NumForcedGC", uint64ToString(uint64(ms.NumForcedGC)), storage.GaugeType)
-	agent.Metrics.Set("NumGC", uint64ToString(uint64(ms.NumGC)), storage.GaugeType)
-	agent.Metrics.Set("OtherSys", uint64ToString(ms.OtherSys), storage.GaugeType)
-	agent.Metrics.Set("PauseTotalNs", uint64ToString(ms.PauseTotalNs), storage.GaugeType)
-	agent.Metrics.Set("StackInuse", uint64ToString(ms.StackInuse), storage.GaugeType)
-	agent.Metrics.Set("StackSys", uint64ToString(ms.StackSys), storage.GaugeType)
-	agent.Metrics.Set("Sys", uint64ToString(ms.Sys), storage.GaugeType)
-	agent.Metrics.Set("TotalAlloc", uint64ToString(ms.TotalAlloc), storage.GaugeType)
-	agent.Metrics.Add("PollCount", int64ToString(1), storage.CounterType)
+	gaugeMetrics := make(map[string]interface{})
+	gaugeMetrics["RandomValue"] = generator.Float64()
+	gaugeMetrics["Alloc"] = ms.Alloc
+	gaugeMetrics["BuckHashSys"] = ms.BuckHashSys
+	gaugeMetrics["Frees"] = ms.Frees
+	gaugeMetrics["GCCPUFraction"] = ms.GCCPUFraction
+	gaugeMetrics["GCSys"] = ms.GCSys
+	gaugeMetrics["HeapAlloc"] = ms.HeapAlloc
+	gaugeMetrics["HeapIdle"] = ms.HeapIdle
+	gaugeMetrics["HeapInuse"] = ms.HeapInuse
+	gaugeMetrics["HeapObjects"] = ms.HeapObjects
+	gaugeMetrics["HeapReleased"] = ms.HeapReleased
+	gaugeMetrics["HeapSys"] = ms.HeapSys
+	gaugeMetrics["LastGC"] = ms.LastGC
+	gaugeMetrics["Lookups"] = ms.Lookups
+	gaugeMetrics["MCacheInuse"] = ms.MCacheInuse
+	gaugeMetrics["MCacheSys"] = ms.MCacheSys
+	gaugeMetrics["MSpanInuse"] = ms.MSpanInuse
+	gaugeMetrics["MSpanSys"] = ms.MSpanSys
+	gaugeMetrics["Mallocs"] = ms.Mallocs
+	gaugeMetrics["NextGC"] = ms.NextGC
+	gaugeMetrics["NumForcedGC"] = ms.NumForcedGC
+	gaugeMetrics["NumGC"] = ms.NumGC
+	gaugeMetrics["OtherSys"] = ms.OtherSys
+	gaugeMetrics["PauseTotalNs"] = ms.PauseTotalNs
+	gaugeMetrics["StackInuse"] = ms.StackInuse
+	gaugeMetrics["StackSys"] = ms.StackSys
+	gaugeMetrics["Sys"] = ms.Sys
+	gaugeMetrics["TotalAlloc"] = ms.TotalAlloc
+
+	for id, value := range gaugeMetrics {
+		if err := agent.Storage.Add(storage.GaugeType, id, value); err != nil {
+			log.Printf("error set value metric %s/%s/%v: %s\n", storage.GaugeType, id, value, err.Error())
+		}
+	}
+
+	if err := agent.Storage.Add(storage.CounterType, "PollCount", 1); err != nil {
+		log.Printf("error set value metric %s/%s/%v: %s\n", storage.GaugeType, "PollCount", 1, err.Error())
+	}
 }

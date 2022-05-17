@@ -4,31 +4,33 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-chi/chi"
-
 	handler "metrics-and-alerting/internal/server/handlers"
-	storage "metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/pkg/config"
+
+	"github.com/go-chi/chi"
 )
 
-var (
-	metrics = storage.MetricsData{}
-)
-
-func StartMetricsHTTPServer() *http.Server {
+func StartMetricsHTTPServer(st storage.IStorage, cfg *config.Config) *http.Server {
 
 	r := chi.NewRouter()
-	r.Get("/", handler.GetMetrics(&metrics))
-	r.Get(handler.PartURLValue+"*", handler.GetMetric(&metrics))
-	r.Post(handler.PartURLUpdate+"*", handler.UpdateMetric(&metrics))
+	r.Use(handler.GZipHandle)
+	r.Get("/", handler.GetMetrics(st))
+	r.Get(handler.PartURLValue+"/*", handler.GetMetric(st))
+	r.Post(handler.PartURLValue, handler.GetMetricJSON(st))
+	r.Post(handler.PartURLValue+"/", handler.GetMetricJSON(st))
+	r.Post(handler.PartURLUpdate, handler.UpdateMetricJSON(st))
+	r.Post(handler.PartURLUpdate+"/", handler.UpdateMetricJSON(st))
+	r.Post(handler.PartURLUpdate+"/*", handler.UpdateMetricURL(st))
 
 	serverHTTP := &http.Server{
-		Addr:    ":8080",
+		Addr:    cfg.Addr,
 		Handler: r,
 	}
 
 	go func() {
 		if err := serverHTTP.ListenAndServe(); err != http.ErrServerClosed {
-			fmt.Printf("HTTP server ListenAndServe: %v", err)
+			fmt.Printf("HTTP server ListenAndServe: %v\n", err)
 		}
 	}()
 
