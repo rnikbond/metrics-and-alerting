@@ -48,7 +48,7 @@ func (st *MemoryStorage) SetExternalStorage(cfg *config.Config) {
 	}
 
 	go func() {
-		timer := time.NewTimer(st.cfg.StoreInterval)
+		timer := time.NewTicker(st.cfg.StoreInterval)
 
 		for {
 			<-timer.C
@@ -60,6 +60,7 @@ func (st *MemoryStorage) SetExternalStorage(cfg *config.Config) {
 }
 
 func (st *MemoryStorage) Save() error {
+
 	file, err := st.File(os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		log.Println("error open file for write - " + err.Error() + ". Path: " + st.cfg.StoreFile)
@@ -107,7 +108,14 @@ func (st *MemoryStorage) Restore() error {
 			continue
 		}
 
-		st.metrics = append(st.metrics, metric)
+		if idx, err := st.MetricIdx(metric.MType, metric.ID); err == nil {
+			st.metrics[idx].Delta = metric.Delta
+			st.metrics[idx].Value = metric.Value
+		} else if err == errst.ErrorNotFound {
+			st.metrics = append(st.metrics, metric)
+		} else {
+			log.Printf("error restore metric %s: %s\n", metric.String(), err.Error())
+		}
 	}
 
 	return nil

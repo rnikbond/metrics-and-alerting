@@ -2,8 +2,6 @@ package config
 
 import (
 	"log"
-	"os/user"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -26,8 +24,9 @@ func (cfg *Config) SetDefault() {
 	cfg.Addr = "127.0.0.1:8080"
 	cfg.PollInterval = 2 * time.Second
 	cfg.ReportInterval = 10 * time.Second
-	cfg.StoreInterval = 300 * time.Second
 	cfg.Restore = true
+	cfg.StoreInterval = 300 * time.Second
+	cfg.StoreFile = "/tmp/devops-metrics-db.json"
 }
 
 func (cfg *Config) String() string {
@@ -42,18 +41,6 @@ func (cfg *Config) String() string {
 }
 
 func (cfg *Config) ReadEnvVars() {
-
-	// Инициализация значений по умолчанию
-	// - Путь к файлу для сохранения под Windows и не Windows
-	if strings.Contains(runtime.GOOS, "windows") {
-		if usr, err := user.Current(); err == nil {
-			cfg.StoreFile = usr.HomeDir + "\\devops-metrics-db.json"
-		} else {
-			log.Printf("error getting the path to the user directory: %s\n", err.Error())
-		}
-	} else {
-		cfg.StoreFile = "/tmp/devops-metrics-db.json"
-	}
 
 	// Чтение переменных среды
 	if err := env.Parse(cfg); err != nil {

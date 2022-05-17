@@ -11,24 +11,17 @@ import (
 	"github.com/go-chi/chi"
 )
 
-func StartMetricsHTTPServer(cfg *config.Config) *http.Server {
-
-	memoryStorage := storage.MemoryStorage{}
-	memoryStorage.SetExternalStorage(cfg)
-
-	if cfg.Restore {
-		memoryStorage.Restore()
-	}
+func StartMetricsHTTPServer(st storage.IStorage, cfg *config.Config) *http.Server {
 
 	r := chi.NewRouter()
 	r.Use(handler.GZipHandle)
-	r.Get("/", handler.GetMetrics(&memoryStorage))
-	r.Get(handler.PartURLValue+"/*", handler.GetMetric(&memoryStorage))
-	r.Post(handler.PartURLValue, handler.GetMetricJSON(&memoryStorage))
-	r.Post(handler.PartURLValue+"/", handler.GetMetricJSON(&memoryStorage))
-	r.Post(handler.PartURLUpdate, handler.UpdateMetricJSON(&memoryStorage))
-	r.Post(handler.PartURLUpdate+"/", handler.UpdateMetricJSON(&memoryStorage))
-	r.Post(handler.PartURLUpdate+"/*", handler.UpdateMetricURL(&memoryStorage))
+	r.Get("/", handler.GetMetrics(st))
+	r.Get(handler.PartURLValue+"/*", handler.GetMetric(st))
+	r.Post(handler.PartURLValue, handler.GetMetricJSON(st))
+	r.Post(handler.PartURLValue+"/", handler.GetMetricJSON(st))
+	r.Post(handler.PartURLUpdate, handler.UpdateMetricJSON(st))
+	r.Post(handler.PartURLUpdate+"/", handler.UpdateMetricJSON(st))
+	r.Post(handler.PartURLUpdate+"/*", handler.UpdateMetricURL(st))
 
 	serverHTTP := &http.Server{
 		Addr:    cfg.Addr,

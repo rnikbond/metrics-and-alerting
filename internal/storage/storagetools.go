@@ -1,75 +1,87 @@
 package storage
 
 import (
-	"reflect"
 	"strconv"
 
 	errst "metrics-and-alerting/pkg/errorsstorage"
 )
 
 func ToInt64(value interface{}) (int64, error) {
-	reflVal := reflect.ValueOf(value)
 
-	switch reflVal.Kind() {
-	case
-		reflect.Int,
-		reflect.Int8,
-		reflect.Int16,
-		reflect.Int32,
-		reflect.Int64:
+	switch i := value.(type) {
+	// int
+	case int:
+		return int64(i), nil
+	case int8:
+		return int64(i), nil
+	case int16:
+		return int64(i), nil
+	case int32:
+		return int64(i), nil
+	case int64:
+		return i, nil
 
-		return reflVal.Int(), nil
-	case
-		reflect.Uint,
-		reflect.Uint8,
-		reflect.Uint16,
-		reflect.Uint32,
-		reflect.Uint64:
+	//	unsigned int
+	case uint:
+		return int64(i), nil
+	case uint8:
+		return int64(i), nil
+	case uint16:
+		return int64(i), nil
+	case uint32:
+		return int64(i), nil
+	case uint64:
+		return int64(i), nil
 
-		return int64(reflVal.Uint()), nil
-	case reflect.String:
-		val, err := strconv.ParseInt(reflVal.String(), 10, 64)
+	case string:
+		val, err := strconv.ParseInt(i, 10, 64)
 		if err != nil {
 			return 0, errst.ErrorInvalidValue
 		}
 		return val, nil
+
 	default:
 		return 0, errst.ErrorInvalidValue
 	}
 }
 
 func ToFloat64(value interface{}) (float64, error) {
-	reflVal := reflect.ValueOf(value)
 
-	switch reflVal.Kind() {
-	case
-		reflect.Float32,
-		reflect.Float64:
+	switch i := value.(type) {
+	case float32:
+		return float64(i), nil
+	case float64:
+		return i, nil
 
-		return reflVal.Float(), nil
-	case
-		reflect.Int,
-		reflect.Int8,
-		reflect.Int16,
-		reflect.Int32,
-		reflect.Int64:
+	case int:
+		return float64(i), nil
+	case int8:
+		return float64(i), nil
+	case int16:
+		return float64(i), nil
+	case int32:
+		return float64(i), nil
+	case int64:
+		return float64(i), nil
 
-		return float64(reflVal.Int()), nil
-	case
-		reflect.Uint,
-		reflect.Uint8,
-		reflect.Uint16,
-		reflect.Uint32,
-		reflect.Uint64:
+	case uint:
+		return float64(i), nil
+	case uint8:
+		return float64(i), nil
+	case uint16:
+		return float64(i), nil
+	case uint32:
+		return float64(i), nil
+	case uint64:
+		return float64(i), nil
 
-		return float64(reflVal.Uint()), nil
-	case reflect.String:
-
-		val, err := strconv.ParseFloat(reflVal.String(), 64)
+	case string:
+		val, err := strconv.ParseFloat(i, 64)
 		if err != nil {
 			return 0, errst.ErrorInvalidValue
 		}
 		return val, nil
+
 	default:
 		return 0, errst.ErrorInvalidValue
 	}

@@ -653,3 +653,86 @@ func TestGetMetricJSON(t *testing.T) {
 		})
 	}
 }
+
+/*
+func TestGetMetricJSON_GZip(t *testing.T) {
+	st := storage.MemoryStorage{}
+
+	value := 123.123
+	var delta int64 = 123
+
+	st.Update(storage.GaugeType, "testGauge", value)
+	st.Update(storage.CounterType, "testCounter", delta)
+
+	tests := []struct {
+		name        string
+		httpMethod  string
+		contentType string
+		reqMetric   storage.Metrics
+		wantMetric  storage.Metrics
+		wantStatus  int
+		wantErr     bool
+	}{
+		{
+			name:        "Get gauge metric gzip => [OK]",
+			httpMethod:  http.MethodPost,
+			contentType: "application/json",
+			reqMetric: storage.Metrics{
+				ID:    "testGauge",
+				MType: storage.GaugeType,
+			},
+			wantMetric: storage.Metrics{
+				ID:    "testGauge",
+				MType: storage.GaugeType,
+				Value: &value,
+			},
+			wantStatus: http.StatusOK,
+			wantErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, _ := json.Marshal(tt.reqMetric)
+
+			var bufCompress bytes.Buffer
+			writer := gzip.NewWriter(&bufCompress)
+			writer.Write(data)
+			writer.Close()
+
+			request := httptest.NewRequest(tt.httpMethod, PartURLValue, bytes.NewReader(bufCompress.Bytes()))
+			request.Header.Set("Content-Type", tt.contentType)
+			request.Header.Set("Accept-Encoding", "gzip")
+
+			w := httptest.NewRecorder()
+			h := http.HandlerFunc(GetMetricJSON(&st))
+			h.ServeHTTP(w, request)
+
+			response := w.Result()
+			defer response.Body.Close()
+
+			require.Equal(t, tt.wantStatus, response.StatusCode)
+
+			if !tt.wantErr {
+				body, errBody := io.ReadAll(response.Body)
+				require.NoError(t, errBody)
+
+				var bufDecompress bytes.Buffer
+				reader, err := gzip.NewReader(&bufDecompress)
+				if err != nil {
+					return
+				}
+
+				_, errDecompress := reader.Read(body)
+				require.NoError(t, errDecompress)
+
+				var metric storage.Metrics
+				err = json.Unmarshal(bufDecompress.Bytes(), &metric)
+				require.NoError(t, err)
+
+				assert.Equal(t, tt.wantMetric, metric)
+			}
+		})
+	}
+}
+*/

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"syscall"
 
 	servermetrics "metrics-and-alerting/internal/server"
+	"metrics-and-alerting/internal/storage"
 	"metrics-and-alerting/pkg/config"
 )
 
@@ -50,14 +52,29 @@ func parseFlags() {
 	cfg.Addr = *addr
 }
 
-func main() {
-
+func prepareConfig() {
 	cfg.SetDefault()
 	parseFlags()
 	cfg.ReadEnvVars()
 
+}
+
+func main() {
+
+	prepareConfig()
+	fmt.Println(cfg.String())
+
+	memoryStorage := storage.MemoryStorage{}
+	memoryStorage.SetExternalStorage(&cfg)
+
+	if cfg.Restore {
+		if err := memoryStorage.Restore(); err != nil {
+			log.Printf("error restore metric from %s. Error - %s\n", cfg.StoreFile, err.Error())
+		}
+	}
+
 	waitChan := make(chan struct{})
-	server := servermetrics.StartMetricsHTTPServer(&cfg)
+	server := servermetrics.StartMetricsHTTPServer(&memoryStorage, &cfg)
 
 	go func() {
 		sigChan := make(chan os.Signal, 1)
@@ -72,5 +89,10 @@ func main() {
 
 	log.Println("server running ...")
 	<-waitChan
+
+	if err := memoryStorage.Save(); err != nil {
+		log.Printf("error save metric in %s. Error - %s\n", cfg.StoreFile, err.Error())
+	}
+
 	log.Println("stop metrics server")
 }

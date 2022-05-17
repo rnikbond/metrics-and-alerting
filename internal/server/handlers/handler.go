@@ -23,6 +23,16 @@ const (
 	PartURLValue  = "/value"
 )
 
+const (
+	ContentType     = "Content-Type"
+	ContentEncoding = "Content-Encoding"
+	AcceptEncoding  = "Accept-Encoding"
+
+	TextHtml        = "text/html"
+	ApplicationJSON = "application/json"
+	GZip            = "gzip"
+)
+
 type gzipWriter struct {
 	http.ResponseWriter
 	Writer io.Writer
@@ -35,7 +45,7 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 func GZipHandle(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		if !strings.Contains(r.Header.Get(AcceptEncoding), GZip) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -47,14 +57,14 @@ func GZipHandle(next http.Handler) http.Handler {
 		}
 		defer gz.Close()
 
-		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set(ContentEncoding, GZip)
 		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
 	})
 }
 
 func GetMetrics(st storage.IStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set(ContentType, TextHtml)
 
 		if r.Method != http.MethodGet {
 			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
@@ -77,7 +87,7 @@ func GetMetrics(st storage.IStorage) http.HandlerFunc {
 			}
 		}
 
-		if r.Header.Get("Accept_Encoding") == "gzip" {
+		if r.Header.Get(AcceptEncoding) == GZip {
 			if _, err := io.WriteString(w, html); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
@@ -85,14 +95,14 @@ func GetMetrics(st storage.IStorage) http.HandlerFunc {
 			w.Write([]byte(html))
 		}
 
-		w.WriteHeader(http.StatusOK)
+		//w.WriteHeader(http.StatusOK)
 	}
 }
 
 func GetMetric(st storage.IStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set(ContentType, "text/plain")
 
 		if r.Method != http.MethodGet {
 			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
@@ -100,8 +110,8 @@ func GetMetric(st storage.IStorage) http.HandlerFunc {
 		}
 
 		// @TODO если проверять Content-Type - на github не проходят тесты :(
-		// if r.Header.Get("Content-Type") != "text/plain" {
-		// 	fmt.Println(r.Header.Get("Content-Type"))
+		// if r.Header.Get(ContentType) != "text/plain" {
+		// 	fmt.Println(r.Header.Get(ContentType))
 		// 	http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
 		// 	return
 		// }
@@ -123,16 +133,11 @@ func GetMetric(st storage.IStorage) http.HandlerFunc {
 
 		val, err := st.Get(metric[idxMetricType], metric[idxMetricName])
 		if err != nil {
-			//log.Printf("error get value metric %s/%s - %s",
-			//	metric[idxMetricName],
-			//	metric[idxMetricType],
-			//	err.Error())
-
 			http.Error(w, err.Error(), errst.ConvertToHTTP(err))
 			return
 		}
 
-		if r.Header.Get("Accept_Encoding") == "gzip" {
+		if r.Header.Get(AcceptEncoding) == GZip {
 			if _, err := io.WriteString(w, val); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -156,8 +161,8 @@ func UpdateMetricURL(st storage.IStorage) http.HandlerFunc {
 		}
 
 		// @TODO если проверять Content-Type - на github не проходят тесты :(
-		// if r.Header.Get("Content-Type") != "text/plain" {
-		// 	fmt.Println(r.Header.Get("Content-Type"))
+		// if r.Header.Get(ContentType) != "text/plain" {
+		// 	fmt.Println(r.Header.Get(ContentType))
 		// 	http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
 		// 	return
 		// }
@@ -170,7 +175,6 @@ func UpdateMetricURL(st storage.IStorage) http.HandlerFunc {
 		metric := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLUpdate+"/", ""), "/")
 
 		if len(metric) != sizeDataUpdateMetric {
-			//log.Printf("error request update metric. Requaest  %v - %s", metric, r.URL)
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
@@ -191,14 +195,14 @@ func UpdateMetricURL(st storage.IStorage) http.HandlerFunc {
 func UpdateMetricJSON(st storage.IStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set(ContentType, "text/plain")
 
 		if r.Method != http.MethodPost {
 			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
 			return
 		}
 
-		if r.Header.Get("Content-Type") != "application/json" {
+		if r.Header.Get(ContentType) != ApplicationJSON {
 			http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
 			return
 		}
@@ -224,7 +228,8 @@ func UpdateMetricJSON(st storage.IStorage) http.HandlerFunc {
 
 func GetMetricJSON(st storage.IStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+
+		w.Header().Set(ContentType, ApplicationJSON)
 
 		if r.Method != http.MethodPost {
 			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
@@ -233,8 +238,8 @@ func GetMetricJSON(st storage.IStorage) http.HandlerFunc {
 
 		defer r.Body.Close()
 
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
+		data, errBody := io.ReadAll(r.Body)
+		if errBody != nil {
 			http.Error(w, "can not read request body", http.StatusBadRequest)
 			return
 		}
@@ -245,7 +250,7 @@ func GetMetricJSON(st storage.IStorage) http.HandlerFunc {
 			return
 		}
 
-		if r.Header.Get("Accept_Encoding") == "gzip" {
+		if r.Header.Get(AcceptEncoding) == GZip {
 			if _, err := io.WriteString(w, string(metric)); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
