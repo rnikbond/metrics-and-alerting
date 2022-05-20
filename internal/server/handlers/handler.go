@@ -259,6 +259,6 @@ func GetMetricJSON(st storage.IStorage) http.HandlerFunc {
 			w.Write(metric)
 		}
 
-		w.WriteHeader(http.StatusOK)
+		//w.WriteHeader(http.StatusOK)
 	}
 }

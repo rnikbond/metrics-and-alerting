@@ -355,24 +355,12 @@ func (st *MemoryStorage) FillJSON(data []byte) ([]byte, error) {
 		return []byte{}, errst.ErrorInvalidJSON
 	}
 
-	val, err := st.Get(metric.MType, metric.ID)
+	memoryMetric, err := st.Metric(metric.MType, metric.ID)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, errst.ErrorNotFound
 	}
 
-	switch metric.MType {
-	case GaugeType:
-		if val, err := strconv.ParseFloat(val, 64); err == nil {
-			metric.Value = &val
-		}
-
-	case CounterType:
-		if val, err := strconv.ParseInt(val, 10, 64); err == nil {
-			metric.Delta = &val
-		}
-	}
-
-	readyData, err := json.Marshal(&metric)
+	readyData, err := json.Marshal(&memoryMetric)
 	if err != nil {
 		return []byte{}, errst.ErrorInternal
 	}

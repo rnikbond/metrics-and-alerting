@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"os/signal"
@@ -55,6 +56,8 @@ func main() {
 	cfg.SetDefault()
 	parseFlags()
 	cfg.ReadEnvVars()
+
+	fmt.Println(cfg)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	agent := agent.Agent{
