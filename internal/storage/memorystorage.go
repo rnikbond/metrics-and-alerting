@@ -2,8 +2,13 @@ package storage
 
 import (
 	"bufio"
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"sort"
@@ -19,6 +24,48 @@ type MemoryStorage struct {
 	mu      sync.Mutex
 	metrics []Metrics
 	cfg     config.Config
+}
+
+func signatureMetric(metric *Metrics, key []byte) ([]byte, error) {
+
+	if len(key) < 1 {
+		return []byte{}, nil
+	}
+
+	var src string
+
+	switch metric.MType {
+	case CounterType:
+
+		if metric.Delta == nil {
+			return []byte{}, errst.ErrorInvalidValue
+		}
+
+		src = fmt.Sprintf("%s:%s:%d",
+			metric.ID,
+			metric.MType,
+			*metric.Delta)
+	case GaugeType:
+
+		if metric.Value == nil {
+			return []byte{}, errst.ErrorInvalidValue
+		}
+
+		src = fmt.Sprintf("%s:%s:%f",
+			metric.ID,
+			metric.MType,
+			*metric.Value)
+	default:
+		return []byte{}, errst.ErrorUnknownType
+	}
+
+	h := hmac.New(sha256.New, key)
+	_, err := h.Write([]byte(src))
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return h.Sum(nil), nil
 }
 
 func (st *MemoryStorage) isStore() bool {
@@ -148,6 +195,22 @@ func (st *MemoryStorage) UpdateJSON(data []byte) error {
 		return errst.ErrorInvalidJSON
 	}
 
+	if len(st.cfg.SecretKey) > 0 {
+		sign, err := signatureMetric(&metric, []byte(st.cfg.SecretKey))
+		if err != nil {
+			log.Println("error get signature metric: ", err.Error())
+		}
+
+		hash, err := hex.DecodeString(metric.Hash)
+		if err != nil {
+			return errst.ErrorInvalidSignature
+		}
+
+		if !bytes.Equal(sign, hash) {
+			return errst.ErrorInvalidSignature
+		}
+	}
+
 	switch metric.MType {
 	case GaugeType:
 		if metric.Value == nil {
@@ -219,8 +282,13 @@ func (st *MemoryStorage) Set(typeMetric, id string, value interface{}) error {
 		return errst.ErrorUnknownType
 	}
 
+	sign, _ := signatureMetric(&st.metrics[metricIdx], []byte(st.cfg.SecretKey))
+	st.metrics[metricIdx].Hash = hex.EncodeToString(sign)
+
 	if st.isStoreSync() {
-		st.Save()
+		if err := st.Save(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -268,8 +336,13 @@ func (st *MemoryStorage) Add(typeMetric, id string, value interface{}) error {
 		return errst.ErrorUnknownType
 	}
 
+	sign, _ := signatureMetric(&st.metrics[metricIdx], []byte(st.cfg.SecretKey))
+	st.metrics[metricIdx].Hash = hex.EncodeToString(sign)
+
 	if st.isStoreSync() {
-		st.Save()
+		if err := st.Save(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -328,6 +401,16 @@ func (st *MemoryStorage) Get(typeMetric, id string) (string, error) {
 	}
 
 	return "", errst.ErrorNotFound
+}
+
+func (st *MemoryStorage) Metric(typeMetric, id string) (Metrics, error) {
+
+	metricIdx, err := st.MetricIdx(typeMetric, id)
+	if err != nil {
+		return Metrics{}, errst.ErrorNotFound
+	}
+
+	return st.metrics[metricIdx], nil
 }
 
 func (st *MemoryStorage) Names(typeMetric string) []string {

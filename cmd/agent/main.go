@@ -21,6 +21,7 @@ func parseFlags() {
 
 	flag.DurationVar(&cfg.ReportInterval, "r", cfg.ReportInterval, "duration - report interval")
 	flag.DurationVar(&cfg.PollInterval, "p", cfg.PollInterval, "duration - poll interval")
+	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key crypto")
 	addr := flag.String("a", cfg.Addr, "ip address: ip:port")
 	flag.Parse()
 

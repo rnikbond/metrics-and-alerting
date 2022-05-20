@@ -19,6 +19,7 @@ type Config struct {
 	StoreInterval  time.Duration `env:"STORE_INTERVAL"`
 	StoreFile      string        `env:"STORE_FILE"`
 	Restore        bool          `env:"RESTORE"`
+	SecretKey      string        `env:"KEY"`
 }
 
 // SetDefault Инициализация значений по умолчанию
@@ -42,6 +43,7 @@ func (cfg Config) String() string {
 	fmt.Fprintln(w, "STORE_INTERVAL\t", cfg.StoreInterval.String())
 	fmt.Fprintln(w, "STORE_FILE\t", cfg.StoreFile)
 	fmt.Fprintln(w, "RESTORE\t", strconv.FormatBool(cfg.Restore))
+	fmt.Fprintln(w, "KEY\t", cfg.SecretKey)
 
 	if err := w.Flush(); err != nil {
 		return err.Error()

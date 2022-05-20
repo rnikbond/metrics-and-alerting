@@ -16,6 +16,7 @@ import (
 	handler "metrics-and-alerting/internal/server/handlers"
 	"metrics-and-alerting/internal/storage"
 	"metrics-and-alerting/pkg/config"
+	errst "metrics-and-alerting/pkg/errorsstorage"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -28,7 +29,7 @@ type Service interface {
 
 	reportAll(ctx context.Context) error
 	reportURL(ctx context.Context, nameMetric, valueMetric, typeMetric string) error
-	reportJSON(ctx context.Context, nameMetric, valueMetric, typeMetric string) error
+	reportJSON(ctx context.Context, nameMetric, metric *storage.Metrics) error
 
 	updateAll()
 }
@@ -112,18 +113,18 @@ func (agent *Agent) reportAll(ctx context.Context) {
 		names := agent.Storage.Names(typeMetric)
 
 		for _, name := range names {
-			value, err := agent.Storage.Get(typeMetric, name)
+
+			metric, err := agent.Storage.Metric(typeMetric, name)
 			if err != nil {
-				log.Printf("Agent.reportAll() - error report metric %s/%s - %s",
-					typeMetric, name, err.Error())
+				log.Println(err)
 				continue
 			}
 
-			if err = agent.reportJSON(ctx, client, typeMetric, name, value); err != nil {
+			if err = agent.reportJSON(ctx, client, &metric); err != nil {
 				log.Println(err.Error())
 			}
 
-			//if err = agent.reportURL(ctx, client, typeMetric, name, value); err != nil {
+			//if err = agent.reportURL(ctx, client, &metric); err != nil {
 			//	log.Println(err.Error())
 			//}
 		}
@@ -135,17 +136,40 @@ func (agent *Agent) reportAll(ctx context.Context) {
 }
 
 // Обновление метрики
-func (agent *Agent) reportURL(ctx context.Context, client *resty.Client, typeMetric, nameMetric, valueMetric string) error {
+func (agent *Agent) reportURL(ctx context.Context, client *resty.Client, metric *storage.Metrics) error {
 
-	if len(typeMetric) < 1 || len(nameMetric) < 1 || len(valueMetric) < 1 {
+	if len(metric.MType) < 1 || len(metric.ID) < 1 {
 		return errors.New("invalid metric params")
 	}
 
-	resp, err := client.R().SetPathParams(map[string]string{
-		"type":  typeMetric,
-		"name":  nameMetric,
-		"value": valueMetric,
-	}).SetContext(ctx).Post(agent.Config.Addr + handler.PartURLUpdate + "/{type}/{name}/{value}")
+	data := make(map[string]string)
+	data["type"] = metric.MType
+	data["name"] = metric.ID
+
+	switch metric.MType {
+	case storage.GaugeType:
+		if metric.Value == nil {
+			return errst.ErrorInvalidValue
+		}
+
+		data["value"] = strconv.FormatFloat(*metric.Value, 'f', -1, 64)
+
+	case storage.CounterType:
+
+		if metric.Delta == nil {
+			return errst.ErrorInvalidValue
+		}
+
+		data["value"] = strconv.FormatInt(*metric.Delta, 10)
+
+	default:
+		return errst.ErrorInvalidType
+	}
+
+	resp, err := client.R().
+		SetPathParams(data).
+		SetContext(ctx).
+		Post(agent.Config.Addr + handler.PartURLUpdate + "/{type}/{name}/{value}")
 
 	if err != nil {
 		return err
@@ -159,34 +183,7 @@ func (agent *Agent) reportURL(ctx context.Context, client *resty.Client, typeMet
 	return nil
 }
 
-func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, typeMetric, nameMetric, valueMetric string) error {
-
-	var metric storage.Metrics
-
-	switch typeMetric {
-	case storage.GaugeType:
-		val, err := strconv.ParseFloat(valueMetric, 64)
-		if err != nil {
-			return err
-		}
-
-		metric = storage.Metrics{
-			ID:    nameMetric,
-			MType: typeMetric,
-			Value: &val,
-		}
-	case storage.CounterType:
-		val, err := strconv.ParseInt(valueMetric, 10, 64)
-		if err != nil {
-			return err
-		}
-
-		metric = storage.Metrics{
-			ID:    nameMetric,
-			MType: typeMetric,
-			Delta: &val,
-		}
-	}
+func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, metric *storage.Metrics) error {
 
 	data, err := json.Marshal(metric)
 	if err != nil {
@@ -205,9 +202,7 @@ func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, typeMe
 
 	if resp.StatusCode() != http.StatusOK {
 		respBody := resp.Body()
-		return errors.New(" \nJSON: " + string(data) +
-			".\nMetric: " + typeMetric + "/" + nameMetric + "/" + valueMetric +
-			".\nFailed update metric: " + resp.Status() + ". " + string(respBody))
+		return errors.New("\nJSON: " + string(data) + "\n" + metric.String() + ". " + string(respBody))
 	}
 
 	return nil
@@ -255,7 +250,7 @@ func (agent *Agent) updateAll() {
 	gaugeMetrics["TotalAlloc"] = ms.TotalAlloc
 
 	for id, value := range gaugeMetrics {
-		if err := agent.Storage.Add(storage.GaugeType, id, value); err != nil {
+		if err := agent.Storage.Set(storage.GaugeType, id, value); err != nil {
 			log.Printf("error set value metric %s/%s/%v: %s\n", storage.GaugeType, id, value, err.Error())
 		}
 	}
