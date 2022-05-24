@@ -165,28 +165,21 @@ func (metric Metrics) String() string {
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 3, ' ', tabwriter.AlignRight)
 
-	if _, err := fmt.Fprintln(w, ""); err != nil {
-		return err.Error()
-	}
-
-	_, errFmt := fmt.Fprintln(w, "ID\t", metric.ID)
-	_, errFmt = fmt.Fprintln(w, "TYPE\t", metric.MType)
-	_, errFmt = fmt.Fprintln(w, "HASH\t", metric.Hash)
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "ID\t", metric.ID)
+	fmt.Fprintln(w, "TYPE\t", metric.MType)
+	fmt.Fprintln(w, "HASH\t", metric.Hash)
 
 	if metric.Delta != nil {
-		_, errFmt = fmt.Fprintln(w, "DELTA\t", strconv.FormatInt(*metric.Delta, 10))
+		fmt.Fprintln(w, "DELTA\t", strconv.FormatInt(*metric.Delta, 10))
 	} else {
-		_, errFmt = fmt.Fprintln(w, "DELTA\t", "nil")
+		fmt.Fprintln(w, "DELTA\t", "nil")
 	}
 
 	if metric.Value != nil {
-		_, errFmt = fmt.Fprintln(w, "VALUE\t", strconv.FormatFloat(*metric.Value, 'f', -1, 64))
+		fmt.Fprintln(w, "VALUE\t", strconv.FormatFloat(*metric.Value, 'f', -1, 64))
 	} else {
-		_, errFmt = fmt.Fprintln(w, "VALUE\t", "nil")
-	}
-
-	if errFmt != nil {
-		return errFmt.Error()
+		fmt.Fprintln(w, "VALUE\t", "nil")
 	}
 
 	if err := w.Flush(); err != nil {

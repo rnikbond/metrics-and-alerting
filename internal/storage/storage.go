@@ -193,7 +193,7 @@ func (st *MemoryStorage) Add(metric *Metrics) error {
 func (st *MemoryStorage) Data() []Metrics {
 
 	if len(st.cfg.SecretKey) > 0 {
-		for index, _ := range st.metrics {
+		for index := range st.metrics {
 			hash, err := Sign(&st.metrics[index], []byte(st.cfg.SecretKey))
 			if err == nil {
 				st.metrics[index].Hash = hash

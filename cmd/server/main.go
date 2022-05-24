@@ -57,11 +57,11 @@ func parseFlags() {
 
 func prepareConfig() {
 	cfg.SetDefault()
-	//parseFlags()
-	//cfg.ReadEnvVars()
-
-	cfg.ReadEnvVars()
 	parseFlags()
+	cfg.ReadEnvVars()
+
+	//cfg.ReadEnvVars()
+	//parseFlags()
 
 }
 
