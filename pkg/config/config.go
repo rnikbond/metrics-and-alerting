@@ -44,6 +44,7 @@ func (cfg Config) String() string {
 	fmt.Fprintln(w, "STORE_INTERVAL\t", cfg.StoreInterval.String())
 	fmt.Fprintln(w, "STORE_FILE\t", cfg.StoreFile)
 	fmt.Fprintln(w, "RESTORE\t", strconv.FormatBool(cfg.Restore))
+	fmt.Fprintln(w, "DATABASE_DSN\t", cfg.DatabaseDSN)
 	fmt.Fprintln(w, "KEY\t", cfg.SecretKey)
 
 	if err := w.Flush(); err != nil {
