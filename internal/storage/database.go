@@ -1,9 +1,13 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
+
+	_ "github.com/lib/pq"
 )
 
 type DataBaseStorage struct {
@@ -11,21 +15,41 @@ type DataBaseStorage struct {
 	conn           *sql.DB
 }
 
-func (db *DataBaseStorage) init() {
+func (db *DataBaseStorage) Connect() (*sql.DB, error) {
 
-	if len(db.DataSourceName) < 1 {
-		return
+	if db.conn != nil {
+		return db.conn, nil
 	}
 
-	db.conn, _ = sql.Open("postgres", db.DataSourceName)
+	if len(db.DataSourceName) < 1 {
+		return nil, errors.New("invalid DSN")
+	}
+
+	conn, err := sql.Open("postgres", db.DataSourceName)
+	if err != nil {
+		return nil, err
+	}
+
+	db.conn = conn
+	return db.conn, nil
+}
+
+func (db DataBaseStorage) Close() error {
+
+	if db.conn == nil {
+		return nil
+	}
+
+	return db.conn.Close()
 }
 
 func (db DataBaseStorage) ReadAll() ([]Metrics, error) {
 
 	var metrics []Metrics
 
-	if db.conn == nil {
-		return metrics, errors.New("connection with database is not established")
+	_, err := db.Connect()
+	if err != nil {
+		return metrics, err
 	}
 
 	return metrics, nil
@@ -33,8 +57,9 @@ func (db DataBaseStorage) ReadAll() ([]Metrics, error) {
 
 func (db DataBaseStorage) WriteAll(metrics []Metrics) error {
 
-	if db.conn == nil {
-		return errors.New("connection with database is not established")
+	_, err := db.Connect()
+	if err != nil {
+		return err
 	}
 
 	for _, metric := range metrics {
@@ -45,5 +70,17 @@ func (db DataBaseStorage) WriteAll(metrics []Metrics) error {
 }
 
 func (db DataBaseStorage) CheckHealth() bool {
-	return db.conn != nil
+
+	_, err := db.Connect()
+	if err != nil {
+		return false
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err := db.conn.PingContext(ctx); err != nil {
+		return false
+	}
+
+	return true
 }

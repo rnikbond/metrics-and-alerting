@@ -12,7 +12,7 @@ type FileStorage struct {
 	FileName string
 }
 
-func (fileStore *FileStorage) Open(flag int) (*os.File, error) {
+func (fileStore *FileStorage) File(flag int) (*os.File, error) {
 	if len(fileStore.FileName) < 1 {
 		return nil, ErrorInvalidFilePath
 	}
@@ -22,7 +22,7 @@ func (fileStore *FileStorage) Open(flag int) (*os.File, error) {
 
 func (fileStore FileStorage) ReadAll() ([]Metrics, error) {
 
-	file, err := fileStore.Open(os.O_RDONLY)
+	file, err := fileStore.File(os.O_RDONLY)
 	if err != nil {
 		log.Println("error open file fo read: ", err)
 		return []Metrics{}, err
@@ -48,7 +48,7 @@ func (fileStore FileStorage) ReadAll() ([]Metrics, error) {
 }
 
 func (fileStore FileStorage) WriteAll(metrics []Metrics) error {
-	file, err := fileStore.Open(os.O_CREATE | os.O_WRONLY | os.O_TRUNC)
+	file, err := fileStore.File(os.O_CREATE | os.O_WRONLY | os.O_TRUNC)
 	if err != nil {
 		log.Println("error open file fo write: ", err)
 		return err
@@ -77,4 +77,8 @@ func (fileStore FileStorage) WriteAll(metrics []Metrics) error {
 func (fileStore FileStorage) CheckHealth() bool {
 	_, err := os.Stat(fileStore.FileName)
 	return !errors.Is(err, fs.ErrNotExist)
+}
+
+func (fileStore FileStorage) Close() error {
+	return nil
 }
