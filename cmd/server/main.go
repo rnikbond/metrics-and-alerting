@@ -24,7 +24,7 @@ func parseFlags() {
 	flag.BoolVar(&cfg.Restore, "r", cfg.Restore, "bool - restore metrics")
 	flag.StringVar(&cfg.StoreFile, "f", cfg.StoreFile, "string - path to file storage")
 	flag.DurationVar(&cfg.StoreInterval, "i", cfg.StoreInterval, "duration - interval store metrics")
-	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key crypto")
+	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key sign")
 	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "string - database data source name")
 
 	addr := flag.String("a", cfg.Addr, "string - host:port")
@@ -117,7 +117,7 @@ func main() {
 	<-waitChan
 
 	if err := memoryStorage.Save(); err != nil {
-		log.Printf("error save metric in %s. Error - %s\n", cfg.StoreFile, err.Error())
+		log.Printf("error save metric in external storage. Error - %s\n", err.Error())
 	}
 
 	log.Println("stop metrics server")

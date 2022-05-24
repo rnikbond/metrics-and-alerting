@@ -24,6 +24,11 @@ func (st *MemoryStorage) SetExternalStorage(extStorage ExternalStorage) {
 	st.extStorage = extStorage
 }
 
+// ExternalStorage - Получение внешнего хранилища
+func (st *MemoryStorage) ExternalStorage() ExternalStorage {
+	return st.extStorage
+}
+
 // Find - Поиск метрики пл типу и идентификатору.
 // Возвращается индекс метрики в слайсе и ошибка, если такой метрики не существует
 func (st *MemoryStorage) Find(typeMetric, id string) (int, error) {

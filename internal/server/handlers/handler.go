@@ -20,6 +20,7 @@ const (
 const (
 	PartURLUpdate = "/update"
 	PartURLValue  = "/value"
+	PartURLPing   = "/ping"
 )
 
 const (
@@ -252,6 +253,22 @@ func GetMetricJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
 			}
 		} else {
 			w.Write(data)
+		}
+	}
+}
+
+func CheckHealthStorage(memStore *storage.MemoryStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method != http.MethodGet {
+			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
+			return
+		}
+
+		if memStore.ExternalStorage().CheckHealth() {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 	}
 }

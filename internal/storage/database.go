@@ -16,7 +16,7 @@ func (db *DataBaseStorage) init() {
 	if len(db.DataSourceName) < 1 {
 		return
 	}
-	
+
 	db.conn, _ = sql.Open("postgres", db.DataSourceName)
 }
 
@@ -42,4 +42,8 @@ func (db DataBaseStorage) WriteAll(metrics []Metrics) error {
 	}
 
 	return nil
+}
+
+func (db DataBaseStorage) CheckHealth() bool {
+	return db.conn != nil
 }

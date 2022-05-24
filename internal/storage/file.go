@@ -2,6 +2,8 @@ package storage
 
 import (
 	"bufio"
+	"errors"
+	"io/fs"
 	"log"
 	"os"
 )
@@ -70,4 +72,9 @@ func (fileStore FileStorage) WriteAll(metrics []Metrics) error {
 	}
 
 	return writer.Flush()
+}
+
+func (fileStore FileStorage) CheckHealth() bool {
+	_, err := os.Stat(fileStore.FileName)
+	return !errors.Is(err, fs.ErrNotExist)
 }
