@@ -25,6 +25,8 @@ func parseFlags() {
 	flag.StringVar(&cfg.StoreFile, "f", cfg.StoreFile, "string - path to file storage")
 	flag.DurationVar(&cfg.StoreInterval, "i", cfg.StoreInterval, "duration - interval store metrics")
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key crypto")
+	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "string - database data source name")
+
 	addr := flag.String("a", cfg.Addr, "string - host:port")
 	flag.Parse()
 
@@ -55,9 +57,39 @@ func parseFlags() {
 
 func prepareConfig() {
 	cfg.SetDefault()
-	parseFlags()
-	cfg.ReadEnvVars()
+	//parseFlags()
+	//cfg.ReadEnvVars()
 
+	cfg.ReadEnvVars()
+	parseFlags()
+
+}
+
+func createStorage() *storage.MemoryStorage {
+	memoryStorage := storage.MemoryStorage{}
+	memoryStorage.SetConfig(cfg)
+
+	var extStorage storage.ExternalStorage
+
+	if len(cfg.DatabaseDSN) > 0 {
+		extStorage = storage.DataBaseStorage{
+			DataSourceName: cfg.DatabaseDSN,
+		}
+	} else if len(cfg.StoreFile) > 0 {
+		extStorage = storage.FileStorage{
+			FileName: cfg.StoreFile,
+		}
+	}
+
+	memoryStorage.SetExternalStorage(extStorage)
+
+	if cfg.Restore {
+		if err := memoryStorage.Restore(); err != nil {
+			log.Printf("error restore metric. Error - %s\n", err)
+		}
+	}
+
+	return &memoryStorage
 }
 
 func main() {
@@ -65,17 +97,10 @@ func main() {
 	prepareConfig()
 	fmt.Println(cfg)
 
-	memoryStorage := storage.MemoryStorage{}
-	memoryStorage.SetExternalStorage(&cfg)
-
-	if cfg.Restore {
-		if err := memoryStorage.Restore(); err != nil {
-			log.Printf("error restore metric from %s. Error - %s\n", cfg.StoreFile, err.Error())
-		}
-	}
+	memoryStorage := createStorage()
 
 	waitChan := make(chan struct{})
-	server := servermetrics.StartMetricsHTTPServer(&memoryStorage, &cfg)
+	server := servermetrics.StartMetricsHTTPServer(memoryStorage, &cfg)
 
 	go func() {
 		sigChan := make(chan os.Signal, 1)

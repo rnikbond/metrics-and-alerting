@@ -40,7 +40,7 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "TestAgentReport-GaugeType =>[OK]",
 			agent: &Agent{
-				Config:  &cfg,
+				Config:  cfg,
 				Storage: &storage.MemoryStorage{},
 			},
 			args: args{
@@ -54,7 +54,7 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "TestAgentReport-EmptyMetric =>[Error]",
 			agent: &Agent{
-				Config:  &cfg,
+				Config:  cfg,
 				Storage: &storage.MemoryStorage{},
 			},
 			args: args{
@@ -65,7 +65,7 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "TestAgentReport-Without: Type and Value =>[Error]",
 			agent: &Agent{
-				Config:  &cfg,
+				Config:  cfg,
 				Storage: &storage.MemoryStorage{},
 			},
 			args: args{
@@ -77,7 +77,7 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "TestAgentReport-Without: Type and Name =>[Error]",
 			agent: &Agent{
-				Config:  &cfg,
+				Config:  cfg,
 				Storage: &storage.MemoryStorage{},
 			},
 			args: args{

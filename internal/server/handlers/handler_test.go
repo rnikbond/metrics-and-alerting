@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"metrics-and-alerting/internal/storage"
@@ -121,7 +122,7 @@ func TestUpdateMetricURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 
-		memoryStorage.Clear()
+		memoryStorage.ResetMetrics()
 
 		t.Run(tt.name, func(t *testing.T) {
 
@@ -170,9 +171,12 @@ func TestUpdateMetricURL(t *testing.T) {
 
 func TestGetMetric(t *testing.T) {
 
+	gauge := storage.NewMetric(storage.GaugeType, "testGauge", 100.023)
+	counter := storage.NewMetric(storage.CounterType, "testCounter", 100)
+
 	st := storage.MemoryStorage{}
-	st.Set(storage.GaugeType, "testGauge", 100.023)
-	st.Set(storage.CounterType, "testCounter", 100)
+	st.Set(&gauge)
+	st.Set(&counter)
 
 	type metricData struct {
 		name       string
@@ -318,18 +322,23 @@ func TestGetMetric(t *testing.T) {
 }
 
 func TestGetMetrics(t *testing.T) {
-	st := storage.MemoryStorage{}
-	st.Set(storage.GaugeType, "testGauge1", 100.023)
 
-	type metricData struct {
-		name       string
-		value      string
-		metricType string
-	}
+	gauge := storage.NewMetric(storage.GaugeType, "testGauge1", 100.023)
+
+	st := storage.MemoryStorage{}
+	st.Set(&gauge)
+
+	//type metricData struct {
+	//	name       string
+	//	value      string
+	//	metricType string
+	//}
+
+	f := 100.023
 
 	tests := []struct {
-		name       string
-		metricData metricData
+		name   string
+		metric storage.Metrics
 
 		contentType string
 		httpMethod  string
@@ -339,15 +348,14 @@ func TestGetMetrics(t *testing.T) {
 	}{
 		{
 			name: "TestGetMetrics => [OK]",
-			metricData: metricData{
-				name:       "testGauge1",
-				value:      "100.023",
-				metricType: storage.GaugeType,
+			metric: storage.Metrics{
+				ID:    "testGauge1",
+				MType: storage.GaugeType,
+				Value: &f,
 			},
 			contentType: "text/html",
 			httpMethod:  http.MethodGet,
 			wantCode:    http.StatusOK,
-			wantValue:   "testGauge1:100.023<br/>",
 			wantError:   false,
 		},
 	}
@@ -366,11 +374,12 @@ func TestGetMetrics(t *testing.T) {
 			require.Equal(t, tt.wantCode, response.StatusCode)
 
 			got, err := io.ReadAll(response.Body)
+			answer := strings.Replace(string(got), "<br/>", "", -1)
 
 			if !tt.wantError {
 				require.NoError(t, err)
 				require.Equal(t, tt.contentType, response.Header.Get("Content-Type"))
-				assert.Equal(t, string(got), tt.wantValue)
+				assert.Equal(t, answer, tt.metric.ShotString())
 			}
 
 		})
@@ -529,13 +538,16 @@ func TestUpdateMetricJSON(t *testing.T) {
 }
 
 func TestGetMetricJSON(t *testing.T) {
-	st := storage.MemoryStorage{}
 
 	value := 123.123
 	var delta int64 = 123
 
-	st.Update(storage.GaugeType, "testGauge", value)
-	st.Update(storage.CounterType, "testCounter", delta)
+	gauge := storage.NewMetric(storage.GaugeType, "testGauge", value)
+	counter := storage.NewMetric(storage.CounterType, "testCounter", delta)
+
+	st := storage.MemoryStorage{}
+	st.Set(&gauge)
+	st.Set(&counter)
 
 	tests := []struct {
 		name        string

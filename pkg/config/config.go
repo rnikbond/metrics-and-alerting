@@ -20,6 +20,7 @@ type Config struct {
 	StoreFile      string        `env:"STORE_FILE"`
 	Restore        bool          `env:"RESTORE"`
 	SecretKey      string        `env:"KEY"`
+	DatabaseDSN    string        `env:"DATABASE_DSN"`
 }
 
 // SetDefault Инициализация значений по умолчанию

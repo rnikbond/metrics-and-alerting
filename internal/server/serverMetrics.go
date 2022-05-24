@@ -11,17 +11,17 @@ import (
 	"github.com/go-chi/chi"
 )
 
-func StartMetricsHTTPServer(st storage.IStorage, cfg *config.Config) *http.Server {
+func StartMetricsHTTPServer(memStore *storage.MemoryStorage, cfg *config.Config) *http.Server {
 
 	r := chi.NewRouter()
 	r.Use(handler.GZipHandle)
-	r.Get("/", handler.GetMetrics(st))
-	r.Get(handler.PartURLValue+"/*", handler.GetMetric(st))
-	r.Post(handler.PartURLValue, handler.GetMetricJSON(st))
-	r.Post(handler.PartURLValue+"/", handler.GetMetricJSON(st))
-	r.Post(handler.PartURLUpdate, handler.UpdateMetricJSON(st))
-	r.Post(handler.PartURLUpdate+"/", handler.UpdateMetricJSON(st))
-	r.Post(handler.PartURLUpdate+"/*", handler.UpdateMetricURL(st))
+	r.Get("/", handler.GetMetrics(memStore))
+	r.Get(handler.PartURLValue+"/*", handler.GetMetric(memStore))
+	r.Post(handler.PartURLValue, handler.GetMetricJSON(memStore))
+	r.Post(handler.PartURLValue+"/", handler.GetMetricJSON(memStore))
+	r.Post(handler.PartURLUpdate, handler.UpdateMetricJSON(memStore))
+	r.Post(handler.PartURLUpdate+"/", handler.UpdateMetricJSON(memStore))
+	r.Post(handler.PartURLUpdate+"/*", handler.UpdateMetricURL(memStore))
 
 	serverHTTP := &http.Server{
 		Addr:    cfg.Addr,

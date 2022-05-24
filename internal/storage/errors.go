@@ -1,30 +1,37 @@
-package errorsstorage
+package storage
 
 import (
 	"errors"
 	"net/http"
 )
 
+// Ошибки метрики
 var (
 	ErrorNotFound         = errors.New("metric not found")
 	ErrorUnknownType      = errors.New("metric has unknown type")
-	ErrorInvalidName      = errors.New("metric has incorrect name")
+	ErrorInvalidID        = errors.New("metric has incorrect id")
 	ErrorInvalidType      = errors.New("metric has incorrect type")
 	ErrorInvalidValue     = errors.New("metric has incorrect value")
-	ErrorInvalidJSON      = errors.New("can't convert data to JSON")
-	ErrorInternal         = errors.New("internal error storage")
+	ErrorInvalidJSON      = errors.New("can't convert data JSON to metric")
 	ErrorInvalidSignature = errors.New("invalid signature metric")
 )
 
-// ConvertToHTTP Преобразование ошибки Storage в HTTP код
-func ConvertToHTTP(err error) int {
+// Ошибки внешнего хранилища
+var (
+	ErrorInvalidFilePath = errors.New("invalid path to file storage")
+	ErrorExternalStorage = errors.New("internal error external storage")
+)
+
+// ErrorHTTP - Преобразование ошибки Storage в HTTP код
+func ErrorHTTP(err error) int {
 	switch err {
 	case ErrorNotFound:
 		return http.StatusNotFound
+
 	case ErrorUnknownType:
 		return http.StatusNotImplemented
 	case
-		ErrorInvalidName,
+		ErrorInvalidID,
 		ErrorInvalidType,
 		ErrorInvalidValue,
 		ErrorInvalidJSON,

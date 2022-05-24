@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"metrics-and-alerting/internal/storage"
-	errst "metrics-and-alerting/pkg/errorsstorage"
 )
 
 const (
@@ -62,7 +61,7 @@ func GZipHandle(next http.Handler) http.Handler {
 	})
 }
 
-func GetMetrics(st storage.IStorage) http.HandlerFunc {
+func GetMetrics(memStore *storage.MemoryStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(ContentType, TextHTML)
 
@@ -72,19 +71,10 @@ func GetMetrics(st storage.IStorage) http.HandlerFunc {
 		}
 
 		html := ""
-		types := []string{storage.GaugeType, storage.CounterType}
+		metrics := memStore.Data()
 
-		st.Lock()
-		defer st.Unlock()
-
-		for _, typeMetric := range types {
-			names := st.Names(typeMetric)
-			for _, metric := range names {
-				val, err := st.Get(typeMetric, metric)
-				if err == nil {
-					html += metric + ":" + val + "<br/>"
-				}
-			}
+		for _, metric := range metrics {
+			html += metric.ShotString() + "<br/>"
 		}
 
 		if r.Header.Get(AcceptEncoding) == GZip {
@@ -94,12 +84,10 @@ func GetMetrics(st storage.IStorage) http.HandlerFunc {
 		} else {
 			w.Write([]byte(html))
 		}
-
-		//w.WriteHeader(http.StatusOK)
 	}
 }
 
-func GetMetric(st storage.IStorage) http.HandlerFunc {
+func GetMetric(memStore *storage.MemoryStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set(ContentType, "text/plain")
@@ -120,37 +108,31 @@ func GetMetric(st storage.IStorage) http.HandlerFunc {
 		// затем разбиваем на массив:
 		// [0] - Тип метрики
 		// [1] - Название метрики
-		metric := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLValue+"/", ""), "/")
+		partsURL := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLValue+"/", ""), "/")
 
-		if len(metric) != sizeDataGetMetric {
-			//log.Printf("error request get metric %v - %s", metric, r.URL)
+		if len(partsURL) != sizeDataGetMetric {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 
-		st.Lock()
-		defer st.Unlock()
-
-		val, err := st.Get(metric[idxMetricType], metric[idxMetricName])
+		metric, err := memStore.Get(partsURL[idxMetricType], partsURL[idxMetricName])
 		if err != nil {
-			http.Error(w, err.Error(), errst.ConvertToHTTP(err))
+			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return
 		}
 
 		if r.Header.Get(AcceptEncoding) == GZip {
-			if _, err := io.WriteString(w, val); err != nil {
+			if _, err := io.WriteString(w, metric.StringValue()); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		} else {
-			w.Write([]byte(val))
+			w.Write([]byte(metric.StringValue()))
 		}
-
-		w.WriteHeader(http.StatusOK)
 	}
 }
 
-func UpdateMetricURL(st storage.IStorage) http.HandlerFunc {
+func UpdateMetricURL(memStore *storage.MemoryStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "text/plain")
@@ -172,19 +154,16 @@ func UpdateMetricURL(st storage.IStorage) http.HandlerFunc {
 		// [0] - Тип метрики
 		// [1] - Название метрики
 		// [2] - Значение метрики
-		metric := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLUpdate+"/", ""), "/")
+		partsURL := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLUpdate+"/", ""), "/")
 
-		if len(metric) != sizeDataUpdateMetric {
+		if len(partsURL) != sizeDataUpdateMetric {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 
-		st.Lock()
-		defer st.Unlock()
-
-		err := st.Update(metric[idxMetricType], metric[idxMetricName], metric[idxMetricValue])
-		if err != nil {
-			http.Error(w, err.Error(), errst.ConvertToHTTP(err))
+		metric := storage.NewMetric(partsURL[idxMetricType], partsURL[idxMetricName], partsURL[idxMetricValue])
+		if err := memStore.Update(&metric); err != nil {
+			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return
 		}
 
@@ -192,7 +171,7 @@ func UpdateMetricURL(st storage.IStorage) http.HandlerFunc {
 	}
 }
 
-func UpdateMetricJSON(st storage.IStorage) http.HandlerFunc {
+func UpdateMetricJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set(ContentType, "text/plain")
@@ -215,10 +194,14 @@ func UpdateMetricJSON(st storage.IStorage) http.HandlerFunc {
 			return
 		}
 
-		st.Lock()
-		defer st.Unlock()
-		if err = st.UpdateJSON(data); err != nil {
-			http.Error(w, "JSON request: "+string(data)+"\n"+err.Error(), errst.ConvertToHTTP(err))
+		metric, err := storage.FromJSON(data)
+		if err != nil {
+			http.Error(w, "JSON request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
+			return
+		}
+
+		if err = memStore.Update(&metric); err != nil {
+			http.Error(w, "JSON request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
 			return
 		}
 
@@ -226,7 +209,7 @@ func UpdateMetricJSON(st storage.IStorage) http.HandlerFunc {
 	}
 }
 
-func GetMetricJSON(st storage.IStorage) http.HandlerFunc {
+func GetMetricJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set(ContentType, ApplicationJSON)
@@ -244,21 +227,31 @@ func GetMetricJSON(st storage.IStorage) http.HandlerFunc {
 			return
 		}
 
-		metric, err := st.FillJSON(data)
+		metric, err := storage.FromJSON(data)
 		if err != nil {
-			http.Error(w, err.Error(), errst.ConvertToHTTP(err))
+			http.Error(w, "JSON request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
+			return
+		}
+
+		metric, err = memStore.Get(metric.MType, metric.ID)
+		if err != nil {
+			http.Error(w, err.Error(), storage.ErrorHTTP(err))
+			return
+		}
+
+		data, err = metric.ToJSON()
+		if err != nil {
+			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return
 		}
 
 		if r.Header.Get(AcceptEncoding) == GZip {
-			if _, err := io.WriteString(w, string(metric)); err != nil {
+			if _, err := io.WriteString(w, string(data)); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		} else {
-			w.Write(metric)
+			w.Write(data)
 		}
-
-		//w.WriteHeader(http.StatusOK)
 	}
 }

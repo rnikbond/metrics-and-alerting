@@ -59,14 +59,21 @@ func main() {
 
 	fmt.Println(cfg)
 
+	cfg.Restore = false
+	cfg.StoreFile = ""
+	cfg.StoreInterval = 0
+
+	memStore := storage.MemoryStorage{}
+	memStore.SetConfig(cfg)
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	agent := agent.Agent{
-		Config:  &cfg,
-		Storage: &storage.MemoryStorage{},
+	ag := agent.Agent{
+		Config:  cfg,
+		Storage: &memStore,
 	}
 
 	// Запуск агента сбора и отправки метрик
-	agent.Start(ctx)
+	ag.Start(ctx)
 
 	<-ctx.Done()
 	stop()

@@ -2,8 +2,6 @@ package storage
 
 import (
 	"strconv"
-
-	errst "metrics-and-alerting/pkg/errorsstorage"
 )
 
 func ToInt64(value interface{}) (int64, error) {
@@ -36,12 +34,12 @@ func ToInt64(value interface{}) (int64, error) {
 	case string:
 		val, err := strconv.ParseInt(i, 10, 64)
 		if err != nil {
-			return 0, errst.ErrorInvalidValue
+			return 0, ErrorInvalidValue
 		}
 		return val, nil
 
 	default:
-		return 0, errst.ErrorInvalidValue
+		return 0, ErrorInvalidValue
 	}
 }
 
@@ -78,11 +76,11 @@ func ToFloat64(value interface{}) (float64, error) {
 	case string:
 		val, err := strconv.ParseFloat(i, 64)
 		if err != nil {
-			return 0, errst.ErrorInvalidValue
+			return 0, ErrorInvalidValue
 		}
 		return val, nil
 
 	default:
-		return 0, errst.ErrorInvalidValue
+		return 0, ErrorInvalidValue
 	}
 }

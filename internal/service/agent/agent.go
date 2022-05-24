@@ -2,68 +2,36 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 	"math/rand"
 	"net/http"
 	"runtime"
-	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	handler "metrics-and-alerting/internal/server/handlers"
 	"metrics-and-alerting/internal/storage"
 	"metrics-and-alerting/pkg/config"
-	errst "metrics-and-alerting/pkg/errorsstorage"
 
 	"github.com/go-resty/resty/v2"
 )
 
-type Service interface {
-	Start(ctx context.Context, wg *sync.WaitGroup)
-
-	regularReport(ctx context.Context, wg *sync.WaitGroup)
-	regularUpdate(ctx context.Context, wg *sync.WaitGroup)
-
-	reportAll(ctx context.Context) error
-	reportURL(ctx context.Context, nameMetric, valueMetric, typeMetric string) error
-	reportJSON(ctx context.Context, nameMetric, metric *storage.Metrics) error
-
-	updateAll()
-}
-
 type Agent struct {
-	Config  *config.Config
-	Storage storage.IStorage
-}
-
-func float64ToString(value float64) string {
-	return strconv.FormatFloat(value, 'f', 3, 64)
-}
-
-func int64ToString(value int64) string {
-	return strconv.FormatInt(value, 10)
-}
-
-func uint64ToString(value uint64) string {
-	return strconv.FormatUint(value, 10)
+	Config  config.Config
+	Storage *storage.MemoryStorage
 }
 
 // Start Запуск агента для сбора и отправки метрик
 func (agent *Agent) Start(ctx context.Context) {
 
-	if agent.Config == nil {
-		panic(errors.New("not configured"))
+	if agent.Storage == nil {
+		panic("storage is not initialized")
 	}
 
 	if !strings.Contains(agent.Config.Addr, "http://") {
 		agent.Config.Addr = "http://" + agent.Config.Addr
 	}
-
-	agent.Config.StoreFile = ""
-	agent.Storage.SetExternalStorage(agent.Config)
 
 	// запуск горутины для обновления метрик
 	go agent.regularUpdate(ctx)
@@ -88,12 +56,12 @@ func (agent *Agent) regularReport(ctx context.Context) {
 
 // Обновление метрик с частотой агента
 func (agent *Agent) regularUpdate(ctx context.Context) {
-	agent.updateAll()
+	agent.updateMetrics()
 
 	for {
 		select {
 		case <-time.After(agent.Config.PollInterval):
-			agent.updateAll()
+			agent.updateMetrics()
 		case <-ctx.Done():
 			return
 		}
@@ -103,34 +71,23 @@ func (agent *Agent) regularUpdate(ctx context.Context) {
 // Отправление всех метрик
 func (agent *Agent) reportAll(ctx context.Context) {
 
-	agent.Storage.Lock()
-	defer agent.Storage.Unlock()
-
 	client := resty.New()
-	types := []string{storage.GaugeType, storage.CounterType}
 
-	for _, typeMetric := range types {
-		names := agent.Storage.Names(typeMetric)
+	metrics := agent.Storage.Data()
+	for _, metric := range metrics {
 
-		for _, name := range names {
-
-			metric, err := agent.Storage.Metric(typeMetric, name)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-
-			if err = agent.reportJSON(ctx, client, &metric); err != nil {
-				log.Println(err.Error())
-			}
-
-			//if err = agent.reportURL(ctx, client, &metric); err != nil {
-			//	log.Println(err.Error())
-			//}
+		if err := agent.reportJSON(ctx, client, &metric); err != nil {
+			log.Println(err.Error())
 		}
+
+		//if err := agent.reportURL(ctx, client, &metric); err != nil {
+		//	log.Println(err.Error())
+		//}
 	}
 
-	if err := agent.Storage.Set(storage.CounterType, "PollCount", 0); err != nil {
+	metric := storage.NewMetric(storage.CounterType, "PollCount", 0)
+
+	if err := agent.Storage.Set(&metric); err != nil {
 		log.Println(err.Error())
 	}
 }
@@ -138,32 +95,9 @@ func (agent *Agent) reportAll(ctx context.Context) {
 // Обновление метрики
 func (agent *Agent) reportURL(ctx context.Context, client *resty.Client, metric *storage.Metrics) error {
 
-	if len(metric.MType) < 1 || len(metric.ID) < 1 {
-		return errors.New("invalid metric params")
-	}
-
-	data := make(map[string]string)
-	data["type"] = metric.MType
-	data["name"] = metric.ID
-
-	switch metric.MType {
-	case storage.GaugeType:
-		if metric.Value == nil {
-			return errst.ErrorInvalidValue
-		}
-
-		data["value"] = strconv.FormatFloat(*metric.Value, 'f', -1, 64)
-
-	case storage.CounterType:
-
-		if metric.Delta == nil {
-			return errst.ErrorInvalidValue
-		}
-
-		data["value"] = strconv.FormatInt(*metric.Delta, 10)
-
-	default:
-		return errst.ErrorInvalidType
+	data, err := metric.ToMap()
+	if err != nil {
+		return err
 	}
 
 	resp, err := client.R().
@@ -185,7 +119,7 @@ func (agent *Agent) reportURL(ctx context.Context, client *resty.Client, metric 
 
 func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, metric *storage.Metrics) error {
 
-	data, err := json.Marshal(metric)
+	data, err := metric.ToJSON()
 	if err != nil {
 		return err
 	}
@@ -209,10 +143,7 @@ func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, metric
 }
 
 // Обновление всех метрик
-func (agent *Agent) updateAll() {
-
-	agent.Storage.Lock()
-	defer agent.Storage.Unlock()
+func (agent *Agent) updateMetrics() {
 
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
@@ -250,12 +181,14 @@ func (agent *Agent) updateAll() {
 	gaugeMetrics["TotalAlloc"] = ms.TotalAlloc
 
 	for id, value := range gaugeMetrics {
-		if err := agent.Storage.Set(storage.GaugeType, id, value); err != nil {
-			log.Printf("error set value metric %s/%s/%v: %s\n", storage.GaugeType, id, value, err.Error())
+		metric := storage.NewMetric(storage.GaugeType, id, value)
+		if err := agent.Storage.Set(&metric); err != nil {
+			log.Printf("error update metric '%s'. %s\n", metric.ShotString(), err.Error())
 		}
 	}
 
-	if err := agent.Storage.Add(storage.CounterType, "PollCount", 1); err != nil {
-		log.Printf("error set value metric %s/%s/%v: %s\n", storage.GaugeType, "PollCount", 1, err.Error())
+	metric := storage.NewMetric(storage.CounterType, "PollCount", 1)
+	if err := agent.Storage.Add(&metric); err != nil {
+		log.Printf("error update metric '%s'. %s\n", metric.ShotString(), err.Error())
 	}
 }
