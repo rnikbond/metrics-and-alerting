@@ -116,14 +116,16 @@ func main() {
 	log.Println("server running ...")
 	<-waitChan
 
-	if extStorage := memoryStorage.ExternalStorage(); extStorage != nil {
-		if err := extStorage.Close(); err != nil {
-			log.Printf("error close external storage. %s\n", err)
-		}
+	fmt.Println("save external")
+	if err := memoryStorage.Save(); err != nil {
+		log.Printf("error save metric in external storage. Error - %v\n", err)
 	}
 
-	if err := memoryStorage.Save(); err != nil {
-		log.Printf("error save metric in external storage. Error - %s\n", err.Error())
+	fmt.Println("close external")
+	if extStorage := memoryStorage.ExternalStorage(); extStorage != nil {
+		if err := extStorage.Close(); err != nil {
+			log.Printf("error close external storage. %v\n", err)
+		}
 	}
 
 	log.Println("stop metrics server")

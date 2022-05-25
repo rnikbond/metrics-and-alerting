@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -13,6 +14,24 @@ import (
 type DataBaseStorage struct {
 	DataSourceName string
 	conn           *sql.DB
+}
+
+func (db *DataBaseStorage) CreateTables() error {
+
+	if db.conn == nil {
+		return errors.New("not connection to database")
+	}
+
+	_, err := db.conn.Exec("CREATE TABLE IF NOT EXISTS data " +
+		"(ID CHARACTER VARYING(50) PRIMARY KEY," +
+		"MTYPE CHARACTER VARYING(50)," +
+		"MEAN CHARACTER VARYING(50)" +
+		");")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (db *DataBaseStorage) Connect() (*sql.DB, error) {
@@ -28,9 +47,16 @@ func (db *DataBaseStorage) Connect() (*sql.DB, error) {
 	conn, err := sql.Open("postgres", db.DataSourceName)
 	if err != nil {
 		return nil, err
+	} else {
+		log.Println("success connect to database")
 	}
 
 	db.conn = conn
+
+	if err := db.CreateTables(); err != nil {
+		log.Printf("error create table: %v", err)
+	}
+
 	return db.conn, nil
 }
 
