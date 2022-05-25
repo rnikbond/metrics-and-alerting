@@ -48,8 +48,6 @@ func (db *DataBaseStorage) Connect() (*sql.DB, error) {
 	conn, err := sql.Open("postgres", db.DataSourceName)
 	if err != nil {
 		return nil, err
-	} else {
-		log.Println("success connect to database")
 	}
 
 	db.conn = conn
@@ -80,7 +78,7 @@ func (db DataBaseStorage) ReadAll() ([]Metrics, error) {
 	}
 	defer conn.Close()
 
-	rows, err := conn.Query("SELECT * FROM data;")
+	rows, err := conn.Query("SELECT * FROM metricsData;")
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +119,7 @@ func (db DataBaseStorage) WriteAll(metrics []Metrics) error {
 	defer conn.Close()
 
 	for _, metric := range metrics {
-		query := `INSERT INTO data
+		query := `INSERT INTO metricsData
 				  VALUES 
                       ($1,$2,$3)
                   ON CONFLICT(ID)
