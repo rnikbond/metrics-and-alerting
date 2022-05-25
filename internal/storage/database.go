@@ -130,6 +130,8 @@ func (dbStore DataBaseStorage) WriteAll(metrics []Metrics) error {
 				log.Printf("error write metric without value: %s\n", metric.StringValue())
 				continue
 			}
+
+			valueNS.Valid = true
 			valueNS.Float64 = *metric.Value
 
 		case CounterType:
@@ -138,6 +140,7 @@ func (dbStore DataBaseStorage) WriteAll(metrics []Metrics) error {
 				continue
 			}
 
+			deltaNS.Valid = true
 			deltaNS.Int64 = *metric.Delta
 
 		default:
