@@ -243,6 +243,17 @@ func (st *MemoryStorage) Save() error {
 		return ErrorExternalStorage
 	}
 
+	if len(st.cfg.SecretKey) > 0 {
+		for index := range st.metrics {
+			hash, err := Sign(&st.metrics[index], []byte(st.cfg.SecretKey))
+			if err == nil {
+				st.metrics[index].Hash = hash
+			} else {
+				log.Printf("error get sign metric '%s'. %s\n", st.metrics[index].ShotString(), err)
+			}
+		}
+	}
+
 	if err := st.extStorage.WriteAll(st.metrics); err != nil {
 		return err
 	}

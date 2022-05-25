@@ -26,7 +26,8 @@ func (dbStore *DataBaseStorage) CreateTables() error {
 			" mname  CHARACTER VARYING(50) PRIMARY KEY," +
 			" mtype  CHARACTER VARYING(50)," +
 			" delta  BIGINT," +
-			" val    DOUBLE PRECISION);")
+			" val    DOUBLE PRECISION," +
+			" hash   CHARACTER VARYING(100));")
 	if err != nil {
 		return err
 	}
@@ -40,7 +41,7 @@ func (dbStore DataBaseStorage) ReadAll() ([]Metrics, error) {
 		return nil, ErrorDatabaseDriver
 	}
 
-	rows, err := dbStore.Driver.Query("SELECT mname,mtype,delta,val FROM metricsData;")
+	rows, err := dbStore.Driver.Query("SELECT mname,mtype,delta,val,hash FROM metricsData;")
 	if err != nil {
 		return nil, err
 	}
@@ -54,9 +55,10 @@ func (dbStore DataBaseStorage) ReadAll() ([]Metrics, error) {
 			mtypeNS sql.NullString
 			deltaNS sql.NullInt64
 			valueNS sql.NullFloat64
+			hashNS  sql.NullString
 		)
 
-		if err := rows.Scan(&idNS, &mtypeNS, &deltaNS, &valueNS); err != nil {
+		if err := rows.Scan(&idNS, &mtypeNS, &deltaNS, &valueNS, &hashNS); err != nil {
 			log.Printf("error scan: %v\n", err)
 			continue
 		}
@@ -92,6 +94,10 @@ func (dbStore DataBaseStorage) ReadAll() ([]Metrics, error) {
 			continue
 		}
 
+		if hashNS.Valid {
+			metric.Hash = hashNS.String
+		}
+
 		metrics = append(metrics, metric)
 		fmt.Printf("read: %s\n", metric.ShotString())
 	}
@@ -110,11 +116,11 @@ func (dbStore DataBaseStorage) WriteAll(metrics []Metrics) error {
 		return ErrorDatabaseDriver
 	}
 
-	query := `INSERT INTO metricsData (mname,mtype,delta,val)
+	query := `INSERT INTO metricsData (mname,mtype,delta,val,hash)
 			  VALUES 
-				($1,$2,$3,$4) 
+				($1,$2,$3,$4,$5) 
               ON CONFLICT(mname) DO UPDATE SET
-              mname=$1,mtype=$2,delta=$3,val=$4`
+              mname=$1,mtype=$2,delta=$3,val=$4,hash=$5`
 
 	fmt.Println("write ...")
 
@@ -149,7 +155,7 @@ func (dbStore DataBaseStorage) WriteAll(metrics []Metrics) error {
 			continue
 		}
 
-		if _, err := dbStore.Driver.Exec(query, metric.ID, metric.MType, deltaNS, valueNS); err != nil {
+		if _, err := dbStore.Driver.Exec(query, metric.ID, metric.MType, deltaNS, valueNS, metric.Hash); err != nil {
 			log.Printf("error insert or update: %s\n", err.Error())
 		} else {
 			fmt.Printf("success write: %s/%s/%s\n", metric.ID, metric.MType, metric.StringValue())
