@@ -58,8 +58,9 @@ func parseFlags() {
 
 func prepareConfig() {
 	cfg.SetDefault()
+	//cfg.ReadEnvVars()
 	parseFlags()
-	cfg.ReadEnvVars()
+
 }
 
 func main() {
@@ -84,6 +85,8 @@ func main() {
 		if err := dbStore.CreateTables(); err != nil {
 			log.Printf("error create table: %s\n", err.Error())
 			panic(err)
+		} else {
+			log.Println("- success create table")
 		}
 
 		memoryStorage.SetExternalStorage(dbStore)
