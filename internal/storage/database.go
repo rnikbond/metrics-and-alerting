@@ -129,10 +129,9 @@ func (db DataBaseStorage) WriteAll(metrics []Metrics) error {
 		_, err := conn.Exec(query, metric.ID, metric.MType, metric.StringValue())
 		if err != nil {
 			log.Printf("error insert: %s\n", err.Error())
+		} else {
+			fmt.Printf("success write: %s/%s/%s\n", metric.ID, metric.MType, metric.StringValue())
 		}
-
-		fmt.Printf("write: %s\n", metric.ShotString())
-
 	}
 
 	return nil
