@@ -58,9 +58,8 @@ func parseFlags() {
 
 func prepareConfig() {
 	cfg.SetDefault()
-	//cfg.ReadEnvVars()
 	parseFlags()
-
+	cfg.ReadEnvVars()
 }
 
 func main() {
