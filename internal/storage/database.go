@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -22,7 +23,7 @@ func (db *DataBaseStorage) CreateTables() error {
 	}
 
 	_, err := db.conn.Exec(
-		"CREATE TABLE IF NOT EXISTS data " +
+		"CREATE TABLE IF NOT EXISTS metricsData " +
 			"(ID CHARACTER VARYING(50) PRIMARY KEY," +
 			"MTYPE CHARACTER VARYING(50)," +
 			"MEAN CHARACTER VARYING(50)" +
@@ -78,7 +79,7 @@ func (db DataBaseStorage) ReadAll() ([]Metrics, error) {
 		return metrics, err
 	}
 	defer conn.Close()
-	
+
 	rows, err := conn.Query("SELECT * FROM data;")
 	if err != nil {
 		return nil, err
@@ -99,6 +100,7 @@ func (db DataBaseStorage) ReadAll() ([]Metrics, error) {
 
 		m := NewMetric(mtype, id, value)
 		metrics = append(metrics, m)
+		fmt.Printf("read: %s\n", m.ShotString())
 	}
 
 	err = rows.Err()
@@ -130,6 +132,8 @@ func (db DataBaseStorage) WriteAll(metrics []Metrics) error {
 		if err != nil {
 			log.Printf("error insert: %s\n", err.Error())
 		}
+
+		fmt.Printf("write: %s\n", metric.ShotString())
 
 	}
 
