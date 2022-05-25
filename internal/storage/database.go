@@ -24,7 +24,7 @@ func (dbStore *DataBaseStorage) CreateTables() error {
 		"CREATE TABLE IF NOT EXISTS metricsData " +
 			"(id     CHARACTER VARYING(50) PRIMARY KEY," +
 			" mtype  CHARACTER VARYING(50)," +
-			" delta  INTEGER," +
+			" delta  BIGINT," +
 			" val    DOUBLE PRECISION);")
 	if err != nil {
 		return err
