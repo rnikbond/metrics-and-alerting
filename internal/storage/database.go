@@ -77,7 +77,8 @@ func (db DataBaseStorage) ReadAll() ([]Metrics, error) {
 	if err != nil {
 		return metrics, err
 	}
-
+	defer conn.Close()
+	
 	rows, err := conn.Query("SELECT * FROM data;")
 	if err != nil {
 		return nil, err
@@ -115,6 +116,8 @@ func (db DataBaseStorage) WriteAll(metrics []Metrics) error {
 		return err
 	}
 
+	defer conn.Close()
+
 	for _, metric := range metrics {
 		query := `INSERT INTO data
 				  VALUES 
@@ -125,7 +128,7 @@ func (db DataBaseStorage) WriteAll(metrics []Metrics) error {
 
 		_, err := conn.Exec(query, metric.ID, metric.MType, metric.StringValue())
 		if err != nil {
-			log.Printf("error insert: %v\n", err)
+			log.Printf("error insert: %s\n", err.Error())
 		}
 
 	}
