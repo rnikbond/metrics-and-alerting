@@ -3,6 +3,7 @@ package storage
 import (
 	"log"
 	"sync"
+	"time"
 
 	"metrics-and-alerting/pkg/config"
 )
@@ -22,6 +23,25 @@ func (st *MemoryStorage) SetConfig(cfg config.Config) {
 // SetExternalStorage - Инициализация внешнего хранилища
 func (st *MemoryStorage) SetExternalStorage(extStorage ExternalStorage) {
 	st.extStorage = extStorage
+
+	if st.isSyncStore() {
+		return
+	}
+
+	go func() {
+
+		ticker := time.NewTicker(st.cfg.StoreInterval)
+		for {
+			<-ticker.C
+			if st.extStorage == nil {
+				continue
+			}
+
+			if err := st.extStorage.WriteAll(st.Data()); err != nil {
+				log.Printf("error save in external storage: %v", err)
+			}
+		}
+	}()
 }
 
 // ExternalStorage - Получение внешнего хранилища

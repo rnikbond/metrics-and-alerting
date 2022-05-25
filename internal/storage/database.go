@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"log"
 	"time"
 
@@ -22,11 +21,12 @@ func (db *DataBaseStorage) CreateTables() error {
 		return errors.New("not connection to database")
 	}
 
-	_, err := db.conn.Exec("CREATE TABLE IF NOT EXISTS data " +
-		"(ID CHARACTER VARYING(50) PRIMARY KEY," +
-		"MTYPE CHARACTER VARYING(50)," +
-		"MEAN CHARACTER VARYING(50)" +
-		");")
+	_, err := db.conn.Exec(
+		"CREATE TABLE IF NOT EXISTS data " +
+			"(ID CHARACTER VARYING(50) PRIMARY KEY," +
+			"MTYPE CHARACTER VARYING(50)," +
+			"MEAN CHARACTER VARYING(50)" +
+			");")
 	if err != nil {
 		return err
 	}
@@ -73,9 +73,30 @@ func (db DataBaseStorage) ReadAll() ([]Metrics, error) {
 
 	var metrics []Metrics
 
-	_, err := db.Connect()
+	conn, err := db.Connect()
 	if err != nil {
 		return metrics, err
+	}
+
+	rows, err := conn.Query("SELECT * FROM data;")
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var (
+			id    string
+			mtype string
+			value string
+		)
+
+		if err := rows.Scan(&id, &mtype, &value); err != nil {
+			log.Printf("error scan: %v\n", err)
+			continue
+		}
+
+		m := NewMetric(mtype, id, value)
+		metrics = append(metrics, m)
 	}
 
 	return metrics, nil
@@ -83,13 +104,24 @@ func (db DataBaseStorage) ReadAll() ([]Metrics, error) {
 
 func (db DataBaseStorage) WriteAll(metrics []Metrics) error {
 
-	_, err := db.Connect()
+	conn, err := db.Connect()
 	if err != nil {
 		return err
 	}
 
 	for _, metric := range metrics {
-		fmt.Printf("write to db: %s\n", metric.ShotString())
+		query := `INSERT INTO data
+				  VALUES 
+                      ($1,$2,$3)
+                  ON CONFLICT(ID)
+                  DO UPDATE SET 
+                         MTYPE=$2,MEAN=$3`
+
+		_, err := conn.Exec(query, metric.ID, metric.MType, metric.StringValue())
+		if err != nil {
+			log.Printf("error insert: %v\n", err)
+		}
+
 	}
 
 	return nil
