@@ -22,7 +22,8 @@ func (dbStore *DataBaseStorage) CreateTables() error {
 
 	_, err := dbStore.Driver.Exec(
 		"CREATE TABLE IF NOT EXISTS metricsData " +
-			"(id     CHARACTER VARYING(50) PRIMARY KEY," +
+			"(id     SERIAL," +
+			" mname  CHARACTER VARYING(50) PRIMARY KEY," +
 			" mtype  CHARACTER VARYING(50)," +
 			" delta  BIGINT," +
 			" val    DOUBLE PRECISION);")
@@ -39,7 +40,7 @@ func (dbStore DataBaseStorage) ReadAll() ([]Metrics, error) {
 		return nil, ErrorDatabaseDriver
 	}
 
-	rows, err := dbStore.Driver.Query("SELECT * FROM metricsData;")
+	rows, err := dbStore.Driver.Query("SELECT mname,mtype,delta,val FROM metricsData;")
 	if err != nil {
 		return nil, err
 	}
@@ -109,11 +110,11 @@ func (dbStore DataBaseStorage) WriteAll(metrics []Metrics) error {
 		return ErrorDatabaseDriver
 	}
 
-	query := `INSERT INTO metricsData 
+	query := `INSERT INTO metricsData (mname,mtype,delta,val)
 			  VALUES 
 				($1,$2,$3,$4) 
-              ON CONFLICT(id) DO UPDATE SET
-              mtype=$2,delta=$3,val=$4`
+              ON CONFLICT(mname) DO UPDATE SET
+              mname=$1,mtype=$2,delta=$3,val=$4`
 
 	fmt.Println("write ...")
 
