@@ -24,10 +24,10 @@ func (db *DataBaseStorage) CreateTables() error {
 
 	_, err := db.conn.Exec(
 		"CREATE TABLE IF NOT EXISTS metricsData " +
-			"(ID CHARACTER VARYING(50) PRIMARY KEY," +
-			"MTYPE CHARACTER VARYING(50)," +
-			"MEAN CHARACTER VARYING(50)" +
-			");")
+			"(id     CHARACTER VARYING(50) PRIMARY KEY," +
+			" mtype  CHARACTER VARYING(50)," +
+			" delta  INTEGER," +
+			" value  DOUBLE PRECISION);")
 	if err != nil {
 		return err
 	}
@@ -85,20 +85,45 @@ func (db DataBaseStorage) ReadAll() ([]Metrics, error) {
 
 	defer rows.Close()
 	for rows.Next() {
-		var (
-			id    string
-			mtype string
-			value string
-		)
 
-		if err := rows.Scan(&id, &mtype, &value); err != nil {
+		metric := Metrics{}
+
+		var delta sql.NullInt64
+		var value sql.NullFloat64
+
+		if err := rows.Scan(&metric.ID, &metric.MType, &delta, &value); err != nil {
 			log.Printf("error scan: %v\n", err)
 			continue
 		}
 
-		m := NewMetric(mtype, id, value)
-		metrics = append(metrics, m)
-		fmt.Printf("read: %s\n", m.ShotString())
+		switch metric.MType {
+		case GaugeType:
+			if value.Valid {
+				v, err := value.Value()
+				if err != nil {
+					continue
+				}
+				vv, ok := v.(float64)
+				if ok {
+					metric.Value = &vv
+				}
+			}
+
+		case CounterType:
+			if delta.Valid {
+				v, err := delta.Value()
+				if err != nil {
+					continue
+				}
+				vv, ok := v.(int64)
+				if ok {
+					metric.Delta = &vv
+				}
+			}
+		}
+
+		metrics = append(metrics, metric)
+		fmt.Printf("read: %s\n", metric.ShotString())
 	}
 
 	err = rows.Err()
@@ -119,18 +144,30 @@ func (db DataBaseStorage) WriteAll(metrics []Metrics) error {
 	defer conn.Close()
 
 	for _, metric := range metrics {
-		query := `INSERT INTO metricsData
-				  VALUES 
-                      ($1,$2,$3)
-                  ON CONFLICT(ID)
-                  DO UPDATE SET 
-                         MTYPE=$2,MEAN=$3`
 
-		_, err := conn.Exec(query, metric.ID, metric.MType, metric.StringValue())
-		if err != nil {
-			log.Printf("error insert: %s\n", err.Error())
-		} else {
-			fmt.Printf("success write: %s/%s/%s\n", metric.ID, metric.MType, metric.StringValue())
+		switch metric.MType {
+		case GaugeType:
+			_, err := conn.Exec(
+				"INSERT INTO metricsData (id, mtype, value) VALUES ($1,$2,$3) "+
+					"ON CONFLICT(id) DO UPDATE SET "+
+					"mtype=$2,value=$3",
+				metric.ID, metric.MType, *metric.Value)
+			if err != nil {
+				log.Printf("error insert or update: %s\n", err.Error())
+			} else {
+				fmt.Printf("success write: %s/%s/%s\n", metric.ID, metric.MType, metric.StringValue())
+			}
+		case CounterType:
+			_, err := conn.Exec(
+				"INSERT INTO metricsData (id, mtype, delta) VALUES ($1,$2,$3) "+
+					"ON CONFLICT(id) DO UPDATE SET "+
+					"mtype=$2,delta=$3",
+				metric.ID, metric.MType, *metric.Delta)
+			if err != nil {
+				log.Printf("error insert or update: %s\n", err.Error())
+			} else {
+				fmt.Printf("success write: %s/%s/%s\n", metric.ID, metric.MType, metric.StringValue())
+			}
 		}
 	}
 
