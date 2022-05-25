@@ -83,6 +83,7 @@ func (db DataBaseStorage) ReadAll() ([]Metrics, error) {
 		return nil, err
 	}
 
+	defer rows.Close()
 	for rows.Next() {
 		var (
 			id    string
@@ -97,6 +98,11 @@ func (db DataBaseStorage) ReadAll() ([]Metrics, error) {
 
 		m := NewMetric(mtype, id, value)
 		metrics = append(metrics, m)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
 	}
 
 	return metrics, nil
