@@ -20,6 +20,7 @@ var (
 var (
 	ErrorInvalidFilePath = errors.New("invalid path to file storage")
 	ErrorExternalStorage = errors.New("internal error external storage")
+	ErrorDatabaseDriver  = errors.New("database driver not initialized")
 )
 
 // ErrorHTTP - Преобразование ошибки Storage в HTTP код

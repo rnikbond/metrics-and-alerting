@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -12,22 +11,21 @@ import (
 )
 
 type DataBaseStorage struct {
-	DataSourceName string
-	conn           *sql.DB
+	Driver *sql.DB
 }
 
-func (db *DataBaseStorage) CreateTables() error {
+func (dbStore *DataBaseStorage) CreateTables() error {
 
-	if db.conn == nil {
-		return errors.New("not connection to database")
+	if dbStore.Driver == nil {
+		return ErrorDatabaseDriver
 	}
 
-	_, err := db.conn.Exec(
+	_, err := dbStore.Driver.Exec(
 		"CREATE TABLE IF NOT EXISTS metricsData " +
 			"(id     CHARACTER VARYING(50) PRIMARY KEY," +
 			" mtype  CHARACTER VARYING(50)," +
 			" delta  INTEGER," +
-			" value  DOUBLE PRECISION);")
+			" val    DOUBLE PRECISION);")
 	if err != nil {
 		return err
 	}
@@ -35,91 +33,62 @@ func (db *DataBaseStorage) CreateTables() error {
 	return nil
 }
 
-func (db *DataBaseStorage) Connect() (*sql.DB, error) {
+func (dbStore DataBaseStorage) ReadAll() ([]Metrics, error) {
 
-	if db.conn != nil {
-		return db.conn, nil
+	if dbStore.Driver == nil {
+		return nil, ErrorDatabaseDriver
 	}
 
-	if len(db.DataSourceName) < 1 {
-		return nil, errors.New("invalid DSN")
-	}
-
-	conn, err := sql.Open("postgres", db.DataSourceName)
+	rows, err := dbStore.Driver.Query("SELECT * FROM metricsData;")
 	if err != nil {
 		return nil, err
 	}
-
-	db.conn = conn
-
-	if err := db.CreateTables(); err != nil {
-		log.Printf("error create table: %v", err)
-	}
-
-	return db.conn, nil
-}
-
-func (db DataBaseStorage) Close() error {
-
-	if db.conn == nil {
-		return nil
-	}
-
-	return db.conn.Close()
-}
-
-func (db DataBaseStorage) ReadAll() ([]Metrics, error) {
-
-	var metrics []Metrics
-
-	conn, err := db.Connect()
-	if err != nil {
-		return metrics, err
-	}
-	defer conn.Close()
-
-	rows, err := conn.Query("SELECT * FROM metricsData;")
-	if err != nil {
-		return nil, err
-	}
-
 	defer rows.Close()
+
+	metrics := make([]Metrics, 0)
+
 	for rows.Next() {
+		var (
+			idNS    sql.NullString
+			mtypeNS sql.NullString
+			deltaNS sql.NullInt64
+			valueNS sql.NullFloat64
+		)
 
-		metric := Metrics{}
-
-		var delta sql.NullInt64
-		var value sql.NullFloat64
-
-		if err := rows.Scan(&metric.ID, &metric.MType, &delta, &value); err != nil {
+		if err := rows.Scan(&idNS, &mtypeNS, &deltaNS, &valueNS); err != nil {
 			log.Printf("error scan: %v\n", err)
 			continue
 		}
 
+		if !idNS.Valid {
+			log.Printf("error read 'id' - is not valid.\n")
+			continue
+		}
+
+		if !mtypeNS.Valid {
+			log.Printf("error read 'mtype' - is not valid.\n")
+			continue
+		}
+
+		metric := Metrics{
+			ID:    idNS.String,
+			MType: mtypeNS.String,
+		}
+
 		switch metric.MType {
 		case GaugeType:
-			if value.Valid {
-				v, err := value.Value()
-				if err != nil {
-					continue
-				}
-				vv, ok := v.(float64)
-				if ok {
-					metric.Value = &vv
-				}
+			if valueNS.Valid {
+				metric.Value = &valueNS.Float64
 			}
 
 		case CounterType:
-			if delta.Valid {
-				v, err := delta.Value()
-				if err != nil {
-					continue
-				}
-				vv, ok := v.(int64)
-				if ok {
-					metric.Delta = &vv
-				}
+			if deltaNS.Valid {
+				metric.Delta = &deltaNS.Int64
 			}
+
+		default:
+			log.Printf("error unknown 'mtype': %s\n", metric.MType)
+			continue
 		}
 
 		metrics = append(metrics, metric)
@@ -134,58 +103,68 @@ func (db DataBaseStorage) ReadAll() ([]Metrics, error) {
 	return metrics, nil
 }
 
-func (db DataBaseStorage) WriteAll(metrics []Metrics) error {
+func (dbStore DataBaseStorage) WriteAll(metrics []Metrics) error {
 
-	conn, err := db.Connect()
-	if err != nil {
-		return err
+	if dbStore.Driver == nil {
+		return ErrorDatabaseDriver
 	}
 
-	defer conn.Close()
+	query := `INSERT INTO metricsData 
+			  VALUES 
+				($1,$2,$3,$4) 
+              ON CONFLICT(id) DO UPDATE SET
+              mtype=$2,delta=$3,val=$4`
+
+	fmt.Println("write ...")
 
 	for _, metric := range metrics {
 
+		var (
+			deltaNS sql.NullInt64
+			valueNS sql.NullFloat64
+		)
+
 		switch metric.MType {
 		case GaugeType:
-			_, err := conn.Exec(
-				"INSERT INTO metricsData (id, mtype, value) VALUES ($1,$2,$3) "+
-					"ON CONFLICT(id) DO UPDATE SET "+
-					"mtype=$2,value=$3",
-				metric.ID, metric.MType, *metric.Value)
-			if err != nil {
-				log.Printf("error insert or update: %s\n", err.Error())
-			} else {
-				fmt.Printf("success write: %s/%s/%s\n", metric.ID, metric.MType, metric.StringValue())
+			if metric.Value == nil {
+				log.Printf("error write metric without value: %s\n", metric.StringValue())
+				continue
 			}
+			valueNS.Float64 = *metric.Value
+
 		case CounterType:
-			_, err := conn.Exec(
-				"INSERT INTO metricsData (id, mtype, delta) VALUES ($1,$2,$3) "+
-					"ON CONFLICT(id) DO UPDATE SET "+
-					"mtype=$2,delta=$3",
-				metric.ID, metric.MType, *metric.Delta)
-			if err != nil {
-				log.Printf("error insert or update: %s\n", err.Error())
-			} else {
-				fmt.Printf("success write: %s/%s/%s\n", metric.ID, metric.MType, metric.StringValue())
+			if metric.Delta == nil {
+				log.Printf("error write metric without delta: %s\n", metric.StringValue())
+				continue
 			}
+
+			deltaNS.Int64 = *metric.Delta
+
+		default:
+			log.Printf("error write metric with unknown type: %s\n", metric.StringValue())
+			continue
 		}
+
+		if _, err := dbStore.Driver.Exec(query, metric.ID, metric.MType, deltaNS, valueNS); err != nil {
+			log.Printf("error insert or update: %s\n", err.Error())
+		} else {
+			fmt.Printf("success write: %s/%s/%s\n", metric.ID, metric.MType, metric.StringValue())
+		}
+
 	}
 
 	return nil
 }
 
-func (db DataBaseStorage) CheckHealth() bool {
+func (dbStore DataBaseStorage) Ping() bool {
 
-	_, err := db.Connect()
-	if err != nil {
+	if dbStore.Driver == nil {
 		return false
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := db.conn.PingContext(ctx); err != nil {
-		return false
-	}
 
-	return true
+	err := dbStore.Driver.PingContext(ctx)
+	return err == nil
 }

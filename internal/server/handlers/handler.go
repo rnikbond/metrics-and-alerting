@@ -265,7 +265,7 @@ func CheckHealthStorage(memStore *storage.MemoryStorage) http.HandlerFunc {
 			return
 		}
 
-		if memStore.ExternalStorage().CheckHealth() {
+		if memStore.ExternalStorage().Ping() {
 			w.WriteHeader(http.StatusOK)
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)

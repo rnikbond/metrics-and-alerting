@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"log"
@@ -59,37 +60,6 @@ func prepareConfig() {
 	cfg.SetDefault()
 	parseFlags()
 	cfg.ReadEnvVars()
-
-	//cfg.ReadEnvVars()
-	//parseFlags()
-
-}
-
-func createStorage() *storage.MemoryStorage {
-	memoryStorage := storage.MemoryStorage{}
-	memoryStorage.SetConfig(cfg)
-
-	var extStorage storage.ExternalStorage
-
-	if len(cfg.DatabaseDSN) > 0 {
-		extStorage = storage.DataBaseStorage{
-			DataSourceName: cfg.DatabaseDSN,
-		}
-	} else if len(cfg.StoreFile) > 0 {
-		extStorage = storage.FileStorage{
-			FileName: cfg.StoreFile,
-		}
-	}
-
-	memoryStorage.SetExternalStorage(extStorage)
-
-	if cfg.Restore {
-		if err := memoryStorage.Restore(); err != nil {
-			log.Printf("error restore metric. Error - %s\n", err)
-		}
-	}
-
-	return &memoryStorage
 }
 
 func main() {
@@ -97,10 +67,39 @@ func main() {
 	prepareConfig()
 	fmt.Println(cfg)
 
-	memoryStorage := createStorage()
+	memoryStorage := storage.MemoryStorage{}
+	memoryStorage.SetConfig(cfg)
+
+	fileStore := storage.FileStorage{}
+	dbStore := storage.DataBaseStorage{}
+
+	if len(cfg.DatabaseDSN) > 0 {
+		driver, err := sql.Open("postgres", cfg.DatabaseDSN)
+		if err != nil {
+			log.Printf("error open connection with database %s\n", err.Error())
+			panic(err)
+		}
+
+		dbStore.Driver = driver
+		if err := dbStore.CreateTables(); err != nil {
+			log.Printf("error create table: %s\n", err.Error())
+			panic(err)
+		}
+
+		memoryStorage.SetExternalStorage(dbStore)
+	} else if len(cfg.StoreFile) > 0 {
+		fileStore.FileName = cfg.StoreFile
+		memoryStorage.SetExternalStorage(fileStore)
+	}
+
+	if cfg.Restore {
+		if err := memoryStorage.Restore(); err != nil {
+			log.Printf("error restore metric. Error - %s\n", err)
+		}
+	}
 
 	waitChan := make(chan struct{})
-	server := servermetrics.StartMetricsHTTPServer(memoryStorage, &cfg)
+	server := servermetrics.StartMetricsHTTPServer(&memoryStorage, &cfg)
 
 	go func() {
 		sigChan := make(chan os.Signal, 1)
@@ -116,15 +115,15 @@ func main() {
 	log.Println("server running ...")
 	<-waitChan
 
-	fmt.Println("save external")
-	if err := memoryStorage.Save(); err != nil {
-		log.Printf("error save metric in external storage. Error - %v\n", err)
+	if memoryStorage.ExternalStorage() != nil {
+		if err := memoryStorage.Save(); err != nil {
+			log.Printf("error save metric in external storage. Error - %v\n", err)
+		}
 	}
 
-	fmt.Println("close external")
-	if extStorage := memoryStorage.ExternalStorage(); extStorage != nil {
-		if err := extStorage.Close(); err != nil {
-			log.Printf("error close external storage. %v\n", err)
+	if dbStore.Driver != nil {
+		if err := dbStore.Driver.Close(); err != nil {
+			log.Printf("error close database storage. %v\n", err)
 		}
 	}
 

@@ -74,11 +74,7 @@ func (fileStore FileStorage) WriteAll(metrics []Metrics) error {
 	return writer.Flush()
 }
 
-func (fileStore FileStorage) CheckHealth() bool {
+func (fileStore FileStorage) Ping() bool {
 	_, err := os.Stat(fileStore.FileName)
 	return !errors.Is(err, fs.ErrNotExist)
-}
-
-func (fileStore FileStorage) Close() error {
-	return nil
 }
