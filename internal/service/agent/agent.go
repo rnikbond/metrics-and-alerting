@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"math/rand"
@@ -148,23 +149,30 @@ func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, metric
 
 func (agent *Agent) reportBatchJSON(ctx context.Context, client *resty.Client) error {
 
-	var jsonMetrics []string
+	//var jsonMetrics []string
+	//
+	//for _, metric := range agent.Storage.Data() {
+	//	encodeData, err := metric.ToJSON()
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	jsonMetrics = append(jsonMetrics, string(encodeData))
+	//
+	//}
+	//
+	//jsonJoin := strings.Join(jsonMetrics, ",\n")
 
-	for _, metric := range agent.Storage.Data() {
-		encodeData, err := metric.ToJSON()
-		if err != nil {
-			return err
-		}
-
-		jsonMetrics = append(jsonMetrics, string(encodeData))
-
+	metrics := agent.Storage.Data()
+	data, err := json.Marshal(&metrics)
+	if err != nil {
+		log.Printf("error marshal slice metrics: %s\n", err.Error())
+		return err
 	}
-
-	jsonJoin := strings.Join(jsonMetrics, ",\n")
 
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
-		SetBody([]byte(jsonJoin)).
+		SetBody(data).
 		SetContext(ctx).
 		Post(agent.Config.Addr + handler.PartURLUpdates)
 
@@ -174,7 +182,7 @@ func (agent *Agent) reportBatchJSON(ctx context.Context, client *resty.Client) e
 
 	if resp.StatusCode() != http.StatusOK {
 		respBody := resp.Body()
-		return errors.New("\nJSON batch: " + jsonJoin + "\n" + string(respBody))
+		return errors.New("\nJSON batch: " + string(respBody))
 	}
 
 	return nil

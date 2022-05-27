@@ -3,7 +3,6 @@ package handler
 import (
 	"compress/gzip"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
@@ -235,25 +234,33 @@ func UpdateMetricBatchJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
 			return
 		}
 
-		jsonBatch := string(data)
-		log.Println("jsonBatch: ", jsonBatch)
+		//var metrics []storage.Metrics
+		//if err := json.Unmarshal(data, &metrics);
+		//
+		//jsonBatch := string(data)
+		//log.Println("jsonBatch: ", jsonBatch)
+		//
+		//jsonMetrics := strings.Split(jsonBatch, ",\n")
+		//log.Println("jsonMetrics: ", jsonMetrics)
+		//
+		//var metrics []storage.Metrics
+		//for _, jsonMetric := range jsonMetrics {
+		//
+		//	metric, err := storage.FromJSON([]byte(jsonMetric))
+		//	if err != nil {
+		//		http.Error(w, "JSON request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
+		//		return
+		//	}
+		//
+		//	metrics = append(metrics, metric)
+		//}
+		//
+		//if err := memStore.UpdateBatch(metrics); err != nil {
+		//	http.Error(w, "JSON batch request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
+		//	return
+		//}
 
-		jsonMetrics := strings.Split(jsonBatch, ",\n")
-		log.Println("jsonMetrics: ", jsonMetrics)
-
-		var metrics []storage.Metrics
-		for _, jsonMetric := range jsonMetrics {
-
-			metric, err := storage.FromJSON([]byte(jsonMetric))
-			if err != nil {
-				http.Error(w, "JSON request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
-				return
-			}
-
-			metrics = append(metrics, metric)
-		}
-
-		if err := memStore.UpdateBatch(metrics); err != nil {
+		if err := memStore.UpdateBatch(data); err != nil {
 			http.Error(w, "JSON batch request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
 			return
 		}

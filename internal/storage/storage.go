@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"log"
 	"sync"
 	"time"
@@ -91,9 +92,13 @@ func (st *MemoryStorage) CreateIfNotExist(typeMetric, id string) (int, error) {
 }
 
 // UpdateBatch Обновление пакета метрики
-func (st *MemoryStorage) UpdateBatch(metrics []Metrics) error {
+func (st *MemoryStorage) UpdateBatch(data []byte) error {
 
-	log.Printf("call UpdateBatch with count metrics: %d\n", len(metrics))
+	var metrics []Metrics
+	err := json.Unmarshal(data, &metrics)
+	if err != nil {
+		return ErrorInvalidJSON
+	}
 
 	for _, metric := range metrics {
 
@@ -139,6 +144,8 @@ func (st *MemoryStorage) UpdateBatch(metrics []Metrics) error {
 			}
 		}
 	}
+
+	log.Printf("success update batch")
 
 	if st.isSyncStore() {
 		if err := st.Save(); err != nil {
