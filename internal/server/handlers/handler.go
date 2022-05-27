@@ -18,9 +18,10 @@ const (
 	sizeDataUpdateMetric = 3
 )
 const (
-	PartURLUpdate = "/update"
-	PartURLValue  = "/value"
-	PartURLPing   = "/ping"
+	PartURLUpdates = "/updates"
+	PartURLUpdate  = "/update"
+	PartURLValue   = "/value"
+	PartURLPing    = "/ping"
 )
 
 const (
@@ -203,6 +204,53 @@ func UpdateMetricJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
 
 		if err = memStore.Update(&metric); err != nil {
 			http.Error(w, "JSON request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func UpdateMetricBatchJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		w.Header().Set(ContentType, "text/plain")
+
+		if r.Method != http.MethodPost {
+			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
+			return
+		}
+
+		if r.Header.Get(ContentType) != ApplicationJSON {
+			http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
+			return
+		}
+
+		defer r.Body.Close()
+
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "can not read request body", http.StatusBadRequest)
+			return
+		}
+
+		jsonBatch := string(data)
+		jsonMetrics := strings.Split(jsonBatch, ";")
+
+		var metrics []storage.Metrics
+		for _, jsonMetric := range jsonMetrics {
+
+			metric, err := storage.FromJSON([]byte(jsonMetric))
+			if err != nil {
+				http.Error(w, "JSON request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
+				return
+			}
+
+			metrics = append(metrics, metric)
+		}
+
+		if err := memStore.UpdateBatch(metrics); err != nil {
+			http.Error(w, "JSON batch request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
 			return
 		}
 

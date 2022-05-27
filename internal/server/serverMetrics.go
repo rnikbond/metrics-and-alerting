@@ -23,6 +23,8 @@ func StartMetricsHTTPServer(memStore *storage.MemoryStorage, cfg *config.Config)
 	r.Post(handler.PartURLUpdate, handler.UpdateMetricJSON(memStore))
 	r.Post(handler.PartURLUpdate+"/", handler.UpdateMetricJSON(memStore))
 	r.Post(handler.PartURLUpdate+"/*", handler.UpdateMetricURL(memStore))
+	r.Post(handler.PartURLUpdates, handler.UpdateMetricBatchJSON(memStore))
+	r.Post(handler.PartURLUpdates+"/", handler.UpdateMetricBatchJSON(memStore))
 
 	serverHTTP := &http.Server{
 		Addr:    cfg.Addr,

@@ -120,6 +120,18 @@ func (st *MemoryStorage) Update(metric *Metrics) error {
 	}
 }
 
+// UpdateBatch Обновление пакета метрики
+func (st *MemoryStorage) UpdateBatch(metrics []Metrics) error {
+
+	for _, metric := range metrics {
+		if err := st.Update(&metric); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Get Получение метрики
 func (st *MemoryStorage) Get(typeMetric, id string) (Metrics, error) {
 

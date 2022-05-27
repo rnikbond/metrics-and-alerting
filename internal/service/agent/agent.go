@@ -73,16 +73,20 @@ func (agent *Agent) reportAll(ctx context.Context) {
 
 	client := resty.New()
 
-	metrics := agent.Storage.Data()
-	for _, metric := range metrics {
+	//metrics := agent.Storage.Data()
+	//for _, metric := range metrics {
+	//
+	//	if err := agent.reportJSON(ctx, client, &metric); err != nil {
+	//		log.Println(err.Error())
+	//	}
+	//
+	//	if err := agent.reportURL(ctx, client, &metric); err != nil {
+	//		log.Println(err.Error())
+	//	}
+	//}
 
-		if err := agent.reportJSON(ctx, client, &metric); err != nil {
-			log.Println(err.Error())
-		}
-
-		//if err := agent.reportURL(ctx, client, &metric); err != nil {
-		//	log.Println(err.Error())
-		//}
+	if err := agent.reportBatchJSON(ctx, client); err != nil {
+		log.Println(err.Error())
 	}
 
 	metric := storage.NewMetric(storage.CounterType, "PollCount", 0)
@@ -137,6 +141,40 @@ func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, metric
 	if resp.StatusCode() != http.StatusOK {
 		respBody := resp.Body()
 		return errors.New("\nJSON: " + string(data) + "\n" + metric.String() + ". " + string(respBody))
+	}
+
+	return nil
+}
+
+func (agent *Agent) reportBatchJSON(ctx context.Context, client *resty.Client) error {
+
+	var jsonMetrics []string
+
+	for _, metric := range agent.Storage.Data() {
+		encodeData, err := metric.ToJSON()
+		if err != nil {
+			return err
+		}
+
+		jsonMetrics = append(jsonMetrics, string(encodeData))
+
+	}
+
+	jsonJoin := strings.Join(jsonMetrics, ";")
+
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody([]byte(jsonJoin)).
+		SetContext(ctx).
+		Post(agent.Config.Addr + handler.PartURLUpdates)
+
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		respBody := resp.Body()
+		return errors.New("\nJSON batch: " + jsonJoin + "\n" + string(respBody))
 	}
 
 	return nil
