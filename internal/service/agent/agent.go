@@ -160,7 +160,7 @@ func (agent *Agent) reportBatchJSON(ctx context.Context, client *resty.Client) e
 
 	}
 
-	jsonJoin := strings.Join(jsonMetrics, ";")
+	jsonJoin := strings.Join(jsonMetrics, ",")
 
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
