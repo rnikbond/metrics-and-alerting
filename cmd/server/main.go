@@ -68,6 +68,11 @@ func main() {
 	fmt.Println(cfg)
 
 	memoryStorage := storage.MemoryStorage{}
+
+	if len(cfg.DatabaseDSN) > 0 {
+		cfg.StoreInterval = 0
+	}
+
 	memoryStorage.SetConfig(cfg)
 
 	fileStore := storage.FileStorage{}

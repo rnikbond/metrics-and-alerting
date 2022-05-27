@@ -90,12 +90,22 @@ func (st *MemoryStorage) CreateIfNotExist(typeMetric, id string) (int, error) {
 	return index, nil
 }
 
+// UpdateBatch Обновление пакета метрики
+func (st *MemoryStorage) UpdateBatch(metrics []Metrics) error {
+
+	for _, metric := range metrics {
+		if err := st.Update(&metric); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Update Обновление значения метрики.
 // Для типа "gauge" - значение обновляется на value.
 // Для типа "counter" -  старому значению добавляется новое значение value.
 func (st *MemoryStorage) Update(metric *Metrics) error {
-
-	log.Printf("call Update metric: %s\n", metric.ShotString())
 
 	// Проверка подписи метрики
 	if len(st.cfg.SecretKey) > 0 {
@@ -118,18 +128,6 @@ func (st *MemoryStorage) Update(metric *Metrics) error {
 	default:
 		return ErrorUnknownType
 	}
-}
-
-// UpdateBatch Обновление пакета метрики
-func (st *MemoryStorage) UpdateBatch(metrics []Metrics) error {
-
-	for _, metric := range metrics {
-		if err := st.Update(&metric); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // Get Получение метрики
