@@ -238,7 +238,7 @@ func UpdateMetricBatchJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
 		jsonBatch := string(data)
 		log.Println("jsonBatch: ", jsonBatch)
 
-		jsonMetrics := strings.Split(jsonBatch, ",")
+		jsonMetrics := strings.Split(jsonBatch, ",\n")
 		log.Println("jsonMetrics: ", jsonMetrics)
 
 		var metrics []storage.Metrics
