@@ -158,10 +158,19 @@ func (dbStore DataBaseStorage) WriteAll(metrics []Metrics) error {
 
 		if _, err := stmt.Exec(metric.ID, metric.MType, deltaNS, valueNS); err != nil {
 			return err
+		} else {
+			log.Printf("info - exec insert/update metric: %s\n", metric.ShotString())
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		log.Printf("error commit transaction: %s\n", err)
+		return err
+	}
+
+	log.Println("info - success write all metric")
+
+	return nil
 }
 
 func (dbStore DataBaseStorage) Ping() bool {
