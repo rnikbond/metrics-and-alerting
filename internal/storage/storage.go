@@ -95,6 +95,8 @@ func (st *MemoryStorage) CreateIfNotExist(typeMetric, id string) (int, error) {
 // Для типа "counter" -  старому значению добавляется новое значение value.
 func (st *MemoryStorage) Update(metric *Metrics) error {
 
+	log.Printf("call Update metric: %s\n", metric.ShotString())
+
 	// Проверка подписи метрики
 	if len(st.cfg.SecretKey) > 0 {
 
