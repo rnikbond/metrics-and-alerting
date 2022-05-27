@@ -93,6 +93,8 @@ func (st *MemoryStorage) CreateIfNotExist(typeMetric, id string) (int, error) {
 // UpdateBatch Обновление пакета метрики
 func (st *MemoryStorage) UpdateBatch(metrics []Metrics) error {
 
+	log.Printf("call UpdateBatch with count metrics: %d\n", len(metrics))
+
 	for _, metric := range metrics {
 
 		// Проверка подписи метрики
@@ -100,22 +102,25 @@ func (st *MemoryStorage) UpdateBatch(metrics []Metrics) error {
 
 			sign, err := Sign(&metric, []byte(st.cfg.SecretKey))
 			if err != nil {
-				log.Printf("error get sign metric: %s\n", err.Error())
+				log.Printf("error get sign metric %s: %s\n", metric.ShotString(), err.Error())
 			}
 
 			if sign != metric.Hash {
+				log.Printf("error sign metric: %s\n", metric.ShotString())
 				return ErrorInvalidSignature
 			}
 		}
 
 		index, err := st.CreateIfNotExist(metric.MType, metric.ID)
 		if err != nil {
+			log.Printf("error find or create metric: %s\n", metric.ShotString())
 			return err
 		}
 
 		switch metric.MType {
 		case GaugeType:
 			if metric.Value == nil {
+				log.Printf("gauge metric not contains value: %s\n", metric.ShotString())
 				return ErrorInvalidValue
 			}
 
@@ -123,6 +128,7 @@ func (st *MemoryStorage) UpdateBatch(metrics []Metrics) error {
 
 		case CounterType:
 			if metric.Delta == nil {
+				log.Printf("counter metric not contains value: %s\n", metric.ShotString())
 				return ErrorInvalidValue
 			}
 
