@@ -94,8 +94,49 @@ func (st *MemoryStorage) CreateIfNotExist(typeMetric, id string) (int, error) {
 func (st *MemoryStorage) UpdateBatch(metrics []Metrics) error {
 
 	for _, metric := range metrics {
-		if err := st.Update(&metric); err != nil {
+
+		// Проверка подписи метрики
+		if len(st.cfg.SecretKey) > 0 {
+
+			sign, err := Sign(&metric, []byte(st.cfg.SecretKey))
+			if err != nil {
+				log.Printf("error get sign metric: %s\n", err.Error())
+			}
+
+			if sign != metric.Hash {
+				return ErrorInvalidSignature
+			}
+		}
+
+		index, err := st.CreateIfNotExist(metric.MType, metric.ID)
+		if err != nil {
 			return err
+		}
+
+		switch metric.MType {
+		case GaugeType:
+			if metric.Value == nil {
+				return ErrorInvalidValue
+			}
+
+			st.metrics[index].Value = metric.Value
+
+		case CounterType:
+			if metric.Delta == nil {
+				return ErrorInvalidValue
+			}
+
+			if st.metrics[index].Delta == nil {
+				st.metrics[index].Delta = metric.Delta
+			} else {
+				*st.metrics[index].Delta += *metric.Delta
+			}
+		}
+	}
+
+	if st.isSyncStore() {
+		if err := st.Save(); err != nil {
+			log.Printf("error sync save metrics in external storage: %s\n", err.Error())
 		}
 	}
 
