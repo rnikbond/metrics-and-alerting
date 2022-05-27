@@ -3,6 +3,7 @@ package handler
 import (
 	"compress/gzip"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -235,7 +236,10 @@ func UpdateMetricBatchJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
 		}
 
 		jsonBatch := string(data)
+		log.Println("jsonBatch: ", jsonBatch)
+
 		jsonMetrics := strings.Split(jsonBatch, ";")
+		log.Println("jsonMetrics: ", jsonMetrics)
 
 		var metrics []storage.Metrics
 		for _, jsonMetric := range jsonMetrics {

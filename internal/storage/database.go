@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"time"
 
@@ -93,7 +92,6 @@ func (dbStore DataBaseStorage) ReadAll() ([]Metrics, error) {
 		}
 
 		metrics = append(metrics, metric)
-		fmt.Printf("read: %s\n", metric.ShotString())
 	}
 
 	err = rows.Err()
@@ -158,8 +156,6 @@ func (dbStore DataBaseStorage) WriteAll(metrics []Metrics) error {
 
 		if _, err := stmt.Exec(metric.ID, metric.MType, deltaNS, valueNS); err != nil {
 			return err
-		} else {
-			log.Printf("info - exec insert/update metric: %s\n", metric.ShotString())
 		}
 	}
 
@@ -167,8 +163,6 @@ func (dbStore DataBaseStorage) WriteAll(metrics []Metrics) error {
 		log.Printf("error commit transaction: %s\n", err)
 		return err
 	}
-
-	log.Println("info - success write all metric")
 
 	return nil
 }
