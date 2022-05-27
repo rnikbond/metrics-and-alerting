@@ -81,7 +81,7 @@ func main() {
 		}
 
 		dbStore.Driver = driver
-		if err := dbStore.CreateTables(); err != nil {
+		if err := dbStore.Init(); err != nil {
 			log.Printf("error create table: %s\n", err.Error())
 			panic(err)
 		} else {
