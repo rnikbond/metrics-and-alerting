@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -20,7 +20,7 @@ import (
 
 type Agent struct {
 	Config  config.Config
-	Storage *storage.MemoryStorage
+	Storage *storage.InMemoryStorage
 }
 
 // Start Запуск агента для сбора и отправки метрик
@@ -74,33 +74,39 @@ func (agent *Agent) reportAll(ctx context.Context) {
 
 	client := resty.New()
 
-	//metrics := agent.Storage.Data()
-	//for _, metric := range metrics {
-	//
-	//	if err := agent.reportJSON(ctx, client, &metric); err != nil {
-	//		log.Println(err.Error())
-	//	}
-	//
-	//	if err := agent.reportURL(ctx, client, &metric); err != nil {
-	//		log.Println(err.Error())
-	//	}
-	//}
+	metrics := agent.Storage.GetData()
 
-	if err := agent.reportBatchJSON(ctx, client); err != nil {
-		log.Println(err.Error())
+	switch agent.Config.ReportType {
+	case config.ReportBatchJSON:
+		if err := agent.reportBatchJSON(ctx, client); err != nil {
+			log.Println(err.Error())
+		}
+
+	case config.ReportJSON:
+		for _, metric := range metrics {
+			if err := agent.reportJSON(ctx, client, metric); err != nil {
+				log.Println(err.Error())
+			}
+		}
+
+	case config.ReportURL:
+		for _, metric := range metrics {
+			if err := agent.reportURL(ctx, client, metric); err != nil {
+				log.Println(err.Error())
+			}
+		}
 	}
 
-	metric := storage.NewMetric(storage.CounterType, "PollCount", 0)
-
-	if err := agent.Storage.Set(&metric); err != nil {
+	metric, _ := storage.CreateMetric(storage.CounterType, "PollCount", 0)
+	if err := agent.Storage.Delete(metric); err != nil {
 		log.Println(err.Error())
 	}
 }
 
 // Обновление метрики
-func (agent *Agent) reportURL(ctx context.Context, client *resty.Client, metric *storage.Metrics) error {
+func (agent *Agent) reportURL(ctx context.Context, client *resty.Client, metric storage.Metric) error {
 
-	data, err := metric.ToMap()
+	data, err := metric.Map()
 	if err != nil {
 		return err
 	}
@@ -111,22 +117,24 @@ func (agent *Agent) reportURL(ctx context.Context, client *resty.Client, metric 
 		Post(agent.Config.Addr + handler.PartURLUpdate + "/{type}/{name}/{value}")
 
 	if err != nil {
-		return err
+		return fmt.Errorf("error create POST request to [%s]: %w",
+			agent.Config.Addr+handler.PartURLUpdate+"/{type}/{name}/{value}",
+			err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
 		respBody := resp.Body()
-		return errors.New("failed update metric: " + resp.Status() + ". " + string(respBody))
+		return fmt.Errorf("error report URL metric: %s. Status: %d", string(respBody), resp.StatusCode())
 	}
 
 	return nil
 }
 
-func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, metric *storage.Metrics) error {
+func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, metric storage.Metric) error {
 
-	data, err := metric.ToJSON()
+	data, err := json.Marshal(&metric)
 	if err != nil {
-		return err
+		return fmt.Errorf("error encode metric: %w", err)
 	}
 
 	resp, err := client.R().
@@ -136,12 +144,12 @@ func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, metric
 		Post(agent.Config.Addr + handler.PartURLUpdate)
 
 	if err != nil {
-		return err
+		return fmt.Errorf("error create POST request to [%s]: %w", agent.Config.Addr+handler.PartURLUpdate, err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
 		respBody := resp.Body()
-		return errors.New("\nJSON: " + string(data) + "\n" + metric.String() + ". " + string(respBody))
+		return fmt.Errorf("error report URL metric: %s. Status: %d", string(respBody), resp.StatusCode())
 	}
 
 	return nil
@@ -149,25 +157,10 @@ func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, metric
 
 func (agent *Agent) reportBatchJSON(ctx context.Context, client *resty.Client) error {
 
-	//var jsonMetrics []string
-	//
-	//for _, metric := range agent.Storage.Data() {
-	//	encodeData, err := metric.ToJSON()
-	//	if err != nil {
-	//		return err
-	//	}
-	//
-	//	jsonMetrics = append(jsonMetrics, string(encodeData))
-	//
-	//}
-	//
-	//jsonJoin := strings.Join(jsonMetrics, ",\n")
-
-	metrics := agent.Storage.Data()
+	metrics := agent.Storage.GetData()
 	data, err := json.Marshal(&metrics)
 	if err != nil {
-		log.Printf("error marshal slice metrics: %s\n", err.Error())
-		return err
+		return fmt.Errorf("error encode metric: %w", err)
 	}
 
 	resp, err := client.R().
@@ -177,12 +170,12 @@ func (agent *Agent) reportBatchJSON(ctx context.Context, client *resty.Client) e
 		Post(agent.Config.Addr + handler.PartURLUpdates)
 
 	if err != nil {
-		return err
+		return fmt.Errorf("error create POST request to [%s]: %w", agent.Config.Addr+handler.PartURLUpdates, err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
 		respBody := resp.Body()
-		return errors.New("\nJSON batch: " + string(respBody))
+		return fmt.Errorf("error report URL metric: %s. Status: %d", string(respBody), resp.StatusCode())
 	}
 
 	return nil
@@ -227,14 +220,24 @@ func (agent *Agent) updateMetrics() {
 	gaugeMetrics["TotalAlloc"] = ms.TotalAlloc
 
 	for id, value := range gaugeMetrics {
-		metric := storage.NewMetric(storage.GaugeType, id, value)
-		if err := agent.Storage.Set(&metric); err != nil {
-			log.Printf("error update metric '%s'. %s\n", metric.ShotString(), err.Error())
+		metric, err := storage.CreateMetric(storage.GaugeType, id, value)
+		if err != nil {
+			log.Printf("error create metric for update: %v\n", err)
+			continue
+		}
+
+		if err := agent.Storage.Update(metric); err != nil {
+			log.Printf("error update metric '%s': %v\n", metric.ShotString(), err)
 		}
 	}
 
-	metric := storage.NewMetric(storage.CounterType, "PollCount", 1)
-	if err := agent.Storage.Add(&metric); err != nil {
-		log.Printf("error update metric '%s'. %s\n", metric.ShotString(), err.Error())
+	metric, err := storage.CreateMetric(storage.CounterType, "PollCount", 1)
+	if err != nil {
+		log.Printf("error create metric for update: %v\n", err)
+		return
+	}
+
+	if err := agent.Storage.Update(metric); err != nil {
+		log.Printf("error update metric '%s': %v\n", metric.ShotString(), err)
 	}
 }

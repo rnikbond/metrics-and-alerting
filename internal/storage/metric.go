@@ -5,7 +5,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"text/tabwriter"
@@ -16,7 +15,7 @@ const (
 	CounterType string = "counter"
 )
 
-type Metrics struct {
+type Metric struct {
 	ID    string   `json:"id"`              // имя метрики
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
 	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
@@ -24,8 +23,17 @@ type Metrics struct {
 	Hash  string   `json:"hash,omitempty"`  // значение хеш-функции
 }
 
-func NewMetric(typeMetric, id string, value ...interface{}) Metrics {
-	metric := Metrics{
+func CreateMetric(typeMetric, id string, value ...interface{}) (Metric, error) {
+
+	if len(id) < 1 {
+		return Metric{}, ErrorInvalidID
+	}
+
+	if len(typeMetric) < 1 {
+		return Metric{}, ErrorInvalidType
+	}
+
+	metric := Metric{
 		ID:    id,
 		MType: typeMetric,
 	}
@@ -34,26 +42,46 @@ func NewMetric(typeMetric, id string, value ...interface{}) Metrics {
 		switch typeMetric {
 		case GaugeType:
 			val, err := ToFloat64(value[0])
-			if err == nil {
-				metric.Value = &val
+			if err != nil {
+				return Metric{}, fmt.Errorf("can not create metric: %w", err)
 			}
+
+			metric.Value = &val
 
 		case CounterType:
 			val, err := ToInt64(value[0])
-			if err == nil {
-				metric.Delta = &val
+			if err != nil {
+				return Metric{}, fmt.Errorf("can not create metric: %w", err)
 			}
+			metric.Delta = &val
+		default:
+			return Metric{}, fmt.Errorf("can not create metric: %w", ErrorUnknownType)
 		}
 	}
 
-	return metric
+	return metric, nil
+}
+
+func (metric Metric) StringValue() string {
+
+	switch metric.MType {
+	case GaugeType:
+		if metric.Value != nil {
+			return strconv.FormatFloat(*metric.Value, 'f', -1, 64)
+		}
+
+	case CounterType:
+		if metric.Delta != nil {
+			return strconv.FormatInt(*metric.Delta, 10)
+		}
+	}
+	return ``
 }
 
 // Sign - подпись метрики
-func Sign(metric *Metrics, key []byte) (string, error) {
+func Sign(metric Metric, key []byte) (string, error) {
 
 	if len(key) < 1 {
-		// @TODO Добавить ошибку для ключа подписи
 		return ``, nil
 	}
 
@@ -91,76 +119,37 @@ func Sign(metric *Metrics, key []byte) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// FromJSON - Преобразование JSON данных в структуру метрики
-func FromJSON(data []byte) (Metrics, error) {
-	var metric Metrics
+func (metric Metric) Map() (map[string]string, error) {
 
-	if errDecode := json.Unmarshal(data, &metric); errDecode != nil {
-		return Metrics{}, ErrorInvalidJSON
-	}
-
-	return metric, nil
-}
-
-// ToJSON - Преобразование метрики в JSON вид
-func (metric *Metrics) ToJSON() ([]byte, error) {
-
-	data, errEncode := json.Marshal(&metric)
-	if errEncode != nil {
-		return []byte{}, errEncode
-	}
-
-	return data, nil
-}
-
-func (metric *Metrics) ToMap() (map[string]string, error) {
-	data := make(map[string]string)
+	data := make(map[string]string, 3)
+	data["id"] = metric.ID
 	data["type"] = metric.MType
-	data["name"] = metric.ID
 
 	switch metric.MType {
 	case GaugeType:
 		if metric.Value == nil {
 			return nil, ErrorInvalidValue
 		}
-
 		data["value"] = strconv.FormatFloat(*metric.Value, 'f', -1, 64)
 
 	case CounterType:
 		if metric.Delta == nil {
 			return nil, ErrorInvalidValue
 		}
-
 		data["value"] = strconv.FormatInt(*metric.Delta, 10)
 
 	default:
-		return nil, ErrorInvalidType
+		return nil, ErrorUnknownType
 	}
 
 	return data, nil
 }
 
-func (metric Metrics) StringValue() string {
-
-	switch metric.MType {
-	case GaugeType:
-		if metric.Value != nil {
-			return strconv.FormatFloat(*metric.Value, 'f', -1, 64)
-		}
-
-	case CounterType:
-		if metric.Delta != nil {
-			return strconv.FormatInt(*metric.Delta, 10)
-		}
-	}
-	return ``
-}
-
-func (metric Metrics) ShotString() string {
+func (metric Metric) ShotString() string {
 	return metric.MType + "/" + metric.ID + "/" + metric.StringValue()
 }
 
-func (metric Metrics) String() string {
+func (metric Metric) String() string {
 
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 3, ' ', tabwriter.AlignRight)

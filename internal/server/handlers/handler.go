@@ -2,7 +2,10 @@ package handler
 
 import (
 	"compress/gzip"
+	"encoding/json"
+	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -10,12 +13,12 @@ import (
 )
 
 const (
-	idxMetricType  = 0
-	idxMetricName  = 1
-	idxMetricValue = 2
+	idxType  = 0
+	idxName  = 1
+	idxValue = 2
 
-	sizeDataGetMetric    = 2
-	sizeDataUpdateMetric = 3
+	partsGetURL    = 2
+	partsUpdateURL = 3
 )
 const (
 	PartURLUpdates = "/updates"
@@ -63,48 +66,48 @@ func GZipHandle(next http.Handler) http.Handler {
 	})
 }
 
-func GetMetrics(memStore *storage.MemoryStorage) http.HandlerFunc {
+func GetMetrics(store storage.Storager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(ContentType, TextHTML)
 
 		if r.Method != http.MethodGet {
-			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
+			err := fmt.Errorf("method '%s' is not supported", r.Method)
+			log.Printf("error in request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
 
 		html := ""
-		metrics := memStore.Data()
-
+		metrics := store.GetData()
 		for _, metric := range metrics {
 			html += metric.ShotString() + "<br/>"
 		}
 
 		if r.Header.Get(AcceptEncoding) == GZip {
 			if _, err := io.WriteString(w, html); err != nil {
+				log.Printf("error writing compressed data: %v\n", err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		} else {
-			w.Write([]byte(html))
+			if _, err := w.Write([]byte(html)); err != nil {
+				log.Printf("error write response: %v\n", err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 		}
 	}
 }
 
-func GetMetric(memStore *storage.MemoryStorage) http.HandlerFunc {
+func Get(store storage.Storager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set(ContentType, "text/plain")
 
 		if r.Method != http.MethodGet {
-			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
+			err := fmt.Errorf("method '%s' is not supported", r.Method)
+			log.Printf("error in request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
-
-		// @TODO если проверять Content-Type - на github не проходят тесты :(
-		// if r.Header.Get(ContentType) != "text/plain" {
-		// 	fmt.Println(r.Header.Get(ContentType))
-		// 	http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
-		// 	return
-		// }
 
 		// оставляем из url только <ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>
 		// затем разбиваем на массив:
@@ -112,44 +115,53 @@ func GetMetric(memStore *storage.MemoryStorage) http.HandlerFunc {
 		// [1] - Название метрики
 		partsURL := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLValue+"/", ""), "/")
 
-		if len(partsURL) != sizeDataGetMetric {
-			http.Error(w, "not found", http.StatusNotFound)
+		if len(partsURL) != partsGetURL {
+			err := fmt.Errorf("invalid URL: %s", r.URL.String())
+			log.Printf("error in request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
 
-		metric, err := memStore.Get(partsURL[idxMetricType], partsURL[idxMetricName])
+		metric, err := storage.CreateMetric(partsURL[idxType], partsURL[idxName])
 		if err != nil {
+			log.Printf("error create metric: %v\n", err)
+			http.Error(w, err.Error(), storage.ErrorHTTP(err))
+			return
+		}
+
+		metric, err = store.Get(metric)
+		if err != nil {
+			log.Printf("error get metric: %v\n", err)
 			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return
 		}
 
 		if r.Header.Get(AcceptEncoding) == GZip {
 			if _, err := io.WriteString(w, metric.StringValue()); err != nil {
+				log.Printf("error write gzip response: %v\n", err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		} else {
-			w.Write([]byte(metric.StringValue()))
+			if _, err := w.Write([]byte(metric.StringValue())); err != nil {
+				log.Printf("error write body response: %v\n", err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 		}
 	}
 }
 
-func UpdateMetricURL(memStore *storage.MemoryStorage) http.HandlerFunc {
+func UpdateURL(store storage.Storager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "text/plain")
 
 		if r.Method != http.MethodPost {
-			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
+			err := fmt.Errorf("method '%s' is not supported", r.Method)
+			log.Printf("error in request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
-
-		// @TODO если проверять Content-Type - на github не проходят тесты :(
-		// if r.Header.Get(ContentType) != "text/plain" {
-		// 	fmt.Println(r.Header.Get(ContentType))
-		// 	http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
-		// 	return
-		// }
 
 		// оставляем из url только <ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 		// затем разбиваем на массив:
@@ -157,14 +169,22 @@ func UpdateMetricURL(memStore *storage.MemoryStorage) http.HandlerFunc {
 		// [1] - Название метрики
 		// [2] - Значение метрики
 		partsURL := strings.Split(strings.ReplaceAll(r.URL.String(), PartURLUpdate+"/", ""), "/")
-
-		if len(partsURL) != sizeDataUpdateMetric {
-			http.Error(w, "not found", http.StatusNotFound)
+		if len(partsURL) != partsUpdateURL {
+			err := fmt.Errorf("invalid URL: %s", r.URL.String())
+			log.Printf("error in request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
 
-		metric := storage.NewMetric(partsURL[idxMetricType], partsURL[idxMetricName], partsURL[idxMetricValue])
-		if err := memStore.Update(&metric); err != nil {
+		metric, err := storage.CreateMetric(partsURL[idxType], partsURL[idxName], partsURL[idxValue])
+		if err != nil {
+			log.Printf("error create metric: %v\n", err)
+			http.Error(w, err.Error(), storage.ErrorHTTP(err))
+			return
+		}
+
+		if err := store.Update(metric); err != nil {
+			log.Printf("error update metric: %v\n", err)
 			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return
 		}
@@ -173,18 +193,22 @@ func UpdateMetricURL(memStore *storage.MemoryStorage) http.HandlerFunc {
 	}
 }
 
-func UpdateMetricJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
+func UpdateJSON(store storage.Storager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set(ContentType, "text/plain")
 
 		if r.Method != http.MethodPost {
-			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
+			err := fmt.Errorf("method '%s' is not supported", r.Method)
+			log.Printf("error in request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
 
 		if r.Header.Get(ContentType) != ApplicationJSON {
-			http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
+			err := fmt.Errorf("content-type '%s' is not supported", r.Header.Get(ContentType))
+			log.Printf("error content-type in request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 			return
 		}
 
@@ -192,18 +216,21 @@ func UpdateMetricJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
 
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "can not read request body", http.StatusBadRequest)
+			log.Printf("error read body request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		metric, err := storage.FromJSON(data)
-		if err != nil {
-			http.Error(w, "JSON request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
+		var metric storage.Metric
+		if err := json.Unmarshal(data, &metric); err != nil {
+			log.Printf("error decode JSON body: %v\n", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err = memStore.Update(&metric); err != nil {
-			http.Error(w, "JSON request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
+		if err := store.Update(metric); err != nil {
+			log.Printf("error update metric: %v\n", err)
+			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return
 		}
 
@@ -211,18 +238,22 @@ func UpdateMetricJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
 	}
 }
 
-func UpdateMetricBatchJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
+func UpdateDataJSON(store storage.Storager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set(ContentType, "text/plain")
 
 		if r.Method != http.MethodPost {
-			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
+			err := fmt.Errorf("method '%s' is not supported", r.Method)
+			log.Printf("error in request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
 
 		if r.Header.Get(ContentType) != ApplicationJSON {
-			http.Error(w, "content-type is not supported", http.StatusUnsupportedMediaType)
+			err := fmt.Errorf("content-type '%s' is not supported", r.Header.Get(ContentType))
+			log.Printf("error content-type in request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 			return
 		}
 
@@ -230,38 +261,21 @@ func UpdateMetricBatchJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
 
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "can not read request body", http.StatusBadRequest)
+			log.Printf("error read body request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		//var metrics []storage.Metrics
-		//if err := json.Unmarshal(data, &metrics);
-		//
-		//jsonBatch := string(data)
-		//log.Println("jsonBatch: ", jsonBatch)
-		//
-		//jsonMetrics := strings.Split(jsonBatch, ",\n")
-		//log.Println("jsonMetrics: ", jsonMetrics)
-		//
-		//var metrics []storage.Metrics
-		//for _, jsonMetric := range jsonMetrics {
-		//
-		//	metric, err := storage.FromJSON([]byte(jsonMetric))
-		//	if err != nil {
-		//		http.Error(w, "JSON request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
-		//		return
-		//	}
-		//
-		//	metrics = append(metrics, metric)
-		//}
-		//
-		//if err := memStore.UpdateBatch(metrics); err != nil {
-		//	http.Error(w, "JSON batch request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
-		//	return
-		//}
+		var metrics []storage.Metric
+		if err := json.Unmarshal(data, &metrics); err != nil {
+			log.Printf("error decode JSON body: %v\n", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
-		if err := memStore.UpdateBatch(data); err != nil {
-			http.Error(w, "JSON batch request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
+		if err := store.UpdateData(metrics); err != nil {
+			log.Printf("error update metric: %v\n", err)
+			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return
 		}
 
@@ -269,62 +283,75 @@ func UpdateMetricBatchJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
 	}
 }
 
-func GetMetricJSON(memStore *storage.MemoryStorage) http.HandlerFunc {
+func GetJSON(store storage.Storager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set(ContentType, ApplicationJSON)
 
 		if r.Method != http.MethodPost {
-			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
+			err := fmt.Errorf("method '%s' is not supported", r.Method)
+			log.Printf("error in request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
 
 		defer r.Body.Close()
 
-		data, errBody := io.ReadAll(r.Body)
-		if errBody != nil {
-			http.Error(w, "can not read request body", http.StatusBadRequest)
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("error read body request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		metric, err := storage.FromJSON(data)
+		var metric storage.Metric
+		err = json.Unmarshal(data, &metric)
 		if err != nil {
-			http.Error(w, "JSON request: "+string(data)+"\n"+err.Error(), storage.ErrorHTTP(err))
+			log.Printf("error decode JSON body: %v\n", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		metric, err = memStore.Get(metric.MType, metric.ID)
+		metric, err = store.Get(metric)
 		if err != nil {
+			log.Printf("error get metric: %v\n", err)
 			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return
 		}
 
-		data, err = metric.ToJSON()
-		if err != nil {
-			http.Error(w, err.Error(), storage.ErrorHTTP(err))
+		encode, errEnc := json.Marshal(&metric)
+		if errEnc != nil {
+			log.Printf("error encode metric to JSON: %v\n", errEnc)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		if r.Header.Get(AcceptEncoding) == GZip {
-			if _, err := io.WriteString(w, string(data)); err != nil {
+			if _, err := io.WriteString(w, string(encode)); err != nil {
+				log.Printf("error write gzip response: %v\n", err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		} else {
-			w.Write(data)
+			if _, err := w.Write(encode); err != nil {
+				log.Printf("error write body response: %v\n", err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 		}
 	}
 }
 
-func CheckHealthStorage(memStore *storage.MemoryStorage) http.HandlerFunc {
+func Ping(store storage.Storager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != http.MethodGet {
-			http.Error(w, "method is not supported", http.StatusMethodNotAllowed)
+			err := fmt.Errorf("method '%s' is not supported", r.Method)
+			log.Printf("error in request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
 
-		if memStore.ExternalStorage().Ping() {
+		if store.CheckHealth() {
 			w.WriteHeader(http.StatusOK)
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)

@@ -23,6 +23,8 @@ func parseFlags() {
 	flag.DurationVar(&cfg.ReportInterval, "r", cfg.ReportInterval, "duration - report interval")
 	flag.DurationVar(&cfg.PollInterval, "p", cfg.PollInterval, "duration - poll interval")
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key crypto")
+	flag.StringVar(&cfg.ReportType, "rt", cfg.ReportType, fmt.Sprint("support types: ",
+		config.ReportURL, "/", config.ReportJSON, "/", config.ReportBatchJSON))
 	addr := flag.String("a", cfg.Addr, "ip address: ip:port")
 	flag.Parse()
 
@@ -63,13 +65,15 @@ func main() {
 	cfg.StoreFile = ""
 	cfg.StoreInterval = 0
 
-	memStore := storage.MemoryStorage{}
-	memStore.SetConfig(cfg)
+	memoryStore := storage.InMemoryStorage{}
+	if err := memoryStore.Init(cfg); err != nil {
+		log.Printf("error init meory storage: %v\n", err)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	ag := agent.Agent{
 		Config:  cfg,
-		Storage: &memStore,
+		Storage: &memoryStore,
 	}
 
 	// Запуск агента сбора и отправки метрик

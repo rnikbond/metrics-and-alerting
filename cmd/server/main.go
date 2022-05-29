@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
 	"fmt"
 	"log"
@@ -67,46 +66,25 @@ func main() {
 	prepareConfig()
 	fmt.Println(cfg)
 
-	memoryStorage := storage.MemoryStorage{}
+	var store storage.Storager
 
-	if len(cfg.DatabaseDSN) > 0 {
-		cfg.StoreInterval = 0
+	if cfg.DatabaseDSN != "" {
+		log.Println("using storage: DataBase")
+		store = &storage.DataBaseStorage{}
+	} else if cfg.StoreFile != "" {
+		store = &storage.FileStorage{}
+		log.Println("using storage: File")
+	} else {
+		store = &storage.InMemoryStorage{}
+		log.Println("using storage: Memory")
 	}
 
-	memoryStorage.SetConfig(cfg)
-
-	fileStore := storage.FileStorage{}
-	dbStore := storage.DataBaseStorage{}
-
-	if len(cfg.DatabaseDSN) > 0 {
-		driver, err := sql.Open("postgres", cfg.DatabaseDSN)
-		if err != nil {
-			log.Printf("error open connection with database %s\n", err.Error())
-			panic(err)
-		}
-
-		dbStore.Driver = driver
-		if err := dbStore.Init(); err != nil {
-			log.Printf("error create table: %s\n", err.Error())
-			panic(err)
-		} else {
-			log.Println("- success create table")
-		}
-
-		memoryStorage.SetExternalStorage(dbStore)
-	} else if len(cfg.StoreFile) > 0 {
-		fileStore.FileName = cfg.StoreFile
-		memoryStorage.SetExternalStorage(fileStore)
-	}
-
-	if cfg.Restore {
-		if err := memoryStorage.Restore(); err != nil {
-			log.Printf("error restore metric. Error - %s\n", err)
-		}
+	if err := store.Init(cfg); err != nil {
+		log.Fatalf("can not init storage: %v", err)
 	}
 
 	waitChan := make(chan struct{})
-	server := servermetrics.StartMetricsHTTPServer(&memoryStorage, &cfg)
+	server := servermetrics.StartMetricsHTTPServer(store, cfg)
 
 	go func() {
 		sigChan := make(chan os.Signal, 1)
@@ -121,18 +99,6 @@ func main() {
 
 	log.Println("server running ...")
 	<-waitChan
-
-	if memoryStorage.ExternalStorage() != nil {
-		if err := memoryStorage.Save(); err != nil {
-			log.Printf("error save metric in external storage. Error - %v\n", err)
-		}
-	}
-
-	if dbStore.Driver != nil {
-		if err := dbStore.Driver.Close(); err != nil {
-			log.Printf("error close database storage. %v\n", err)
-		}
-	}
 
 	log.Println("stop metrics server")
 }
