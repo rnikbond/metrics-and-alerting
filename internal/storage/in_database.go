@@ -216,22 +216,23 @@ func (dbStore DataBaseStorage) Get(metric Metric) (Metric, error) {
 	}
 	defer db.Close()
 
-	query := `SELECT * FROM runtimeMetrics 
-              WHERE name='$1' AND type='$2'`
-	rows, err := db.Query(query, metric.ID, metric.MType)
-	if err != nil {
-		return Metric{}, err
-	}
-
 	var (
 		deltaNS sql.NullInt64
 		valueNS sql.NullFloat64
 	)
 
+	query := `SELECT delta, value FROM runtimeMetrics 
+              WHERE name=$1 AND type=$2`
+	rows := db.QueryRow(query, metric.ID, metric.MType)
+
 	if err := rows.Scan(&deltaNS, &valueNS); err != nil {
 		return Metric{}, fmt.Errorf("error get metric: %w", err)
 	}
-	defer rows.Close()
+
+	err = rows.Err()
+	if err != nil {
+		return Metric{}, fmt.Errorf("error scan metric: %w", err)
+	}
 
 	if deltaNS.Valid {
 		metric.Delta = &deltaNS.Int64
@@ -346,9 +347,7 @@ func (dbStore DataBaseStorage) Delete(metric Metric) error {
 	}
 	defer db.Close()
 
-	query := `DELETE FROM runtimeMetrics
-              WHERE name=$1 AND type=$2;`
-
+	query := "DELETE FROM runtimeMetrics WHERE name=$1 AND type=$2"
 	if _, err := db.Exec(query, metric.ID, metric.MType); err != nil {
 		return fmt.Errorf("error delete metric: %w\n", err)
 	}
@@ -363,7 +362,7 @@ func (dbStore DataBaseStorage) Reset() error {
 	}
 	defer db.Close()
 
-	if _, err := db.Exec("DELETE FROM runtimeMetrics;"); err != nil {
+	if _, err := db.Exec("DELETE FROM runtimeMetrics"); err != nil {
 		return fmt.Errorf("error reset storage: %w\n", err)
 	}
 

@@ -322,7 +322,7 @@ func GetJSON(store storage.Storager) http.HandlerFunc {
 		encode, errEnc := json.Marshal(&metric)
 		if errEnc != nil {
 			log.Printf("error encode metric to JSON: %v\n", errEnc)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, errEnc.Error(), http.StatusInternalServerError)
 			return
 		}
 
