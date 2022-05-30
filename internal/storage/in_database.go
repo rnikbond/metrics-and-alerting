@@ -76,6 +76,7 @@ func (dbStore DataBaseStorage) VerifySign(metric Metric) error {
 		return err
 	}
 
+	log.Printf("compare hash: %s VS %s\n", hash, metric.Hash)
 	if hash != metric.Hash {
 		return ErrorSignFailed
 	}
