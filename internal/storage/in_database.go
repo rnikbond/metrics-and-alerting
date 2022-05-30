@@ -244,7 +244,7 @@ func (dbStore DataBaseStorage) Get(metric Metric) (Metric, error) {
 		metric.Value = &valueNS.Float64
 	}
 
-	if len(dbStore.signKey) < 1 {
+	if len(dbStore.signKey) > 0 {
 		if hash, err := Sign(metric, dbStore.signKey); err == nil {
 			metric.Hash = hash
 		} else {
@@ -327,7 +327,7 @@ func (dbStore DataBaseStorage) GetData() []Metric {
 		return []Metric{}
 	}
 
-	if len(dbStore.signKey) < 1 {
+	if len(dbStore.signKey) > 0 {
 		for idx := range metrics {
 			if hash, err := Sign(metrics[idx], dbStore.signKey); err == nil {
 				metrics[idx].Hash = hash
