@@ -304,8 +304,6 @@ func GetJSON(store storage.Storager) http.HandlerFunc {
 			return
 		}
 
-		log.Printf("bode request get json: %s\n", string(data))
-
 		var metric storage.Metric
 		err = json.Unmarshal(data, &metric)
 		if err != nil {

@@ -23,6 +23,7 @@ func parseFlags() {
 	flag.DurationVar(&cfg.ReportInterval, "r", cfg.ReportInterval, "duration - report interval")
 	flag.DurationVar(&cfg.PollInterval, "p", cfg.PollInterval, "duration - poll interval")
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key crypto")
+	flag.BoolVar(&cfg.VerifyOnUpdate, "vu", cfg.VerifyOnUpdate, "bool - verify changes")
 	flag.StringVar(&cfg.ReportType, "rt", cfg.ReportType, fmt.Sprint("support types: ",
 		config.ReportURL, "/", config.ReportJSON, "/", config.ReportBatchJSON))
 	addr := flag.String("a", cfg.Addr, "ip address: ip:port")
@@ -59,11 +60,9 @@ func main() {
 	parseFlags()
 	cfg.ReadEnvVars()
 
-	fmt.Println(cfg)
+	cfg.VerifyOnUpdate = false
 
-	cfg.Restore = false
-	cfg.StoreFile = ""
-	cfg.StoreInterval = 0
+	fmt.Println(cfg)
 
 	memoryStore := storage.InMemoryStorage{}
 	if err := memoryStore.Init(cfg); err != nil {

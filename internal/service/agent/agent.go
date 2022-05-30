@@ -226,8 +226,6 @@ func (agent *Agent) updateMetrics() {
 			continue
 		}
 
-		hash, _ := storage.Sign(metric, []byte(agent.Config.SecretKey))
-		metric.Hash = hash
 		if err := agent.Storage.Update(metric); err != nil {
 			log.Printf("error update metric '%s': %v\n", metric.ShotString(), err)
 		}
@@ -239,8 +237,6 @@ func (agent *Agent) updateMetrics() {
 		return
 	}
 
-	hash, _ := storage.Sign(metric, []byte(agent.Config.SecretKey))
-	metric.Hash = hash
 	if err := agent.Storage.Update(metric); err != nil {
 		log.Printf("error update metric '%s': %v\n", metric.ShotString(), err)
 	}

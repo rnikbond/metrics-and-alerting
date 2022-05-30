@@ -17,23 +17,24 @@ const (
 )
 
 const (
-	queryChangeGauge = `INSERT INTO runtimeMetrics (rm_name,rm_type,rm_value) 
+	queryChangeGauge = `INSERT INTO runtimeMetrics (name,type,value) 
                         VALUES ($1,$2,$3) 
-                        ON CONFLICT (rm_name) 
+                        ON CONFLICT (name) 
                         DO UPDATE
-                        SET rm_name=$1,rm_type=$2,rm_value=$3;`
-	queryChangeCounter = `INSERT INTO runtimeMetrics (rm_name,rm_type,rm_delta)
+                        SET name=$1,type=$2,value=$3;`
+	queryChangeCounter = `INSERT INTO runtimeMetrics (name,type,delta)
                           VALUES ($1,$2,$3)
-                          ON CONFLICT(rm_name)
+                          ON CONFLICT(name)
                           DO UPDATE
-                          SET rm_delta=(SELECT rm_delta
+                          SET delta=(SELECT delta
                                      FROM runtimeMetrics
-                                     WHERE rm_name=$1)+$3;`
+                                     WHERE name=$1)+$3;`
 )
 
 type DataBaseStorage struct {
-	dsn     string
-	signKey []byte
+	dsn      string
+	signKey  []byte
+	isVerify bool
 }
 
 func (dbStore DataBaseStorage) DB() (*sql.DB, error) {
@@ -54,10 +55,10 @@ func (dbStore DataBaseStorage) CreateTable() error {
 
 	query := `CREATE TABLE IF NOT EXISTS runtimeMetrics (
               id     SERIAL,
-		      rm_name   CHARACTER VARYING(50) PRIMARY KEY,
-		      rm_type   CHARACTER VARYING(50),
-		      rm_delta  BIGINT,
-		      rm_value  DOUBLE PRECISION );`
+		      name   CHARACTER VARYING(50) PRIMARY KEY,
+		      type   CHARACTER VARYING(50),
+		      delta  BIGINT,
+		      value  DOUBLE PRECISION );`
 
 	if _, err := db.Exec(query); err != nil {
 		return err
@@ -67,6 +68,10 @@ func (dbStore DataBaseStorage) CreateTable() error {
 
 // VerifySign - Проверка подписи метрики
 func (dbStore DataBaseStorage) VerifySign(metric Metric) error {
+	if !dbStore.isVerify {
+		return nil
+	}
+
 	if len(dbStore.signKey) < 1 {
 		return nil
 	}
@@ -76,7 +81,6 @@ func (dbStore DataBaseStorage) VerifySign(metric Metric) error {
 		return err
 	}
 
-	log.Printf("compare hash: %s VS %s\n", hash, metric.Hash)
 	if hash != metric.Hash {
 		return ErrorSignFailed
 	}
@@ -211,8 +215,6 @@ func (dbStore DataBaseStorage) Get(metric Metric) (Metric, error) {
 		return Metric{}, fmt.Errorf("error get metric: %w", ErrorUnknownType)
 	}
 
-	log.Printf("call Get metric: %s\n", metric.ShotString())
-
 	db, err := dbStore.DB()
 	if err != nil {
 		return Metric{}, ErrorFailedConnection
@@ -224,8 +226,8 @@ func (dbStore DataBaseStorage) Get(metric Metric) (Metric, error) {
 		valueNS sql.NullFloat64
 	)
 
-	query := `SELECT rm_delta, rm_value FROM runtimeMetrics 
-              WHERE rm_name=$1 AND rm_type=$2;`
+	query := `SELECT delta, value FROM runtimeMetrics 
+              WHERE name=$1 AND type=$2;`
 	rows := db.QueryRow(query, metric.ID, metric.MType)
 
 	if err := rows.Scan(&deltaNS, &valueNS); err != nil {
@@ -248,8 +250,6 @@ func (dbStore DataBaseStorage) Get(metric Metric) (Metric, error) {
 	if len(dbStore.signKey) > 0 {
 		if hash, err := Sign(metric, dbStore.signKey); err == nil {
 			metric.Hash = hash
-		} else {
-			log.Printf("error sing metrinc: %v\n", err)
 		}
 	}
 
@@ -266,7 +266,7 @@ func (dbStore DataBaseStorage) GetData() []Metric {
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT rm_name,rm_type,rm_delta,rm_value FROM runtimeMetrics;")
+	rows, err := db.Query("SELECT name,type,delta,value FROM runtimeMetrics;")
 	if err != nil {
 		log.Printf("%v\n", err)
 		return []Metric{}
@@ -332,8 +332,6 @@ func (dbStore DataBaseStorage) GetData() []Metric {
 		for idx := range metrics {
 			if hash, err := Sign(metrics[idx], dbStore.signKey); err == nil {
 				metrics[idx].Hash = hash
-			} else {
-				log.Printf("error sing metrinc: %v\n", err)
 			}
 		}
 	}
@@ -350,7 +348,7 @@ func (dbStore DataBaseStorage) Delete(metric Metric) error {
 	}
 	defer db.Close()
 
-	query := "DELETE FROM runtimeMetrics WHERE rm_name=$1 AND rm_type=$2;"
+	query := "DELETE FROM runtimeMetrics WHERE name=$1 AND type=$2;"
 	if _, err := db.Exec(query, metric.ID, metric.MType); err != nil {
 		return fmt.Errorf("error delete metric: %w", err)
 	}

@@ -28,6 +28,7 @@ type Config struct {
 	SecretKey      string        `env:"KEY"`
 	DatabaseDSN    string        `env:"DATABASE_DSN"`
 	ReportType     string        `env:"REPORT_TYPE"`
+	VerifyOnUpdate bool          `env:"VERIFY_ON_UPDATE"`
 }
 
 // SetDefault Инициализация значений по умолчанию
@@ -40,6 +41,7 @@ func (cfg *Config) SetDefault() {
 	cfg.StoreInterval = 300 * time.Second
 	cfg.StoreFile = "/tmp/devops-metrics-db.json"
 	cfg.ReportType = ReportBatchJSON
+	cfg.VerifyOnUpdate = true
 }
 
 func (cfg Config) String() string {

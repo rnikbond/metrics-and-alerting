@@ -9,12 +9,17 @@ import (
 )
 
 type InMemoryStorage struct {
-	metrics []Metric
-	signKey []byte
+	metrics  []Metric
+	signKey  []byte
+	isVerify bool
 }
 
 // VerifySign - Проверка подписи метрики
 func (ims InMemoryStorage) VerifySign(metric Metric) error {
+	if !ims.isVerify {
+		return nil
+	}
+
 	if len(ims.signKey) < 1 {
 		return nil
 	}
@@ -72,6 +77,7 @@ func (ims *InMemoryStorage) CreateIfNotExist(typeMetric, id string) (int, error)
 
 func (ims *InMemoryStorage) Init(cfg config.Config) error {
 	ims.signKey = []byte(cfg.SecretKey)
+	ims.isVerify = cfg.VerifyOnUpdate
 	return nil
 }
 
