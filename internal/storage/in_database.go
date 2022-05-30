@@ -17,18 +17,18 @@ const (
 )
 
 const (
-	queryChangeGauge = `INSERT INTO runtimeMetrics (name,type,value) 
+	queryChangeGauge = `INSERT INTO runtimeMetrics (rm_name,rm_type,rm_value) 
                         VALUES ($1,$2,$3) 
-                        ON CONFLICT (name) 
+                        ON CONFLICT (rm_name) 
                         DO UPDATE
-                        SET name=$1,type=$2,value=$3;`
-	queryChangeCounter = `INSERT INTO runtimeMetrics (name,type,delta)
+                        SET rm_name=$1,rm_type=$2,rm_value=$3;`
+	queryChangeCounter = `INSERT INTO runtimeMetrics (rm_name,rm_type,rm_delta)
                           VALUES ($1,$2,$3)
-                          ON CONFLICT(name)
+                          ON CONFLICT(rm_name)
                           DO UPDATE
-                          SET delta=(SELECT delta
+                          SET rm_delta=(SELECT rm_delta
                                      FROM runtimeMetrics
-                                     WHERE name=$1)+$3;`
+                                     WHERE rm_name=$1)+$3;`
 )
 
 type DataBaseStorage struct {
@@ -54,10 +54,10 @@ func (dbStore DataBaseStorage) CreateTable() error {
 
 	query := `CREATE TABLE IF NOT EXISTS runtimeMetrics (
               id     SERIAL,
-		      name   CHARACTER VARYING(50) PRIMARY KEY,
-		      type   CHARACTER VARYING(50),
-		      delta  BIGINT,
-		      value  DOUBLE PRECISION );`
+		      rm_name   CHARACTER VARYING(50) PRIMARY KEY,
+		      rm_type   CHARACTER VARYING(50),
+		      rm_delta  BIGINT,
+		      rm_value  DOUBLE PRECISION );`
 
 	if _, err := db.Exec(query); err != nil {
 		return err
@@ -221,8 +221,8 @@ func (dbStore DataBaseStorage) Get(metric Metric) (Metric, error) {
 		valueNS sql.NullFloat64
 	)
 
-	query := `SELECT delta, value FROM runtimeMetrics 
-              WHERE name=$1 AND type=$2`
+	query := `SELECT rm_delta, rm_value FROM runtimeMetrics 
+              WHERE rm_name=$1 AND rm_type=$2;`
 	rows := db.QueryRow(query, metric.ID, metric.MType)
 
 	if err := rows.Scan(&deltaNS, &valueNS); err != nil {
@@ -263,7 +263,7 @@ func (dbStore DataBaseStorage) GetData() []Metric {
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT name,type,delta,value FROM runtimeMetrics;")
+	rows, err := db.Query("SELECT rm_name,rm_type,rm_delta,rm_value FROM runtimeMetrics;")
 	if err != nil {
 		log.Printf("%v\n", err)
 		return []Metric{}
@@ -347,9 +347,9 @@ func (dbStore DataBaseStorage) Delete(metric Metric) error {
 	}
 	defer db.Close()
 
-	query := "DELETE FROM runtimeMetrics WHERE name=$1 AND type=$2"
+	query := "DELETE FROM runtimeMetrics WHERE rm_name=$1 AND rm_type=$2;"
 	if _, err := db.Exec(query, metric.ID, metric.MType); err != nil {
-		return fmt.Errorf("error delete metric: %w\n", err)
+		return fmt.Errorf("error delete metric: %w", err)
 	}
 
 	return nil
@@ -362,8 +362,8 @@ func (dbStore DataBaseStorage) Reset() error {
 	}
 	defer db.Close()
 
-	if _, err := db.Exec("DELETE FROM runtimeMetrics"); err != nil {
-		return fmt.Errorf("error reset storage: %w\n", err)
+	if _, err := db.Exec("DELETE FROM runtimeMetrics;"); err != nil {
+		return fmt.Errorf("error reset storage: %w", err)
 	}
 
 	return nil
