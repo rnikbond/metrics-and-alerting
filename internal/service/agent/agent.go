@@ -149,7 +149,7 @@ func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, metric
 
 	if resp.StatusCode() != http.StatusOK {
 		respBody := resp.Body()
-		return fmt.Errorf("error report URL metric: %s. Status: %d", string(respBody), resp.StatusCode())
+		return fmt.Errorf("error report JSON metric: %s. Status: %d", string(respBody), resp.StatusCode())
 	}
 
 	return nil
@@ -175,7 +175,7 @@ func (agent *Agent) reportBatchJSON(ctx context.Context, client *resty.Client) e
 
 	if resp.StatusCode() != http.StatusOK {
 		respBody := resp.Body()
-		return fmt.Errorf("error report URL metric: %s. Status: %d", string(respBody), resp.StatusCode())
+		return fmt.Errorf("error report Batch JSON metrics: %s. Status: %d", string(respBody), resp.StatusCode())
 	}
 
 	return nil

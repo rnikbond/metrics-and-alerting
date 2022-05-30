@@ -147,9 +147,9 @@ func (ims InMemoryStorage) Get(metric Metric) (Metric, error) {
 }
 
 // GetData - Получение всех, полностью заполненных, метрик
-func (ims InMemoryStorage) GetData() []Metric {
+func (ims *InMemoryStorage) GetData() []Metric {
 
-	if len(ims.signKey) < 1 {
+	if len(ims.signKey) > 0 {
 		for idx := range ims.metrics {
 			if hash, err := Sign(ims.metrics[idx], ims.signKey); err == nil {
 				ims.metrics[idx].Hash = hash
