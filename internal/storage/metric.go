@@ -93,6 +93,11 @@ func Sign(metric Metric, key []byte) (string, error) {
 			return ``, ErrorInvalidValue
 		}
 
+		src = fmt.Sprintf("%s:%s:%d",
+			metric.ID,
+			metric.MType,
+			*metric.Delta)
+
 	case GaugeType:
 		if metric.Value == nil {
 			return ``, ErrorInvalidValue
