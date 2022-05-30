@@ -210,6 +210,8 @@ func (dbStore DataBaseStorage) Get(metric Metric) (Metric, error) {
 		return Metric{}, fmt.Errorf("error get metric: %w", ErrorUnknownType)
 	}
 
+	log.Printf("call Get metric: %s\n", metric.ShotString())
+
 	db, err := dbStore.DB()
 	if err != nil {
 		return Metric{}, ErrorFailedConnection
@@ -226,12 +228,12 @@ func (dbStore DataBaseStorage) Get(metric Metric) (Metric, error) {
 	rows := db.QueryRow(query, metric.ID, metric.MType)
 
 	if err := rows.Scan(&deltaNS, &valueNS); err != nil {
-		return Metric{}, fmt.Errorf("error get metric: %w", err)
+		return Metric{}, fmt.Errorf("error get metric: %s: %w", err.Error(), ErrorNotFound)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		return Metric{}, fmt.Errorf("error scan metric: %w", err)
+		return Metric{}, fmt.Errorf("error scan metric: %s: %w", err.Error(), ErrorNotFound)
 	}
 
 	if deltaNS.Valid {
