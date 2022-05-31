@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"os/signal"
@@ -21,6 +22,10 @@ func parseFlags() {
 
 	flag.DurationVar(&cfg.ReportInterval, "r", cfg.ReportInterval, "duration - report interval")
 	flag.DurationVar(&cfg.PollInterval, "p", cfg.PollInterval, "duration - poll interval")
+	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key crypto")
+	flag.BoolVar(&cfg.VerifyOnUpdate, "vu", cfg.VerifyOnUpdate, "bool - verify changes")
+	flag.StringVar(&cfg.ReportType, "rt", cfg.ReportType, fmt.Sprint("support types: ",
+		config.ReportURL, "/", config.ReportJSON, "/", config.ReportBatchJSON))
 	addr := flag.String("a", cfg.Addr, "ip address: ip:port")
 	flag.Parse()
 
@@ -55,14 +60,23 @@ func main() {
 	parseFlags()
 	cfg.ReadEnvVars()
 
+	cfg.VerifyOnUpdate = false
+
+	fmt.Println(cfg)
+
+	memoryStore := storage.InMemoryStorage{}
+	if err := memoryStore.Init(cfg); err != nil {
+		log.Printf("error init meory storage: %v\n", err)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	agent := agent.Agent{
-		Config:  &cfg,
-		Storage: &storage.MemoryStorage{},
+	ag := agent.Agent{
+		Config:  cfg,
+		Storage: &memoryStore,
 	}
 
 	// Запуск агента сбора и отправки метрик
-	agent.Start(ctx)
+	ag.Start(ctx)
 
 	<-ctx.Done()
 	stop()

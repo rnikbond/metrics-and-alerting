@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -39,8 +40,8 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "TestAgentReport-GaugeType =>[OK]",
 			agent: &Agent{
-				Config:  &cfg,
-				Storage: &storage.MemoryStorage{},
+				Config:  cfg,
+				Storage: &storage.InMemoryStorage{},
 			},
 			args: args{
 				ctx:         context.Background(),
@@ -53,8 +54,8 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "TestAgentReport-EmptyMetric =>[Error]",
 			agent: &Agent{
-				Config:  &cfg,
-				Storage: &storage.MemoryStorage{},
+				Config:  cfg,
+				Storage: &storage.InMemoryStorage{},
 			},
 			args: args{
 				ctx: context.Background(),
@@ -64,8 +65,8 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "TestAgentReport-Without: Type and Value =>[Error]",
 			agent: &Agent{
-				Config:  &cfg,
-				Storage: &storage.MemoryStorage{},
+				Config:  cfg,
+				Storage: &storage.InMemoryStorage{},
 			},
 			args: args{
 				ctx:        context.Background(),
@@ -76,8 +77,8 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "TestAgentReport-Without: Type and Name =>[Error]",
 			agent: &Agent{
-				Config:  &cfg,
-				Storage: &storage.MemoryStorage{},
+				Config:  cfg,
+				Storage: &storage.InMemoryStorage{},
 			},
 			args: args{
 				ctx:         context.Background(),
@@ -92,7 +93,22 @@ func TestAgent_report(t *testing.T) {
 	for _, tt := range tests {
 
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.agent.reportURL(tt.args.ctx, client, tt.args.nameMetric, tt.args.valueMetric, tt.args.typeMetric); (err != nil) != tt.wantErr {
+
+			m := storage.Metric{
+				ID:    tt.args.nameMetric,
+				MType: tt.args.typeMetric,
+			}
+
+			switch m.MType {
+			case storage.GaugeType:
+				val, _ := strconv.ParseFloat(tt.args.valueMetric, 64)
+				m.Value = &val
+			case storage.CounterType:
+				val, _ := strconv.ParseInt(tt.args.valueMetric, 10, 64)
+				m.Delta = &val
+			}
+
+			if err := tt.agent.reportURL(tt.args.ctx, client, m); (err != nil) != tt.wantErr {
 				t.Errorf("AgentMeticsData.report() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

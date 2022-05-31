@@ -12,6 +12,12 @@ import (
 	"github.com/caarlos0/env"
 )
 
+const (
+	ReportURL       = "URL"
+	ReportJSON      = "JSON"
+	ReportBatchJSON = "BatchJSON"
+)
+
 type Config struct {
 	Addr           string        `env:"ADDRESS"`
 	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
@@ -19,6 +25,10 @@ type Config struct {
 	StoreInterval  time.Duration `env:"STORE_INTERVAL"`
 	StoreFile      string        `env:"STORE_FILE"`
 	Restore        bool          `env:"RESTORE"`
+	SecretKey      string        `env:"KEY"`
+	DatabaseDSN    string        `env:"DATABASE_DSN"`
+	ReportType     string        `env:"REPORT_TYPE"`
+	VerifyOnUpdate bool          `env:"VERIFY_ON_UPDATE"`
 }
 
 // SetDefault Инициализация значений по умолчанию
@@ -30,6 +40,8 @@ func (cfg *Config) SetDefault() {
 	cfg.Restore = true
 	cfg.StoreInterval = 300 * time.Second
 	cfg.StoreFile = "/tmp/devops-metrics-db.json"
+	cfg.ReportType = ReportBatchJSON
+	cfg.VerifyOnUpdate = true
 }
 
 func (cfg Config) String() string {
@@ -42,6 +54,9 @@ func (cfg Config) String() string {
 	fmt.Fprintln(w, "STORE_INTERVAL\t", cfg.StoreInterval.String())
 	fmt.Fprintln(w, "STORE_FILE\t", cfg.StoreFile)
 	fmt.Fprintln(w, "RESTORE\t", strconv.FormatBool(cfg.Restore))
+	fmt.Fprintln(w, "DATABASE_DSN\t", cfg.DatabaseDSN)
+	fmt.Fprintln(w, "KEY\t", cfg.SecretKey)
+	fmt.Fprintln(w, "REPORT_TYPE\t", cfg.ReportType)
 
 	if err := w.Flush(); err != nil {
 		return err.Error()
