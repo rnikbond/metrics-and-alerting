@@ -56,10 +56,18 @@ func GZipHandle(next http.Handler) http.Handler {
 
 		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
 		if err != nil {
-			io.WriteString(w, err.Error())
+			if _, err := io.WriteString(w, err.Error()); err != nil {
+				log.Printf("error decompress: %v\n", err)
+			}
+
 			return
 		}
-		defer gz.Close()
+
+		defer func() {
+			if err := gz.Close(); err != nil {
+				log.Printf("error close decompress obj: %v\n", err)
+			}
+		}()
 
 		w.Header().Set(ContentEncoding, GZip)
 		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
@@ -212,7 +220,11 @@ func UpdateJSON(store storage.Storager) http.HandlerFunc {
 			return
 		}
 
-		defer r.Body.Close()
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				log.Printf("error close body in handler UpdateJSON: %v\n", err)
+			}
+		}()
 
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -257,7 +269,11 @@ func UpdateDataJSON(store storage.Storager) http.HandlerFunc {
 			return
 		}
 
-		defer r.Body.Close()
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				log.Printf("error close body in handler UpdateDataJSON: %v\n", err)
+			}
+		}()
 
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -295,7 +311,11 @@ func GetJSON(store storage.Storager) http.HandlerFunc {
 			return
 		}
 
-		defer r.Body.Close()
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				log.Printf("error close body in handler GetJSON: %v\n", err)
+			}
+		}()
 
 		data, err := io.ReadAll(r.Body)
 		if err != nil {

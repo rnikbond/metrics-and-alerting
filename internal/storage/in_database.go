@@ -51,7 +51,11 @@ func (dbStore DataBaseStorage) CreateTable() error {
 	if err != nil {
 		return fmt.Errorf("error create table: %w", ErrFailedConnection)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("error close connectiond with DB after create table: %v\n", err)
+		}
+	}()
 
 	query := `CREATE TABLE IF NOT EXISTS runtimeMetrics (
               id     SERIAL,
@@ -110,7 +114,11 @@ func (dbStore DataBaseStorage) Update(metric Metric) error {
 	if err != nil {
 		return fmt.Errorf("error create table: %w", ErrFailedConnection)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("error close connectiond with DB after Update: %v\n", err)
+		}
+	}()
 
 	var errExec error
 	switch metric.MType {
@@ -143,25 +151,41 @@ func (dbStore DataBaseStorage) UpdateData(metrics []Metric) error {
 	if err != nil {
 		return ErrFailedConnection
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("error close connectiond with DB after UpdateData: %v\n", err)
+		}
+	}()
 
 	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("error updating all metrics: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Printf("error rollback: %v\n", err)
+		}
+	}()
 
 	stmtGauge, err := tx.Prepare(queryChangeGauge)
 	if err != nil {
 		return fmt.Errorf("error prepare statement 'gauge' : %w", err)
 	}
-	defer stmtGauge.Close()
+	defer func() {
+		if err := stmtGauge.Close(); err != nil {
+			log.Printf("error close gauge statement in UpdateData: %v\n", err)
+		}
+	}()
 
 	stmtCounter, err := tx.Prepare(queryChangeCounter)
 	if err != nil {
 		return fmt.Errorf("error prepare statement 'counter' type: %w", err)
 	}
-	defer stmtCounter.Close()
+	defer func() {
+		if err := stmtCounter.Close(); err != nil {
+			log.Printf("error close counter statement in UpdateData: %v\n", err)
+		}
+	}()
 
 	for _, metric := range metrics {
 
@@ -219,7 +243,11 @@ func (dbStore DataBaseStorage) Get(metric Metric) (Metric, error) {
 	if err != nil {
 		return Metric{}, ErrFailedConnection
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("error close connectiond with DB after Get: %v\n", err)
+		}
+	}()
 
 	var (
 		deltaNS sql.NullInt64
@@ -264,14 +292,22 @@ func (dbStore DataBaseStorage) GetData() []Metric {
 		log.Printf("%v\n", ErrFailedConnection)
 		return []Metric{}
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("error close connectiond with DB after GetData: %v\n", err)
+		}
+	}()
 
 	rows, err := db.Query("SELECT name,type,delta,value FROM runtimeMetrics;")
 	if err != nil {
 		log.Printf("%v\n", err)
 		return []Metric{}
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("error close Rows in GetData: %v\n", err)
+		}
+	}()
 
 	metrics := make([]Metric, 0)
 
@@ -346,7 +382,11 @@ func (dbStore DataBaseStorage) Delete(metric Metric) error {
 	if err != nil {
 		return fmt.Errorf("error delete metric: %w", ErrFailedConnection)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("error close connectiond with DB after Delete: %v\n", err)
+		}
+	}()
 
 	query := "DELETE FROM runtimeMetrics WHERE name=$1 AND type=$2;"
 	if _, err := db.Exec(query, metric.ID, metric.MType); err != nil {
@@ -361,7 +401,11 @@ func (dbStore DataBaseStorage) Reset() error {
 	if err != nil {
 		return fmt.Errorf("error delete metric: %w", ErrFailedConnection)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("error close connectiond with DB after Reset: %v\n", err)
+		}
+	}()
 
 	if _, err := db.Exec("DELETE FROM runtimeMetrics;"); err != nil {
 		return fmt.Errorf("error reset storage: %w", err)
@@ -376,7 +420,11 @@ func (dbStore DataBaseStorage) CheckHealth() bool {
 	if err != nil {
 		return false
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("error close connectiond with DB after CheckHealth: %v\n", err)
+		}
+	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()

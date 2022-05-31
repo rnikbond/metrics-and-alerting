@@ -37,7 +37,11 @@ func (fs FileStorage) Save() error {
 		log.Println(err)
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("error close file after Save: %v\n", err)
+		}
+	}()
 
 	writer := bufio.NewWriter(file)
 	metrics := fs.inMemory.GetData()
@@ -50,7 +54,9 @@ func (fs FileStorage) Save() error {
 		}
 
 		if _, err = writer.Write(data); err == nil {
-			writer.WriteByte('\n')
+			if err := writer.WriteByte('\n'); err != nil {
+				log.Printf("error write endline in file: %v\n", err)
+			}
 		} else {
 			log.Printf("error write JSON metric '%s' in file storage: %v\n", string(data), err)
 		}
@@ -67,7 +73,11 @@ func (fs *FileStorage) Restore() error {
 		log.Println(err)
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("error close file after Restore: %v\n", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 
