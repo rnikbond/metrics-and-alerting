@@ -30,7 +30,7 @@ func (ims InMemoryStorage) VerifySign(metric Metric) error {
 	}
 
 	if hash != metric.Hash {
-		return ErrorSignFailed
+		return ErrSignFailed
 	}
 	return nil
 }
@@ -45,7 +45,7 @@ func (ims *InMemoryStorage) Find(typeMetric, id string) (int, error) {
 		}
 	}
 
-	return -1, ErrorNotFound
+	return -1, ErrNotFound
 }
 
 // CreateIfNotExist - Ищет метрику по типу и идентификатору.
@@ -54,16 +54,16 @@ func (ims *InMemoryStorage) Find(typeMetric, id string) (int, error) {
 func (ims *InMemoryStorage) CreateIfNotExist(typeMetric, id string) (int, error) {
 
 	if len(id) < 1 {
-		return 0, ErrorInvalidID
+		return 0, ErrInvalidID
 	}
 
 	if typeMetric != GaugeType && typeMetric != CounterType {
-		return 0, ErrorInvalidType
+		return 0, ErrInvalidType
 	}
 
 	idx, err := ims.Find(typeMetric, id)
 	// Такой метрики еще не существует - добавляем
-	if errors.Is(err, ErrorNotFound) {
+	if errors.Is(err, ErrNotFound) {
 		ims.metrics = append(ims.metrics, Metric{
 			ID:    id,
 			MType: typeMetric,
@@ -93,7 +93,7 @@ func (ims *InMemoryStorage) Update(metric Metric) error {
 	switch metric.MType {
 	case GaugeType:
 		if metric.Value == nil {
-			return fmt.Errorf("can not update metric: %w", ErrorInvalidValue)
+			return fmt.Errorf("can not update metric: %w", ErrInvalidValue)
 		}
 
 		idx, err := ims.CreateIfNotExist(metric.MType, metric.ID)
@@ -105,7 +105,7 @@ func (ims *InMemoryStorage) Update(metric Metric) error {
 
 	case CounterType:
 		if metric.Delta == nil {
-			return fmt.Errorf("can not update metric: %w", ErrorInvalidValue)
+			return fmt.Errorf("can not update metric: %w", ErrInvalidValue)
 		}
 
 		idx, err := ims.CreateIfNotExist(metric.MType, metric.ID)
@@ -120,7 +120,7 @@ func (ims *InMemoryStorage) Update(metric Metric) error {
 		}
 
 	default:
-		return fmt.Errorf("can not update metric: %w", ErrorUnknownType)
+		return fmt.Errorf("can not update metric: %w", ErrUnknownType)
 	}
 
 	return nil

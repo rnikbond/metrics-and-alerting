@@ -39,7 +39,7 @@ type DataBaseStorage struct {
 
 func (dbStore DataBaseStorage) DB() (*sql.DB, error) {
 	if dbStore.dsn == "" {
-		return nil, fmt.Errorf("error create DB connection: %w", ErrorInvalidDSN)
+		return nil, fmt.Errorf("error create DB connection: %w", ErrInvalidDSN)
 	}
 
 	return sql.Open(driverDB, dbStore.dsn)
@@ -49,7 +49,7 @@ func (dbStore DataBaseStorage) CreateTable() error {
 
 	db, err := dbStore.DB()
 	if err != nil {
-		return fmt.Errorf("error create table: %w", ErrorFailedConnection)
+		return fmt.Errorf("error create table: %w", ErrFailedConnection)
 	}
 	defer db.Close()
 
@@ -82,7 +82,7 @@ func (dbStore DataBaseStorage) VerifySign(metric Metric) error {
 	}
 
 	if hash != metric.Hash {
-		return ErrorSignFailed
+		return ErrSignFailed
 	}
 	return nil
 }
@@ -108,7 +108,7 @@ func (dbStore DataBaseStorage) Update(metric Metric) error {
 
 	db, err := dbStore.DB()
 	if err != nil {
-		return fmt.Errorf("error create table: %w", ErrorFailedConnection)
+		return fmt.Errorf("error create table: %w", ErrFailedConnection)
 	}
 	defer db.Close()
 
@@ -116,14 +116,14 @@ func (dbStore DataBaseStorage) Update(metric Metric) error {
 	switch metric.MType {
 	case GaugeType:
 		if metric.Value == nil {
-			return ErrorInvalidValue
+			return ErrInvalidValue
 		}
 
 		_, errExec = db.Exec(queryChangeGauge, metric.ID, metric.MType, *metric.Value)
 
 	case CounterType:
 		if metric.Delta == nil {
-			return ErrorInvalidValue
+			return ErrInvalidValue
 		}
 
 		_, errExec = db.Exec(queryChangeCounter, metric.ID, metric.MType, *metric.Delta)
@@ -141,7 +141,7 @@ func (dbStore DataBaseStorage) UpdateData(metrics []Metric) error {
 
 	db, err := dbStore.DB()
 	if err != nil {
-		return ErrorFailedConnection
+		return ErrFailedConnection
 	}
 	defer db.Close()
 
@@ -166,7 +166,7 @@ func (dbStore DataBaseStorage) UpdateData(metrics []Metric) error {
 	for _, metric := range metrics {
 
 		if metric.ID == "" {
-			return fmt.Errorf("error updating metrics. Metric %s. %w", metric.ShotString(), ErrorInvalidID)
+			return fmt.Errorf("error updating metrics. Metric %s. %w", metric.ShotString(), ErrInvalidID)
 		}
 
 		if err := dbStore.VerifySign(metric); err != nil {
@@ -176,7 +176,7 @@ func (dbStore DataBaseStorage) UpdateData(metrics []Metric) error {
 		switch metric.MType {
 		case GaugeType:
 			if metric.Value == nil {
-				return fmt.Errorf("error updating metrics. Metric %s. %w", metric.ShotString(), ErrorInvalidValue)
+				return fmt.Errorf("error updating metrics. Metric %s. %w", metric.ShotString(), ErrInvalidValue)
 			}
 
 			if _, err := stmtGauge.Exec(metric.ID, metric.MType, *metric.Value); err != nil {
@@ -185,7 +185,7 @@ func (dbStore DataBaseStorage) UpdateData(metrics []Metric) error {
 
 		case CounterType:
 			if metric.Delta == nil {
-				return fmt.Errorf("error updating metrics. Metric %s. %w", metric.ShotString(), ErrorInvalidValue)
+				return fmt.Errorf("error updating metrics. Metric %s. %w", metric.ShotString(), ErrInvalidValue)
 			}
 
 			if _, err := stmtCounter.Exec(metric.ID, metric.MType, *metric.Delta); err != nil {
@@ -193,7 +193,7 @@ func (dbStore DataBaseStorage) UpdateData(metrics []Metric) error {
 			}
 
 		default:
-			return fmt.Errorf("error updating metrics. Metric %s. %w", metric.ShotString(), ErrorUnknownType)
+			return fmt.Errorf("error updating metrics. Metric %s. %w", metric.ShotString(), ErrUnknownType)
 		}
 	}
 
@@ -208,16 +208,16 @@ func (dbStore DataBaseStorage) UpdateData(metrics []Metric) error {
 func (dbStore DataBaseStorage) Get(metric Metric) (Metric, error) {
 
 	if len(metric.ID) < 1 {
-		return Metric{}, fmt.Errorf("error get metric: %w", ErrorInvalidID)
+		return Metric{}, fmt.Errorf("error get metric: %w", ErrInvalidID)
 	}
 
 	if metric.MType != GaugeType && metric.MType != CounterType {
-		return Metric{}, fmt.Errorf("error get metric: %w", ErrorUnknownType)
+		return Metric{}, fmt.Errorf("error get metric: %w", ErrUnknownType)
 	}
 
 	db, err := dbStore.DB()
 	if err != nil {
-		return Metric{}, ErrorFailedConnection
+		return Metric{}, ErrFailedConnection
 	}
 	defer db.Close()
 
@@ -231,12 +231,12 @@ func (dbStore DataBaseStorage) Get(metric Metric) (Metric, error) {
 	rows := db.QueryRow(query, metric.ID, metric.MType)
 
 	if err := rows.Scan(&deltaNS, &valueNS); err != nil {
-		return Metric{}, fmt.Errorf("error get metric: %s: %w", err.Error(), ErrorNotFound)
+		return Metric{}, fmt.Errorf("error get metric: %s: %w", err.Error(), ErrNotFound)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		return Metric{}, fmt.Errorf("error scan metric: %s: %w", err.Error(), ErrorNotFound)
+		return Metric{}, fmt.Errorf("error scan metric: %s: %w", err.Error(), ErrNotFound)
 	}
 
 	if deltaNS.Valid {
@@ -261,7 +261,7 @@ func (dbStore DataBaseStorage) GetData() []Metric {
 
 	db, err := dbStore.DB()
 	if err != nil {
-		log.Printf("%v\n", ErrorFailedConnection)
+		log.Printf("%v\n", ErrFailedConnection)
 		return []Metric{}
 	}
 	defer db.Close()
@@ -315,7 +315,7 @@ func (dbStore DataBaseStorage) GetData() []Metric {
 			}
 
 		default:
-			log.Printf("%v\n", ErrorUnknownType)
+			log.Printf("%v\n", ErrUnknownType)
 			continue
 		}
 
@@ -344,7 +344,7 @@ func (dbStore DataBaseStorage) Delete(metric Metric) error {
 
 	db, err := dbStore.DB()
 	if err != nil {
-		return fmt.Errorf("error delete metric: %w", ErrorFailedConnection)
+		return fmt.Errorf("error delete metric: %w", ErrFailedConnection)
 	}
 	defer db.Close()
 
@@ -359,7 +359,7 @@ func (dbStore DataBaseStorage) Delete(metric Metric) error {
 func (dbStore DataBaseStorage) Reset() error {
 	db, err := dbStore.DB()
 	if err != nil {
-		return fmt.Errorf("error delete metric: %w", ErrorFailedConnection)
+		return fmt.Errorf("error delete metric: %w", ErrFailedConnection)
 	}
 	defer db.Close()
 

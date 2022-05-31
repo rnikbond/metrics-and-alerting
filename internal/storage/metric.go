@@ -26,11 +26,11 @@ type Metric struct {
 func CreateMetric(typeMetric, id string, value ...interface{}) (Metric, error) {
 
 	if len(id) < 1 {
-		return Metric{}, ErrorInvalidID
+		return Metric{}, ErrInvalidID
 	}
 
 	if len(typeMetric) < 1 {
-		return Metric{}, ErrorInvalidType
+		return Metric{}, ErrInvalidType
 	}
 
 	metric := Metric{
@@ -55,7 +55,7 @@ func CreateMetric(typeMetric, id string, value ...interface{}) (Metric, error) {
 			}
 			metric.Delta = &val
 		default:
-			return Metric{}, fmt.Errorf("can not create metric: %w", ErrorUnknownType)
+			return Metric{}, fmt.Errorf("can not create metric: %w", ErrUnknownType)
 		}
 	}
 
@@ -90,7 +90,7 @@ func Sign(metric Metric, key []byte) (string, error) {
 	switch metric.MType {
 	case CounterType:
 		if metric.Delta == nil {
-			return ``, ErrorInvalidValue
+			return ``, ErrInvalidValue
 		}
 
 		src = fmt.Sprintf("%s:%s:%d",
@@ -100,7 +100,7 @@ func Sign(metric Metric, key []byte) (string, error) {
 
 	case GaugeType:
 		if metric.Value == nil {
-			return ``, ErrorInvalidValue
+			return ``, ErrInvalidValue
 		}
 
 		src = fmt.Sprintf("%s:%s:%f",
@@ -108,7 +108,7 @@ func Sign(metric Metric, key []byte) (string, error) {
 			metric.MType,
 			*metric.Value)
 	default:
-		return ``, ErrorUnknownType
+		return ``, ErrUnknownType
 	}
 
 	h := hmac.New(sha256.New, key)
@@ -128,18 +128,18 @@ func (metric Metric) Map() (map[string]string, error) {
 	switch metric.MType {
 	case GaugeType:
 		if metric.Value == nil {
-			return nil, ErrorInvalidValue
+			return nil, ErrInvalidValue
 		}
 		data["value"] = strconv.FormatFloat(*metric.Value, 'f', -1, 64)
 
 	case CounterType:
 		if metric.Delta == nil {
-			return nil, ErrorInvalidValue
+			return nil, ErrInvalidValue
 		}
 		data["value"] = strconv.FormatInt(*metric.Delta, 10)
 
 	default:
-		return nil, ErrorUnknownType
+		return nil, ErrUnknownType
 	}
 
 	return data, nil

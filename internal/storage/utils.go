@@ -34,12 +34,12 @@ func ToInt64(value interface{}) (int64, error) {
 	case string:
 		val, err := strconv.ParseInt(i, 10, 64)
 		if err != nil {
-			return 0, ErrorInvalidValue
+			return 0, ErrInvalidValue
 		}
 		return val, nil
 
 	default:
-		return 0, ErrorInvalidValue
+		return 0, ErrInvalidValue
 	}
 }
 
@@ -76,11 +76,11 @@ func ToFloat64(value interface{}) (float64, error) {
 	case string:
 		val, err := strconv.ParseFloat(i, 64)
 		if err != nil {
-			return 0, ErrorInvalidValue
+			return 0, ErrInvalidValue
 		}
 		return val, nil
 
 	default:
-		return 0, ErrorInvalidValue
+		return 0, ErrInvalidValue
 	}
 }

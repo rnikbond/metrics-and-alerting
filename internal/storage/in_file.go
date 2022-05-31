@@ -20,7 +20,7 @@ type FileStorage struct {
 
 func (fs *FileStorage) File(flag int) (*os.File, error) {
 	if len(fs.fileName) < 1 {
-		return nil, ErrorInvalidFilePath
+		return nil, ErrInvalidFilePath
 	}
 
 	return os.OpenFile(fs.fileName, flag, 0777)
