@@ -262,22 +262,14 @@ func (dbStore DataBaseStorage) Get(metric Metric) (Metric, error) {
 	query := psql.Select("delta", "value").
 		From("runtimeMetrics").
 		Where(sq.And{
-			sq.Eq{"type": metric.MType},
+			sq.Eq{"name": metric.ID},
 			sq.Eq{"type": metric.MType}})
 
-	//query := `SELECT delta, value FROM runtimeMetrics
-	//          WHERE name=$1 AND type=$2;`
 	rows := query.RunWith(db).QueryRow()
-	//rows := db.QueryRow(query, metric.ID, metric.MType)
 
 	if err := rows.Scan(&deltaNS, &valueNS); err != nil {
 		return Metric{}, fmt.Errorf("error get metric: %s: %w", err.Error(), ErrNotFound)
 	}
-
-	//err = rows.Err()
-	//if err != nil {
-	//	return Metric{}, fmt.Errorf("error scan metric: %s: %w", err.Error(), ErrNotFound)
-	//}
 
 	if deltaNS.Valid {
 		metric.Delta = &deltaNS.Int64
