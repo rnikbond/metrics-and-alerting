@@ -15,6 +15,40 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+//const (
+//	signKey = "KeySignMetric"
+//)
+
+//func StorageWithData() (storage.Storager, error) {
+//
+//	gauge, err := storage.CreateMetric(storage.GaugeType, "testGauge", 111.111)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	counter, err := storage.CreateMetric(storage.CounterType, "testCounter", 222)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	store := storage.InMemoryStorage{}
+//
+//	if err := store.Update(gauge); err != nil {
+//		return nil, err
+//	}
+//	if err := store.Update(counter); err != nil {
+//		return nil, err
+//	}
+//
+//	return &store, nil
+//}
+//
+//func randFloat64() *float64 {
+//	rand.Seed(time.Now().UnixNano())
+//	val := rand.Float64()
+//	return &val
+//}
+
 func TestUpdateMetricURL(t *testing.T) {
 
 	memoryStorage := storage.InMemoryStorage{}
@@ -169,6 +203,52 @@ func TestUpdateMetricURL(t *testing.T) {
 		})
 	}
 }
+
+// TestGetMetricGZip - Тест на получение метрики, сжатой GZip
+//func TestGetMetricGZip(t *testing.T) {
+//
+//	st, err := StorageWithData()
+//	require.NoError(t, err)
+//
+//	gaugeMetric := storage.Metric{
+//		ID:    "testGauge",
+//		MType: storage.GaugeType,
+//	}
+//
+//	counterMetric := storage.Metric{
+//		ID:    "testCounter",
+//		MType: storage.CounterType,
+//	}
+//
+//	gaugeMetric, err = st.Get(gaugeMetric)
+//	require.NoError(t, err)
+//
+//	counterMetric, err = st.Get(counterMetric)
+//	require.NoError(t, err)
+//
+//	// cases
+//
+//	tests := []struct {
+//		name           string
+//		acceptEncoding string
+//		method         string
+//		metric         storage.Metric
+//	}{
+//		{
+//			name:           "Test without errors -> OK",
+//			acceptEncoding: GZip,
+//			method:         http.MethodGet,
+//			metric:         gaugeMetric,
+//		},
+//	}
+//
+//	for _, tt := range tests {
+//
+//		t.Run(tt.name, func(t *testing.T) {
+//			log.Println("")
+//		})
+//	}
+//}
 
 func TestGetMetric(t *testing.T) {
 
@@ -522,7 +602,6 @@ func TestUpdateMetricJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			data, _ := json.Marshal(tt.metric)
-
 			request := httptest.NewRequest(tt.httpMethod, PartURLUpdate, bytes.NewReader(data))
 			request.Header.Set("Content-Type", tt.contentType)
 
@@ -666,86 +745,3 @@ func TestGetMetricJSON(t *testing.T) {
 		})
 	}
 }
-
-/*
-func TestGetMetricJSON_GZip(t *testing.T) {
-	st := storage.MemoryStorage{}
-
-	value := 123.123
-	var delta int64 = 123
-
-	st.Update(storage.GaugeType, "testGauge", value)
-	st.Update(storage.CounterType, "testCounter", delta)
-
-	tests := []struct {
-		name        string
-		httpMethod  string
-		contentType string
-		reqMetric   storage.Metrics
-		wantMetric  storage.Metrics
-		wantStatus  int
-		wantErr     bool
-	}{
-		{
-			name:        "Get gauge metric gzip => [OK]",
-			httpMethod:  http.MethodPost,
-			contentType: "application/json",
-			reqMetric: storage.Metrics{
-				ID:    "testGauge",
-				MType: storage.GaugeType,
-			},
-			wantMetric: storage.Metrics{
-				ID:    "testGauge",
-				MType: storage.GaugeType,
-				Value: &value,
-			},
-			wantStatus: http.StatusOK,
-			wantErr:    false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			data, _ := json.Marshal(tt.reqMetric)
-
-			var bufCompress bytes.Buffer
-			writer := gzip.NewWriter(&bufCompress)
-			writer.Write(data)
-			writer.Close()
-
-			request := httptest.NewRequest(tt.httpMethod, PartURLValue, bytes.NewReader(bufCompress.Bytes()))
-			request.Header.Set("Content-Type", tt.contentType)
-			request.Header.Set("Accept-Encoding", "gzip")
-
-			w := httptest.NewRecorder()
-			h := http.HandlerFunc(GetMetricJSON(&st))
-			h.ServeHTTP(w, request)
-
-			response := w.Result()
-			defer response.Body.Close()
-
-			require.Equal(t, tt.wantStatus, response.StatusCode)
-
-			if !tt.wantErr {
-				body, errBody := io.ReadAll(response.Body)
-				require.NoError(t, errBody)
-
-				var bufDecompress bytes.Buffer
-				reader, err := gzip.NewReader(&bufDecompress)
-				if err != nil {
-					return
-				}
-
-				_, errDecompress := reader.Read(body)
-				require.NoError(t, errDecompress)
-
-				var metric storage.Metrics
-				err = json.Unmarshal(bufDecompress.Bytes(), &metric)
-				require.NoError(t, err)
-
-				assert.Equal(t, tt.wantMetric, metric)
-			}
-		})
-	}
-}
-*/

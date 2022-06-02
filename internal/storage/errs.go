@@ -5,32 +5,45 @@ import (
 	"net/http"
 )
 
+type ErrStorage struct {
+	Value string
+}
+
+func NewErr(s string) ErrStorage {
+	return ErrStorage{Value: s}
+}
+
+func (es ErrStorage) Error() string {
+	return es.Value
+}
+
 // Ошибки метрики
 var (
-	ErrNotFound     = errors.New("metric not found")
-	ErrUnknownType  = errors.New("metric has unknown type")
-	ErrInvalidID    = errors.New("metric has incorrect id")
-	ErrInvalidType  = errors.New("metric has incorrect type")
-	ErrInvalidValue = errors.New("metric has incorrect value")
-	ErrInvalidJSON  = errors.New("can't convert data JSON to metric")
-	ErrSignFailed   = errors.New("sign verification failed")
+	ErrNotFound     = NewErr("metric not found")
+	ErrUnknownType  = NewErr("metric has unknown type")
+	ErrInvalidID    = NewErr("metric has incorrect id")
+	ErrInvalidType  = NewErr("metric has incorrect type")
+	ErrInvalidValue = NewErr("metric has incorrect value")
+	ErrInvalidJSON  = NewErr("can't convert data JSON to metric")
+	ErrSignFailed   = NewErr("sign verification failed")
 )
 
 // Ошибки внешнего хранилища
 var (
-	ErrInvalidFilePath  = errors.New("invalid path to file storage")
-	ErrInvalidDSN       = errors.New("invalid data source name")
-	ErrFailedConnection = errors.New("can not create connection")
+	ErrInvalidFilePath  = NewErr("invalid path to file storage")
+	ErrInvalidDSN       = NewErr("invalid data source name")
+	ErrFailedConnection = NewErr("can not create connection")
 )
 
 // ErrorHTTP - Преобразование ошибки Storage в HTTP код
 func ErrorHTTP(err error) int {
 
-	if errUnwrap := errors.Unwrap(err); errUnwrap != nil {
-		err = errUnwrap
+	var storeErr ErrStorage
+	if !errors.As(err, &storeErr) {
+		return http.StatusInternalServerError
 	}
 
-	switch err {
+	switch storeErr {
 	case ErrNotFound:
 		return http.StatusNotFound
 
