@@ -3,12 +3,14 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"time"
 
 	"metrics-and-alerting/pkg/config"
 
+	sq "github.com/Masterminds/squirrel"
 	_ "github.com/lib/pq"
 )
 
@@ -163,7 +165,9 @@ func (dbStore DataBaseStorage) UpdateData(metrics []Metric) error {
 	}
 	defer func() {
 		if err := tx.Rollback(); err != nil {
-			log.Printf("error rollback: %v\n", err)
+			if !errors.Is(err, sql.ErrTxDone) {
+				log.Printf("error rollback: %v\n", err)
+			}
 		}
 	}()
 
@@ -254,18 +258,26 @@ func (dbStore DataBaseStorage) Get(metric Metric) (Metric, error) {
 		valueNS sql.NullFloat64
 	)
 
-	query := `SELECT delta, value FROM runtimeMetrics 
-              WHERE name=$1 AND type=$2;`
-	rows := db.QueryRow(query, metric.ID, metric.MType)
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+	query := psql.Select("delta", "value").
+		From("runtimeMetrics").
+		Where(sq.And{
+			sq.Eq{"type": metric.MType},
+			sq.Eq{"type": metric.MType}})
+
+	//query := `SELECT delta, value FROM runtimeMetrics
+	//          WHERE name=$1 AND type=$2;`
+	rows := query.RunWith(db).QueryRow()
+	//rows := db.QueryRow(query, metric.ID, metric.MType)
 
 	if err := rows.Scan(&deltaNS, &valueNS); err != nil {
 		return Metric{}, fmt.Errorf("error get metric: %s: %w", err.Error(), ErrNotFound)
 	}
 
-	err = rows.Err()
-	if err != nil {
-		return Metric{}, fmt.Errorf("error scan metric: %s: %w", err.Error(), ErrNotFound)
-	}
+	//err = rows.Err()
+	//if err != nil {
+	//	return Metric{}, fmt.Errorf("error scan metric: %s: %w", err.Error(), ErrNotFound)
+	//}
 
 	if deltaNS.Valid {
 		metric.Delta = &deltaNS.Int64
