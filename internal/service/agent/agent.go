@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	handler "metrics-and-alerting/internal/server/handlers"
@@ -21,19 +22,25 @@ import (
 )
 
 type Agent struct {
-	Config  config.Config
-	Storage *storage.InMemoryStorage
+	mu    sync.RWMutex
+	cfg   config.Config
+	store storage.Storager
+}
+
+func (agent *Agent) Init(cfg config.Config, store storage.Storager) {
+	agent.cfg = cfg
+	agent.store = store
 }
 
 // Start Запуск агента для сбора и отправки метрик
-func (agent *Agent) Start(ctx context.Context) {
+func (agent *Agent) Start(ctx context.Context) error {
 
-	if agent.Storage == nil {
-		panic("storage is not initialized")
+	if agent.store == nil {
+		return fmt.Errorf("storage is not initialize")
 	}
 
-	if !strings.Contains(agent.Config.Addr, "http://") {
-		agent.Config.Addr = "http://" + agent.Config.Addr
+	if !strings.Contains(agent.cfg.Addr, "http://") {
+		agent.cfg.Addr = "http://" + agent.cfg.Addr
 	}
 
 	if err := agent.updateRuntime(); err != nil {
@@ -44,24 +51,26 @@ func (agent *Agent) Start(ctx context.Context) {
 		log.Printf("error update workload metrics on start agent: %v\n", err)
 	}
 
-	// запуск горутины для обновления runtime метрик
-	go agent.regularCollectRuntime(ctx)
+	// Обновление runtime метрик
+	go agent.collectRuntime(ctx)
+	// Обновление метрик загрузки памяти и процессора
+	go agent.collectWorkload(ctx)
 
-	// запуск горутины для обновления mem/cpu метрик
-	go agent.regularCollectWorkload(ctx)
+	// Отправка метрик на сервер
+	go agent.report(ctx)
 
-	// запуск горутины для отправки метрик
-	go agent.regularReport(ctx)
-
+	return nil
 }
 
-// regularReport Отправка метрик с частотой агента
-func (agent *Agent) regularReport(ctx context.Context) {
+// report Отправка метрик на сервер
+func (agent *Agent) report(ctx context.Context) {
 
 	for {
 		select {
-		case <-time.After(agent.Config.ReportInterval):
-			agent.reportAll(ctx)
+		case <-time.After(agent.cfg.ReportInterval):
+			if err := agent.reportMetrics(ctx); err != nil {
+				log.Printf("error report metrics: %v\n", err)
+			}
 		case <-ctx.Done():
 			return
 		}
@@ -69,11 +78,11 @@ func (agent *Agent) regularReport(ctx context.Context) {
 }
 
 // regularCollectRuntime Обновление runtime метрик
-func (agent *Agent) regularCollectRuntime(ctx context.Context) {
+func (agent *Agent) collectRuntime(ctx context.Context) {
 
 	for {
 		select {
-		case <-time.After(agent.Config.PollInterval):
+		case <-time.After(agent.cfg.PollInterval):
 			if err := agent.updateRuntime(); err != nil {
 				log.Printf("error regular update runtime metrics: %v\n", err)
 			}
@@ -85,11 +94,11 @@ func (agent *Agent) regularCollectRuntime(ctx context.Context) {
 }
 
 // regularCollectWorkload Обновление метрик CPU и памяти
-func (agent *Agent) regularCollectWorkload(ctx context.Context) {
+func (agent *Agent) collectWorkload(ctx context.Context) {
 
 	for {
 		select {
-		case <-time.After(agent.Config.PollInterval):
+		case <-time.After(agent.cfg.PollInterval):
 			if err := agent.updateWorkload(); err != nil {
 				log.Printf("error regular update workload metrics: %v\n", err)
 			}
@@ -99,113 +108,21 @@ func (agent *Agent) regularCollectWorkload(ctx context.Context) {
 	}
 }
 
-// Отправление всех метрик
-func (agent *Agent) reportAll(ctx context.Context) {
+// updateGauge Обновление метрик в хранилище
+func (agent *Agent) updateGauge(gaugeMetrics map[string]interface{}) error {
 
-	client := resty.New()
+	agent.mu.Lock()
+	defer agent.mu.Unlock()
 
-	metrics := agent.Storage.GetData()
-
-	switch agent.Config.ReportType {
-	case config.ReportBatchJSON:
-		if err := agent.reportBatchJSON(ctx, client); err != nil {
-			log.Println(err.Error())
+	for id, value := range gaugeMetrics {
+		metric, err := storage.CreateMetric(storage.GaugeType, id, value)
+		if err != nil {
+			return err
 		}
 
-	case config.ReportJSON:
-		for _, metric := range metrics {
-			if err := agent.reportJSON(ctx, client, metric); err != nil {
-				log.Println(err.Error())
-			}
+		if err := agent.store.Update(metric); err != nil {
+			return err
 		}
-
-	case config.ReportURL:
-		for _, metric := range metrics {
-			if err := agent.reportURL(ctx, client, metric); err != nil {
-				log.Println(err.Error())
-			}
-		}
-	}
-
-	metric, _ := storage.CreateMetric(storage.CounterType, "PollCount", 0)
-	if err := agent.Storage.Delete(metric); err != nil {
-		log.Println(err.Error())
-	}
-}
-
-// Обновление метрики
-func (agent *Agent) reportURL(ctx context.Context, client *resty.Client, metric storage.Metric) error {
-
-	data, err := metric.Map()
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.R().
-		SetPathParams(data).
-		SetContext(ctx).
-		Post(agent.Config.Addr + handler.PartURLUpdate + "/{type}/{name}/{value}")
-
-	if err != nil {
-		return fmt.Errorf("error create POST request to [%s]: %w",
-			agent.Config.Addr+handler.PartURLUpdate+"/{type}/{name}/{value}",
-			err)
-	}
-
-	if resp.StatusCode() != http.StatusOK {
-		respBody := resp.Body()
-		return fmt.Errorf("error report URL metric: %s. Status: %d", string(respBody), resp.StatusCode())
-	}
-
-	return nil
-}
-
-func (agent *Agent) reportJSON(ctx context.Context, client *resty.Client, metric storage.Metric) error {
-
-	data, err := json.Marshal(&metric)
-	if err != nil {
-		return fmt.Errorf("error encode metric: %w", err)
-	}
-
-	resp, err := client.R().
-		SetHeader("Content-Type", "application/json").
-		SetBody(data).
-		SetContext(ctx).
-		Post(agent.Config.Addr + handler.PartURLUpdate)
-
-	if err != nil {
-		return fmt.Errorf("error create POST request to [%s]: %w", agent.Config.Addr+handler.PartURLUpdate, err)
-	}
-
-	if resp.StatusCode() != http.StatusOK {
-		respBody := resp.Body()
-		return fmt.Errorf("error report JSON metric: %s. Status: %d", string(respBody), resp.StatusCode())
-	}
-
-	return nil
-}
-
-func (agent *Agent) reportBatchJSON(ctx context.Context, client *resty.Client) error {
-
-	metrics := agent.Storage.GetData()
-	data, err := json.Marshal(&metrics)
-	if err != nil {
-		return fmt.Errorf("error encode metric: %w", err)
-	}
-
-	resp, err := client.R().
-		SetHeader("Content-Type", "application/json").
-		SetBody(data).
-		SetContext(ctx).
-		Post(agent.Config.Addr + handler.PartURLUpdates)
-
-	if err != nil {
-		return fmt.Errorf("error create POST request to [%s]: %w", agent.Config.Addr+handler.PartURLUpdates, err)
-	}
-
-	if resp.StatusCode() != http.StatusOK {
-		respBody := resp.Body()
-		return fmt.Errorf("error report Batch JSON metrics: %s. Status: %d", string(respBody), resp.StatusCode())
 	}
 
 	return nil
@@ -249,30 +166,26 @@ func (agent *Agent) updateRuntime() error {
 	gaugeMetrics["Sys"] = ms.Sys
 	gaugeMetrics["TotalAlloc"] = ms.TotalAlloc
 
-	for id, value := range gaugeMetrics {
-		metric, err := storage.CreateMetric(storage.GaugeType, id, value)
-		if err != nil {
-			return err
-		}
-
-		if err := agent.Storage.Update(metric); err != nil {
-			return err
-		}
+	if err := agent.updateGauge(gaugeMetrics); err != nil {
+		return fmt.Errorf("error update runtime %s metric: %w", storage.GaugeType, err)
 	}
 
 	metric, err := storage.CreateMetric(storage.CounterType, "PollCount", 1)
 	if err != nil {
-		return err
+		return fmt.Errorf("error create runtime %s metric: %w", storage.CounterType, err)
 	}
 
-	if err := agent.Storage.Update(metric); err != nil {
-		return err
+	agent.mu.Lock()
+	defer agent.mu.Unlock()
+
+	if err := agent.store.Update(metric); err != nil {
+		return fmt.Errorf("error update runtime %s metric: %w", storage.CounterType, err)
 	}
 
 	return nil
 }
 
-// Обновление всех метрик
+// Обновление всех метрик загрузки памяти и процессора
 func (agent *Agent) updateWorkload() error {
 
 	vm, errVM := mem.VirtualMemory()
@@ -291,15 +204,127 @@ func (agent *Agent) updateWorkload() error {
 		gaugeMetrics[name] = cpuUtilization
 	}
 
-	for id, value := range gaugeMetrics {
-		metric, err := storage.CreateMetric(storage.GaugeType, id, value)
-		if err != nil {
+	if err := agent.updateGauge(gaugeMetrics); err != nil {
+		return fmt.Errorf("error update workload metric: %w", err)
+	}
+
+	return nil
+}
+
+// Отправка всех метрик
+func (agent *Agent) reportMetrics(ctx context.Context) error {
+
+	agent.mu.RLock()
+	defer agent.mu.RUnlock()
+
+	client := resty.New()
+
+	metrics := agent.store.GetData()
+
+	switch agent.cfg.ReportType {
+	case config.ReportBatchJSON:
+		if err := agent.reportAsBatchJSON(ctx, client); err != nil {
 			return err
 		}
 
-		if err := agent.Storage.Update(metric); err != nil {
-			log.Printf("error update metric '%s': %v\n", metric.ShotString(), err)
+	case config.ReportJSON:
+		for _, metric := range metrics {
+			if err := agent.reportAsJSON(ctx, client, metric); err != nil {
+				return err
+			}
 		}
+
+	case config.ReportURL:
+		for _, metric := range metrics {
+			if err := agent.reportAsURL(ctx, client, metric); err != nil {
+				return err
+			}
+		}
+	}
+
+	metric, _ := storage.CreateMetric(storage.CounterType, "PollCount", 0)
+	if err := agent.store.Delete(metric); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// reportAsURL Отправка метрик черех URL
+func (agent *Agent) reportAsURL(ctx context.Context, client *resty.Client, metric storage.Metric) error {
+
+	data, err := metric.Map()
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.R().
+		SetPathParams(data).
+		SetContext(ctx).
+		Post(agent.cfg.Addr + handler.PartURLUpdate + "/{type}/{name}/{value}")
+
+	if err != nil {
+		return fmt.Errorf("error create POST request to [%s]: %w",
+			agent.cfg.Addr+handler.PartURLUpdate+"/{type}/{name}/{value}",
+			err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		respBody := resp.Body()
+		return fmt.Errorf("error report URL metric: %s. Status: %d", string(respBody), resp.StatusCode())
+	}
+
+	return nil
+}
+
+// reportAsJSON Отправка по одной метрике метрик через JSON
+func (agent *Agent) reportAsJSON(ctx context.Context, client *resty.Client, metric storage.Metric) error {
+
+	data, err := json.Marshal(&metric)
+	if err != nil {
+		return fmt.Errorf("error encode metric: %w", err)
+	}
+
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(data).
+		SetContext(ctx).
+		Post(agent.cfg.Addr + handler.PartURLUpdate)
+
+	if err != nil {
+		return fmt.Errorf("error create POST request to [%s]: %w", agent.cfg.Addr+handler.PartURLUpdate, err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		respBody := resp.Body()
+		return fmt.Errorf("error report metric as JSON: %s. Status: %d", string(respBody), resp.StatusCode())
+	}
+
+	return nil
+}
+
+// reportAsJSON Отправка всех метрик черех JSON
+func (agent *Agent) reportAsBatchJSON(ctx context.Context, client *resty.Client) error {
+
+	metrics := agent.store.GetData()
+	data, err := json.Marshal(&metrics)
+	if err != nil {
+		return fmt.Errorf("error encode metric: %w", err)
+	}
+
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(data).
+		SetContext(ctx).
+		Post(agent.cfg.Addr + handler.PartURLUpdates)
+
+	if err != nil {
+		return fmt.Errorf("error create POST request to [%s]: %w", agent.cfg.Addr+handler.PartURLUpdates, err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		respBody := resp.Body()
+		return fmt.Errorf("error report Batch JSON metrics: %s. Status: %d", string(respBody), resp.StatusCode())
 	}
 
 	return nil

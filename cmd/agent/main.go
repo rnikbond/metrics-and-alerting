@@ -66,17 +66,17 @@ func main() {
 
 	memoryStore := storage.InMemoryStorage{}
 	if err := memoryStore.Init(cfg); err != nil {
-		log.Printf("error init meory storage: %v\n", err)
+		log.Fatalf("can not run agent service: %v\n", err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	ag := agent.Agent{
-		Config:  cfg,
-		Storage: &memoryStore,
-	}
 
-	// Запуск агента сбора и отправки метрик
-	ag.Start(ctx)
+	agentService := agent.Agent{}
+	agentService.Init(cfg, &memoryStore)
+
+	if err := agentService.Start(ctx); err != nil {
+		log.Fatalf("can not run agent service: %v\n", err)
+	}
 
 	<-ctx.Done()
 	stop()

@@ -97,6 +97,7 @@ func (dbStore *DataBaseStorage) Init(cfg config.Config) error {
 
 	dbStore.dsn = cfg.DatabaseDSN
 	dbStore.signKey = []byte(cfg.SecretKey)
+	dbStore.isVerify = cfg.VerifyOnUpdate
 
 	if err := dbStore.CreateTable(); err != nil {
 		return fmt.Errorf("can not init DB: %w", err)

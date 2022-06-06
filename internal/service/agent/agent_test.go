@@ -40,8 +40,8 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "TestAgentReport-GaugeType =>[OK]",
 			agent: &Agent{
-				Config:  cfg,
-				Storage: &storage.InMemoryStorage{},
+				cfg:   cfg,
+				store: &storage.InMemoryStorage{},
 			},
 			args: args{
 				ctx:         context.Background(),
@@ -54,8 +54,8 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "TestAgentReport-EmptyMetric =>[Error]",
 			agent: &Agent{
-				Config:  cfg,
-				Storage: &storage.InMemoryStorage{},
+				cfg:   cfg,
+				store: &storage.InMemoryStorage{},
 			},
 			args: args{
 				ctx: context.Background(),
@@ -65,8 +65,8 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "TestAgentReport-Without: Type and Value =>[Error]",
 			agent: &Agent{
-				Config:  cfg,
-				Storage: &storage.InMemoryStorage{},
+				cfg:   cfg,
+				store: &storage.InMemoryStorage{},
 			},
 			args: args{
 				ctx:        context.Background(),
@@ -77,8 +77,8 @@ func TestAgent_report(t *testing.T) {
 		{
 			name: "TestAgentReport-Without: Type and Name =>[Error]",
 			agent: &Agent{
-				Config:  cfg,
-				Storage: &storage.InMemoryStorage{},
+				cfg:   cfg,
+				store: &storage.InMemoryStorage{},
 			},
 			args: args{
 				ctx:         context.Background(),
@@ -108,7 +108,7 @@ func TestAgent_report(t *testing.T) {
 				m.Delta = &val
 			}
 
-			if err := tt.agent.reportURL(tt.args.ctx, client, m); (err != nil) != tt.wantErr {
+			if err := tt.agent.reportAsURL(tt.args.ctx, client, m); (err != nil) != tt.wantErr {
 				t.Errorf("AgentMeticsData.report() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
