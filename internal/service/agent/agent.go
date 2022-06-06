@@ -16,6 +16,8 @@ import (
 	"metrics-and-alerting/pkg/config"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 type Agent struct {
@@ -34,15 +36,26 @@ func (agent *Agent) Start(ctx context.Context) {
 		agent.Config.Addr = "http://" + agent.Config.Addr
 	}
 
-	// запуск горутины для обновления метрик
-	go agent.regularUpdate(ctx)
+	if err := agent.updateRuntime(); err != nil {
+		log.Printf("error update runtime metrics on start agent: %v\n", err)
+	}
+
+	if err := agent.updateWorkload(); err != nil {
+		log.Printf("error update workload metrics on start agent: %v\n", err)
+	}
+
+	// запуск горутины для обновления runtime метрик
+	go agent.regularCollectRuntime(ctx)
+
+	// запуск горутины для обновления mem/cpu метрик
+	go agent.regularCollectWorkload(ctx)
 
 	// запуск горутины для отправки метрик
 	go agent.regularReport(ctx)
 
 }
 
-// Отправка метрик с частотой агента
+// regularReport Отправка метрик с частотой агента
 func (agent *Agent) regularReport(ctx context.Context) {
 
 	for {
@@ -55,14 +68,31 @@ func (agent *Agent) regularReport(ctx context.Context) {
 	}
 }
 
-// Обновление метрик с частотой агента
-func (agent *Agent) regularUpdate(ctx context.Context) {
-	agent.updateMetrics()
+// regularCollectRuntime Обновление runtime метрик
+func (agent *Agent) regularCollectRuntime(ctx context.Context) {
 
 	for {
 		select {
 		case <-time.After(agent.Config.PollInterval):
-			agent.updateMetrics()
+			if err := agent.updateRuntime(); err != nil {
+				log.Printf("error regular update runtime metrics: %v\n", err)
+			}
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// regularCollectWorkload Обновление метрик CPU и памяти
+func (agent *Agent) regularCollectWorkload(ctx context.Context) {
+
+	for {
+		select {
+		case <-time.After(agent.Config.PollInterval):
+			if err := agent.updateWorkload(); err != nil {
+				log.Printf("error regular update workload metrics: %v\n", err)
+			}
 		case <-ctx.Done():
 			return
 		}
@@ -181,8 +211,8 @@ func (agent *Agent) reportBatchJSON(ctx context.Context, client *resty.Client) e
 	return nil
 }
 
-// Обновление всех метрик
-func (agent *Agent) updateMetrics() {
+// Обновление всех runtime метрик
+func (agent *Agent) updateRuntime() error {
 
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
@@ -222,8 +252,49 @@ func (agent *Agent) updateMetrics() {
 	for id, value := range gaugeMetrics {
 		metric, err := storage.CreateMetric(storage.GaugeType, id, value)
 		if err != nil {
-			log.Printf("error create metric for update: %v\n", err)
-			continue
+			return err
+		}
+
+		if err := agent.Storage.Update(metric); err != nil {
+			return err
+		}
+	}
+
+	metric, err := storage.CreateMetric(storage.CounterType, "PollCount", 1)
+	if err != nil {
+		return err
+	}
+
+	if err := agent.Storage.Update(metric); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Обновление всех метрик
+func (agent *Agent) updateWorkload() error {
+
+	vm, errVM := mem.VirtualMemory()
+	if errVM != nil {
+		return errVM
+	}
+
+	gaugeMetrics := make(map[string]interface{})
+	gaugeMetrics["TotalMemory"] = vm.Total
+	gaugeMetrics["FreeMemory"] = vm.Free
+
+	percentage, _ := cpu.Percent(0, true)
+	for cpuID, cpuUtilization := range percentage {
+
+		name := "CPUutilization" + fmt.Sprint(cpuID+1)
+		gaugeMetrics[name] = cpuUtilization
+	}
+
+	for id, value := range gaugeMetrics {
+		metric, err := storage.CreateMetric(storage.GaugeType, id, value)
+		if err != nil {
+			return err
 		}
 
 		if err := agent.Storage.Update(metric); err != nil {
@@ -231,13 +302,5 @@ func (agent *Agent) updateMetrics() {
 		}
 	}
 
-	metric, err := storage.CreateMetric(storage.CounterType, "PollCount", 1)
-	if err != nil {
-		log.Printf("error create metric for update: %v\n", err)
-		return
-	}
-
-	if err := agent.Storage.Update(metric); err != nil {
-		log.Printf("error update metric '%s': %v\n", metric.ShotString(), err)
-	}
+	return nil
 }
