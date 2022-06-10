@@ -15,6 +15,7 @@ func StartMetricsHTTPServer(memStore storage.Storager, cfg config.Config) *http.
 
 	r := chi.NewRouter()
 	r.Use(handler.GZipHandle)
+	r.With()
 	r.Get("/", handler.GetMetrics(memStore))
 	r.Get(handler.PartURLPing, handler.Ping(memStore))
 	r.Get(handler.PartURLValue+"/*", handler.Get(memStore))

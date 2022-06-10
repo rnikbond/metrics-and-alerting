@@ -120,7 +120,7 @@ func (agent *Agent) updateGauge(gaugeMetrics map[string]interface{}) error {
 			return err
 		}
 
-		if err := agent.store.Update(metric); err != nil {
+		if err := agent.store.Upset(metric); err != nil {
 			return err
 		}
 	}
@@ -178,7 +178,7 @@ func (agent *Agent) updateRuntime() error {
 	agent.mu.Lock()
 	defer agent.mu.Unlock()
 
-	if err := agent.store.Update(metric); err != nil {
+	if err := agent.store.Upset(metric); err != nil {
 		return fmt.Errorf("error update runtime %s metric: %w", storage.CounterType, err)
 	}
 

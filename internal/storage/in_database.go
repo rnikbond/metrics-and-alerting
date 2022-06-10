@@ -106,8 +106,8 @@ func (dbStore *DataBaseStorage) Init(cfg config.Config) error {
 	return nil
 }
 
-// Update Обновление значения метрики
-func (dbStore DataBaseStorage) Update(metric Metric) error {
+// Upset Обновление значения метрики
+func (dbStore DataBaseStorage) Upset(metric Metric) error {
 
 	if err := dbStore.VerifySign(metric); err != nil {
 		return fmt.Errorf("error updating metric: %w", err)
@@ -115,7 +115,7 @@ func (dbStore DataBaseStorage) Update(metric Metric) error {
 
 	db, err := dbStore.DB()
 	if err != nil {
-		return fmt.Errorf("error create table: %w", ErrFailedConnection)
+		return fmt.Errorf("error update metric: %w", ErrFailedConnection)
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
@@ -147,8 +147,8 @@ func (dbStore DataBaseStorage) Update(metric Metric) error {
 	return nil
 }
 
-// UpdateData - Обновление всех метрик
-func (dbStore DataBaseStorage) UpdateData(metrics []Metric) error {
+// UpsetData - Обновление всех метрик
+func (dbStore DataBaseStorage) UpsetData(metrics []Metric) error {
 
 	db, err := dbStore.DB()
 	if err != nil {

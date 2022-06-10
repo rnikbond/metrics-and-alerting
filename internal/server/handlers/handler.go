@@ -46,34 +46,6 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-func GZipHandle(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		if !strings.Contains(r.Header.Get(AcceptEncoding), GZip) {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
-		if err != nil {
-			if _, err := io.WriteString(w, err.Error()); err != nil {
-				log.Printf("error decompress: %v\n", err)
-			}
-
-			return
-		}
-
-		defer func() {
-			if err := gz.Close(); err != nil {
-				log.Printf("error close decompress obj: %v\n", err)
-			}
-		}()
-
-		w.Header().Set(ContentEncoding, GZip)
-		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
-	})
-}
-
 func GetMetrics(store storage.Storager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(ContentType, TextHTML)
@@ -159,6 +131,78 @@ func Get(store storage.Storager) http.HandlerFunc {
 	}
 }
 
+func GetJSON(store storage.Storager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method != http.MethodPost {
+			err := fmt.Errorf("method '%s' is not supported", r.Method)
+			log.Printf("error in request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
+			return
+		}
+
+		if r.Header.Get(ContentType) != ApplicationJSON {
+			err := fmt.Errorf("content-type '%s' is not supported", r.Header.Get(ContentType))
+			log.Printf("error content-type in request: %v\n", err)
+			http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
+			return
+		}
+
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				log.Printf("error close body in handler GetJSON: %v\n", err)
+			}
+		}()
+
+		w.Header().Set(ContentType, ApplicationJSON)
+
+		reader, errReader := BodyReader(r)
+		if errReader != nil {
+			log.Printf("error get body reader: %v\n", errReader)
+			http.Error(w, errReader.Error(), http.StatusBadRequest)
+			return
+		}
+		defer func() {
+			if err := reader.Close(); err != nil {
+				log.Printf("error close reader: %v\n", err)
+			}
+		}()
+
+		data, errBody := io.ReadAll(reader)
+		if errBody != nil {
+			log.Printf("error read body: %v\n", errBody)
+			http.Error(w, errBody.Error(), http.StatusBadRequest)
+			return
+		}
+
+		var metric storage.Metric
+		if err := json.Unmarshal(data, &metric); err != nil {
+			log.Printf("error decode body to JSON: %v\n", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		metric, errStorage := store.Get(metric)
+		if errStorage != nil {
+			log.Printf("error get metric from storage: %v\n", errStorage)
+			http.Error(w, errStorage.Error(), storage.ErrorHTTP(errStorage))
+			return
+		}
+
+		encode, errEncode := json.Marshal(&metric)
+		if errEncode != nil {
+			log.Printf("error encode metric to JSON: %v\n", errEncode)
+			http.Error(w, errEncode.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if _, err := w.Write(encode); err != nil {
+			log.Printf("error write body response: %v\n", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+}
+
 func UpdateURL(store storage.Storager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -191,7 +235,7 @@ func UpdateURL(store storage.Storager) http.HandlerFunc {
 			return
 		}
 
-		if err := store.Update(metric); err != nil {
+		if err := store.Upset(metric); err != nil {
 			log.Printf("error update metric: %v\n", err)
 			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return
@@ -226,7 +270,19 @@ func UpdateJSON(store storage.Storager) http.HandlerFunc {
 			}
 		}()
 
-		data, err := io.ReadAll(r.Body)
+		reader, errReader := BodyReader(r)
+		if errReader != nil {
+			log.Printf("error get body reader: %v\n", errReader)
+			http.Error(w, errReader.Error(), http.StatusBadRequest)
+			return
+		}
+		defer func() {
+			if err := reader.Close(); err != nil {
+				log.Printf("error close reader: %v\n", err)
+			}
+		}()
+
+		data, err := io.ReadAll(reader)
 		if err != nil {
 			log.Printf("error read body request: %v\n", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -240,7 +296,7 @@ func UpdateJSON(store storage.Storager) http.HandlerFunc {
 			return
 		}
 
-		if err := store.Update(metric); err != nil {
+		if err := store.Upset(metric); err != nil {
 			log.Printf("error update metric: %v\n", err)
 			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return
@@ -289,75 +345,13 @@ func UpdateDataJSON(store storage.Storager) http.HandlerFunc {
 			return
 		}
 
-		if err := store.UpdateData(metrics); err != nil {
+		if err := store.UpsetData(metrics); err != nil {
 			log.Printf("error update metric: %v\n", err)
 			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
-	}
-}
-
-func GetJSON(store storage.Storager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		w.Header().Set(ContentType, ApplicationJSON)
-
-		if r.Method != http.MethodPost {
-			err := fmt.Errorf("method '%s' is not supported", r.Method)
-			log.Printf("error in request: %v\n", err)
-			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
-			return
-		}
-
-		defer func() {
-			if err := r.Body.Close(); err != nil {
-				log.Printf("error close body in handler GetJSON: %v\n", err)
-			}
-		}()
-
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("error read body request: %v\n", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		var metric storage.Metric
-		err = json.Unmarshal(data, &metric)
-		if err != nil {
-			log.Printf("error decode JSON body: %v\n", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		metric, err = store.Get(metric)
-		if err != nil {
-			log.Printf("error get metric: %v\n", err)
-			http.Error(w, err.Error(), storage.ErrorHTTP(err))
-			return
-		}
-
-		encode, errEnc := json.Marshal(&metric)
-		if errEnc != nil {
-			log.Printf("error encode metric to JSON: %v\n", errEnc)
-			http.Error(w, errEnc.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if r.Header.Get(AcceptEncoding) == GZip {
-			if _, err := io.WriteString(w, string(encode)); err != nil {
-				log.Printf("error write gzip response: %v\n", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		} else {
-			if _, err := w.Write(encode); err != nil {
-				log.Printf("error write body response: %v\n", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-		}
 	}
 }
 
@@ -377,4 +371,39 @@ func Ping(store storage.Storager) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 	}
+}
+
+func GZipHandle(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if !strings.Contains(r.Header.Get(AcceptEncoding), GZip) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		writer := gzip.NewWriter(w)
+		defer func() {
+			if err := writer.Close(); err != nil {
+				log.Printf("error close GZIP writer: %v\n", err)
+			}
+		}()
+
+		w.Header().Set(ContentEncoding, GZip)
+		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: writer}, r)
+	})
+}
+
+func BodyReader(r *http.Request) (io.ReadCloser, error) {
+
+	switch r.Header.Get(ContentEncoding) {
+	case GZip:
+		reader, errReader := gzip.NewReader(r.Body)
+		if errReader != nil {
+			return nil, errReader
+		}
+
+		return reader, nil
+	}
+
+	return r.Body, nil
 }

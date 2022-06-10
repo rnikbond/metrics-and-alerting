@@ -81,10 +81,10 @@ func (ims *InMemoryStorage) Init(cfg config.Config) error {
 	return nil
 }
 
-// Update Обновление значения метрики
+// Upset Обновление значения метрики
 // Для типа "gauge" - значение обновляется на value
 // Для типа "counter" -  старому значению добавляется новое значение value
-func (ims *InMemoryStorage) Update(metric Metric) error {
+func (ims *InMemoryStorage) Upset(metric Metric) error {
 
 	if err := ims.VerifySign(metric); err != nil {
 		return fmt.Errorf("can not update metric: %w", err)
@@ -126,10 +126,10 @@ func (ims *InMemoryStorage) Update(metric Metric) error {
 	return nil
 }
 
-// UpdateData - Обновление всех метрик
-func (ims *InMemoryStorage) UpdateData(metrics []Metric) error {
+// UpsetData - Обновление всех метрик
+func (ims *InMemoryStorage) UpsetData(metrics []Metric) error {
 	for _, metric := range metrics {
-		if err := ims.Update(metric); err != nil {
+		if err := ims.Upset(metric); err != nil {
 			return fmt.Errorf("can not update metrics: %w", err)
 		}
 	}

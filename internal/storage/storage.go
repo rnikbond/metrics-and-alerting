@@ -5,8 +5,8 @@ import (
 )
 
 type Storager interface {
-	Update(metric Metric) error
-	UpdateData(metrics []Metric) error
+	Upset(metric Metric) error
+	UpsetData(metrics []Metric) error
 	Get(metric Metric) (Metric, error)
 	GetData() []Metric
 
