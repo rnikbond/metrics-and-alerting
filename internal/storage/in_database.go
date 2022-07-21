@@ -106,8 +106,8 @@ func (dbStore *DataBaseStorage) Init(cfg config.Config) error {
 	return nil
 }
 
-// Upset Обновление значения метрики
-func (dbStore DataBaseStorage) Upset(metric Metric) error {
+// Upsert Обновление значения метрики
+func (dbStore DataBaseStorage) Upsert(metric Metric) error {
 
 	if err := dbStore.VerifySign(metric); err != nil {
 		return fmt.Errorf("error updating metric: %w", err)
@@ -147,8 +147,8 @@ func (dbStore DataBaseStorage) Upset(metric Metric) error {
 	return nil
 }
 
-// UpsetData - Обновление всех метрик
-func (dbStore DataBaseStorage) UpsetData(metrics []Metric) error {
+// UpsertData - Обновление всех метрик
+func (dbStore DataBaseStorage) UpsertData(metrics []Metric) error {
 
 	db, err := dbStore.DB()
 	if err != nil {

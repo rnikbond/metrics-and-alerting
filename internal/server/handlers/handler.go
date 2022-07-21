@@ -235,7 +235,7 @@ func UpdateURL(store storage.Storager) http.HandlerFunc {
 			return
 		}
 
-		if err := store.Upset(metric); err != nil {
+		if err := store.Upsert(metric); err != nil {
 			log.Printf("error update metric: %v\n", err)
 			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return
@@ -296,7 +296,7 @@ func UpdateJSON(store storage.Storager) http.HandlerFunc {
 			return
 		}
 
-		if err := store.Upset(metric); err != nil {
+		if err := store.Upsert(metric); err != nil {
 			log.Printf("error update metric: %v\n", err)
 			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return
@@ -345,7 +345,7 @@ func UpdateDataJSON(store storage.Storager) http.HandlerFunc {
 			return
 		}
 
-		if err := store.UpsetData(metrics); err != nil {
+		if err := store.UpsertData(metrics); err != nil {
 			log.Printf("error update metric: %v\n", err)
 			http.Error(w, err.Error(), storage.ErrorHTTP(err))
 			return

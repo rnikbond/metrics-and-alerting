@@ -90,7 +90,7 @@ func (fs *FileStorage) Restore() error {
 			continue
 		}
 
-		if err := fs.inMemory.Upset(metric); err != nil {
+		if err := fs.inMemory.Upsert(metric); err != nil {
 			log.Printf("error updating metric in memofy file storage: %s. %v", metric.ShotString(), err)
 		}
 	}
@@ -133,10 +133,10 @@ func (fs *FileStorage) Init(cfg config.Config) error {
 	return nil
 }
 
-// Upset Обновление значения метрики
-func (fs *FileStorage) Upset(metric Metric) error {
+// Upsert Обновление значения метрики
+func (fs *FileStorage) Upsert(metric Metric) error {
 
-	if err := fs.inMemory.Upset(metric); err != nil {
+	if err := fs.inMemory.Upsert(metric); err != nil {
 		return fmt.Errorf("error update metric in file storage: %w", err)
 	}
 
@@ -149,10 +149,10 @@ func (fs *FileStorage) Upset(metric Metric) error {
 	return nil
 }
 
-// UpsetData Всех метрик
-func (fs *FileStorage) UpsetData(metrics []Metric) error {
+// UpsertData Всех метрик
+func (fs *FileStorage) UpsertData(metrics []Metric) error {
 
-	if err := fs.inMemory.UpsetData(metrics); err != nil {
+	if err := fs.inMemory.UpsertData(metrics); err != nil {
 		return fmt.Errorf("error update metric in file storage: %w", err)
 	}
 

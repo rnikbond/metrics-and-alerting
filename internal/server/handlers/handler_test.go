@@ -74,8 +74,8 @@ func TestGetJSON(t *testing.T) {
 	require.NoError(t, errSign)
 	counterMetric.Hash = signCounter
 
-	require.NoError(t, st.Upset(gaugeMetric))
-	require.NoError(t, st.Upset(counterMetric))
+	require.NoError(t, st.Upsert(gaugeMetric))
+	require.NoError(t, st.Upsert(counterMetric))
 
 	tests := []struct {
 		name            string
@@ -586,11 +586,11 @@ func TestGetMetric(t *testing.T) {
 
 	st := storage.InMemoryStorage{}
 
-	errUpset := st.Upset(gauge)
-	require.NoError(t, errUpset)
+	errUpsert := st.Upsert(gauge)
+	require.NoError(t, errUpsert)
 
-	errUpset = st.Upset(counter)
-	require.NoError(t, errUpset)
+	errUpsert = st.Upsert(counter)
+	require.NoError(t, errUpsert)
 
 	type metricData struct {
 		name       string
@@ -853,8 +853,8 @@ func TestGetMetrics(t *testing.T) {
 		Value: randFloat64(),
 	}
 
-	errUpset := st.Upset(gauge)
-	require.NoError(t, errUpset)
+	errUpsert := st.Upsert(gauge)
+	require.NoError(t, errUpsert)
 
 	tests := []struct {
 		name   string
