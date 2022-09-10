@@ -1,4 +1,4 @@
-package pgStorage
+package pgstorage
 
 import (
 	"database/sql"
@@ -36,7 +36,7 @@ func NewStorage(dsn string, logger *logpack.LogPack) (*Postgres, error) {
 }
 
 func (dbStore Postgres) Close() error {
-	return dbStore.Close()
+	return dbStore.driver.Close()
 }
 
 func (dbStore Postgres) applyMigrations() error {

@@ -10,7 +10,7 @@ import (
 	"metrics-and-alerting/internal/server"
 	handler "metrics-and-alerting/internal/server/handlers"
 	"metrics-and-alerting/internal/storage"
-	"metrics-and-alerting/internal/storage/memoryStorage"
+	"metrics-and-alerting/internal/storage/memorystorage"
 	"metrics-and-alerting/pkg/logpack"
 )
 
@@ -26,8 +26,7 @@ func main() {
 	cfg.ReadEnvVars()
 	fmt.Println(cfg)
 
-	var store storage.Repository
-
+	//var store storage.Repository
 	//if cfg.DatabaseDSN != "" {
 	//	//store = &storage.DataBaseStorage{}
 	//} else if cfg.StoreFile != "" {
@@ -38,7 +37,7 @@ func main() {
 	//	log.Println("using storage: Memory")
 	//}
 
-	store = memoryStorage.NewStorage()
+	store := memorystorage.NewStorage()
 
 	storeManager := storage.NewMetricsManager(store)
 	handlers := handler.New(storeManager, logger)

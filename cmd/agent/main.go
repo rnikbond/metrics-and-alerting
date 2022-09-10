@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"metrics-and-alerting/internal/agent"
-	"metrics-and-alerting/internal/storage/memoryStorage"
+	"metrics-and-alerting/internal/storage/memorystorage"
 	"metrics-and-alerting/pkg/logpack"
 )
 
@@ -33,7 +33,7 @@ func main() {
 
 	logger := logpack.NewLogger()
 	cfg := ReadyConfig(logger)
-	inMemory := memoryStorage.NewStorage()
+	inMemory := memorystorage.NewStorage()
 
 	agentService := agent.NewAgent(
 		inMemory,

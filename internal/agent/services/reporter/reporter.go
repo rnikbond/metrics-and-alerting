@@ -14,7 +14,7 @@ import (
 const (
 	ReportAsURL       = "URL"
 	ReportAsJSON      = "JSON"
-	ReportAsJsonBatch = "BatchJSON"
+	ReportAsBatchJSON = "BatchJSON"
 )
 
 type Reporter struct {
@@ -42,7 +42,7 @@ func (r Reporter) Report(ctx context.Context, reportType string) error {
 			return err
 		}
 
-	case ReportAsJsonBatch:
+	case ReportAsBatchJSON:
 		if err := r.reportBatchJSON(ctx); err != nil {
 			return err
 		}

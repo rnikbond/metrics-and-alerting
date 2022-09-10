@@ -69,7 +69,7 @@ func (h Handler) GetAsJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Header.Get(ContentType) != ApplicationJSON {
-			h.logger.Err.Printf("request endpoint %s with unsupported Content-Type: %s\n", r.Header.Get(ContentType))
+			h.logger.Err.Printf("request with unsupported Content-Type: %s\n", r.Header.Get(ContentType))
 			w.WriteHeader(http.StatusUnsupportedMediaType)
 			return
 		}

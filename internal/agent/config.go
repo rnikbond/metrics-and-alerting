@@ -40,7 +40,7 @@ func (cfg *Config) ParseFlags() error {
 	flag.DurationVar(&cfg.PollInterval, "p", cfg.PollInterval, "poll interval (duration)")
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - secret key for sign metrics")
 	flag.StringVar(&cfg.ReportURL, "rt", cfg.ReportURL, fmt.Sprint("support types: ",
-		reporter.ReportAsURL, "|", reporter.ReportAsJSON, "|", reporter.ReportAsJsonBatch))
+		reporter.ReportAsURL, "|", reporter.ReportAsJSON, "|", reporter.ReportAsBatchJSON))
 	addr := flag.String("a", cfg.Addr, "ip address: ip:port")
 	flag.Parse()
 
