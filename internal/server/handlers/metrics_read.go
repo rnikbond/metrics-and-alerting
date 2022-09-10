@@ -37,7 +37,7 @@ func (h Handler) GetAsText() http.HandlerFunc {
 		// затем разбиваем на массив:
 		// [0] - Тип метрики
 		// [1] - Название метрики
-		dataURL := strings.ReplaceAll(r.URL.String(), "/update/", "")
+		dataURL := strings.ReplaceAll(r.URL.String(), "/value/", "")
 		partsURL := strings.Split(dataURL, "/")
 
 		if len(partsURL) != partsGetURL {
