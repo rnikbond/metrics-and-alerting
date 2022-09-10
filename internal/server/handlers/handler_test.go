@@ -1,5 +1,6 @@
 package handler
 
+/*
 import (
 	"bytes"
 	"compress/gzip"
@@ -12,8 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/internal/storage/memoryStorage"
 	"metrics-and-alerting/pkg/config"
+	"metrics-and-alerting/pkg/metric"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,18 +37,18 @@ func randInt64() *int64 {
 	return &val
 }
 
-func NewGaugeMetric() storage.Metric {
-	return storage.Metric{
+func NewGaugeMetric() metric.Metric {
+	return metric.Metric{
 		ID:    "testGauge",
-		MType: storage.GaugeType,
+		MType: metric.GaugeType,
 		Value: randFloat64(),
 	}
 }
 
-func NewCounterMetric() storage.Metric {
-	return storage.Metric{
+func NewCounterMetric() metric.Metric {
+	return metric.Metric{
 		ID:    "testCounter",
-		MType: storage.CounterType,
+		MType: metric.CounterType,
 		Delta: randInt64(),
 	}
 }
@@ -55,22 +57,22 @@ func NewCounterMetric() storage.Metric {
 func TestGetJSON(t *testing.T) {
 
 	cfg := config.Config{}
-	cfg.SetDefault()
+	cfg.DefaultConfig()
 	cfg.VerifyOnUpdate = false
 	cfg.SecretKey = signKey
 
-	st := storage.InMemoryStorage{}
+	st := memoryStorage.InMemoryStorage{}
 	errInit := st.Init(cfg)
 	require.NoError(t, errInit)
 
 	gaugeMetric := NewGaugeMetric()
 	counterMetric := NewCounterMetric()
 
-	signGauge, errSign := storage.Sign(gaugeMetric, []byte(signKey))
+	signGauge, errSign := metric.Sign(gaugeMetric, []byte(signKey))
 	require.NoError(t, errSign)
 	gaugeMetric.Hash = signGauge
 
-	signCounter, errSign := storage.Sign(counterMetric, []byte(signKey))
+	signCounter, errSign := metric.Sign(counterMetric, []byte(signKey))
 	require.NoError(t, errSign)
 	counterMetric.Hash = signCounter
 
@@ -85,8 +87,8 @@ func TestGetJSON(t *testing.T) {
 		contentType     string
 		wantStatus      int
 		wantError       bool
-		wantMetric      storage.Metric
-		requestMetric   storage.Metric
+		wantMetric      metric.Metric
+		requestMetric   metric.Metric
 	}{
 		{ // Тело запроса отправляется в сжатом виде и ответ должен быть в сжатом виде
 			name:            "Test get gauge -> OK",
@@ -97,9 +99,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:      http.StatusOK,
 			wantError:       false,
 			wantMetric:      gaugeMetric,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    gaugeMetric.ID,
-				MType: storage.GaugeType,
+				MType: metric.GaugeType,
 			},
 		},
 		{ // Тело запроса отправляется без сжатия, а ответ должен быть в сжатом виде
@@ -109,9 +111,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:  http.StatusOK,
 			wantError:   false,
 			wantMetric:  gaugeMetric,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    gaugeMetric.ID,
-				MType: storage.GaugeType,
+				MType: metric.GaugeType,
 			},
 		},
 		{ // Запрос с некорректным HTTP методом
@@ -121,9 +123,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:  http.StatusMethodNotAllowed,
 			wantError:   true,
 			wantMetric:  gaugeMetric,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    gaugeMetric.ID,
-				MType: storage.GaugeType,
+				MType: metric.GaugeType,
 			},
 		},
 		{ // Запрос без указания заголовка Content-Type
@@ -132,9 +134,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus: http.StatusUnsupportedMediaType,
 			wantError:  true,
 			wantMetric: gaugeMetric,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    gaugeMetric.ID,
-				MType: storage.GaugeType,
+				MType: metric.GaugeType,
 			},
 		},
 		{ // Тело запроса отправляется в сжатом виде и ответ должен быть в сжатом виде
@@ -146,9 +148,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:      http.StatusOK,
 			wantError:       false,
 			wantMetric:      counterMetric,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    counterMetric.ID,
-				MType: storage.CounterType,
+				MType: metric.CounterType,
 			},
 		},
 		{ // Тело запроса отправляется без сжатия, а ответ должен быть в сжатом виде
@@ -158,9 +160,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:  http.StatusOK,
 			wantError:   false,
 			wantMetric:  counterMetric,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    counterMetric.ID,
-				MType: storage.CounterType,
+				MType: metric.CounterType,
 			},
 		},
 		{ // Запрос с некорректным HTTP методом
@@ -170,9 +172,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:  http.StatusMethodNotAllowed,
 			wantError:   true,
 			wantMetric:  counterMetric,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    counterMetric.ID,
-				MType: storage.CounterType,
+				MType: metric.CounterType,
 			},
 		},
 		{ // Запрос без указания заголовка Content-Type
@@ -181,9 +183,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus: http.StatusUnsupportedMediaType,
 			wantError:  true,
 			wantMetric: counterMetric,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    counterMetric.ID,
-				MType: storage.CounterType,
+				MType: metric.CounterType,
 			},
 		},
 		{ // Запрос с неизвестным типом метрики
@@ -193,7 +195,7 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:  http.StatusNotFound,
 			wantError:   true,
 			wantMetric:  counterMetric,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    counterMetric.ID,
 				MType: "ololo",
 			},
@@ -205,7 +207,7 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:  http.StatusNotFound,
 			wantError:   true,
 			wantMetric:  counterMetric,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID: counterMetric.ID,
 			},
 		},
@@ -276,7 +278,7 @@ func TestGetJSON(t *testing.T) {
 				data, errData := io.ReadAll(reader)
 				require.NoError(t, errData)
 
-				var metric storage.Metric
+				var metric metric.Metric
 				errDecode := json.Unmarshal(data, &metric)
 				require.NoError(t, errDecode)
 
@@ -289,22 +291,22 @@ func TestGetJSON(t *testing.T) {
 func TestUpdateJSON(t *testing.T) {
 
 	cfg := config.Config{}
-	cfg.SetDefault()
+	cfg.DefaultConfig()
 	cfg.VerifyOnUpdate = false
 	cfg.SecretKey = signKey
 
-	st := storage.InMemoryStorage{}
+	st := memoryStorage.InMemoryStorage{}
 	errInit := st.Init(cfg)
 	require.NoError(t, errInit)
 
 	gaugeMetric := NewGaugeMetric()
 	counterMetric := NewCounterMetric()
 
-	signGauge, errSign := storage.Sign(gaugeMetric, []byte(signKey))
+	signGauge, errSign := metric.Sign(gaugeMetric, []byte(signKey))
 	require.NoError(t, errSign)
 	gaugeMetric.Hash = signGauge
 
-	signCounter, errSign := storage.Sign(counterMetric, []byte(signKey))
+	signCounter, errSign := metric.Sign(counterMetric, []byte(signKey))
 	require.NoError(t, errSign)
 	counterMetric.Hash = signCounter
 
@@ -315,7 +317,7 @@ func TestUpdateJSON(t *testing.T) {
 		contentType     string
 		wantStatus      int
 		wantError       bool
-		requestMetric   storage.Metric
+		requestMetric   metric.Metric
 	}{
 		{ // Запрос без указания заголовка Content-Type
 			name:            "Test update without content-type -> ERROR",
@@ -323,9 +325,9 @@ func TestUpdateJSON(t *testing.T) {
 			method:          http.MethodPost,
 			wantStatus:      http.StatusUnsupportedMediaType,
 			wantError:       true,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    "testGauge",
-				MType: storage.GaugeType,
+				MType: metric.GaugeType,
 				Value: gaugeMetric.Value,
 			},
 		},
@@ -336,9 +338,9 @@ func TestUpdateJSON(t *testing.T) {
 			method:          http.MethodGet,
 			wantStatus:      http.StatusMethodNotAllowed,
 			wantError:       true,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    "testGauge",
-				MType: storage.GaugeType,
+				MType: metric.GaugeType,
 				Value: gaugeMetric.Value,
 				Hash:  gaugeMetric.Hash,
 			},
@@ -350,9 +352,9 @@ func TestUpdateJSON(t *testing.T) {
 			contentType:     ApplicationJSON,
 			wantStatus:      http.StatusOK,
 			wantError:       false,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    "testGauge",
-				MType: storage.GaugeType,
+				MType: metric.GaugeType,
 				Value: gaugeMetric.Value,
 				Hash:  gaugeMetric.Hash,
 			},
@@ -364,9 +366,9 @@ func TestUpdateJSON(t *testing.T) {
 			contentType:     ApplicationJSON,
 			wantStatus:      http.StatusBadRequest,
 			wantError:       true,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    "testGauge",
-				MType: storage.GaugeType,
+				MType: metric.GaugeType,
 				Hash:  gaugeMetric.Hash,
 			},
 		},
@@ -377,9 +379,9 @@ func TestUpdateJSON(t *testing.T) {
 			contentType:     ApplicationJSON,
 			wantStatus:      http.StatusBadRequest,
 			wantError:       true,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    "testGauge",
-				MType: storage.GaugeType,
+				MType: metric.GaugeType,
 			},
 		},
 		{ // Запрос с некорректной подписью метрики
@@ -389,9 +391,9 @@ func TestUpdateJSON(t *testing.T) {
 			contentType:     ApplicationJSON,
 			wantStatus:      http.StatusBadRequest,
 			wantError:       true,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    "testGauge",
-				MType: storage.GaugeType,
+				MType: metric.GaugeType,
 				Hash:  "hash_ololo",
 			},
 		},
@@ -402,7 +404,7 @@ func TestUpdateJSON(t *testing.T) {
 			contentType:     ApplicationJSON,
 			wantStatus:      http.StatusNotImplemented,
 			wantError:       true,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    "testGauge",
 				Value: gaugeMetric.Value,
 				Hash:  gaugeMetric.Hash,
@@ -415,8 +417,8 @@ func TestUpdateJSON(t *testing.T) {
 			contentType:     ApplicationJSON,
 			wantStatus:      http.StatusBadRequest,
 			wantError:       true,
-			requestMetric: storage.Metric{
-				MType: storage.GaugeType,
+			requestMetric: metric.Metric{
+				MType: metric.GaugeType,
 				Value: gaugeMetric.Value,
 				Hash:  gaugeMetric.Hash,
 			},
@@ -428,9 +430,9 @@ func TestUpdateJSON(t *testing.T) {
 			contentType:     ApplicationJSON,
 			wantStatus:      http.StatusOK,
 			wantError:       false,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    "testCounter",
-				MType: storage.CounterType,
+				MType: metric.CounterType,
 				Delta: counterMetric.Delta,
 				Hash:  counterMetric.Hash,
 			},
@@ -441,9 +443,9 @@ func TestUpdateJSON(t *testing.T) {
 			contentType: ApplicationJSON,
 			wantStatus:  http.StatusOK,
 			wantError:   false,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    "testCounter",
-				MType: storage.CounterType,
+				MType: metric.CounterType,
 				Delta: counterMetric.Delta,
 				Hash:  counterMetric.Hash,
 			},
@@ -455,9 +457,9 @@ func TestUpdateJSON(t *testing.T) {
 			contentType:     ApplicationJSON,
 			wantStatus:      http.StatusBadRequest,
 			wantError:       true,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    "testCounter",
-				MType: storage.CounterType,
+				MType: metric.CounterType,
 			},
 		},
 		{ // Запрос с некорректной подписью метрики
@@ -467,9 +469,9 @@ func TestUpdateJSON(t *testing.T) {
 			contentType:     ApplicationJSON,
 			wantStatus:      http.StatusBadRequest,
 			wantError:       true,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    "testCounter",
-				MType: storage.CounterType,
+				MType: metric.CounterType,
 				Hash:  "ololo_hash",
 			},
 		},
@@ -480,9 +482,9 @@ func TestUpdateJSON(t *testing.T) {
 			contentType:     ApplicationJSON,
 			wantStatus:      http.StatusBadRequest,
 			wantError:       true,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    "testCounter",
-				MType: storage.CounterType,
+				MType: metric.CounterType,
 				Hash:  counterMetric.Hash,
 			},
 		},
@@ -493,7 +495,7 @@ func TestUpdateJSON(t *testing.T) {
 			contentType:     ApplicationJSON,
 			wantStatus:      http.StatusNotImplemented,
 			wantError:       true,
-			requestMetric: storage.Metric{
+			requestMetric: metric.Metric{
 				ID:    "testCounter",
 				Delta: counterMetric.Delta,
 				Hash:  counterMetric.Hash,
@@ -506,8 +508,8 @@ func TestUpdateJSON(t *testing.T) {
 			contentType:     ApplicationJSON,
 			wantStatus:      http.StatusBadRequest,
 			wantError:       true,
-			requestMetric: storage.Metric{
-				MType: storage.CounterType,
+			requestMetric: metric.Metric{
+				MType: metric.CounterType,
 				Delta: counterMetric.Delta,
 				Hash:  counterMetric.Hash,
 			},
@@ -557,7 +559,7 @@ func TestUpdateJSON(t *testing.T) {
 
 			if !tt.wantError {
 
-				metricInStore := storage.Metric{
+				metricInStore := metric.Metric{
 					ID:    tt.requestMetric.ID,
 					MType: tt.requestMetric.MType,
 				}
@@ -567,10 +569,10 @@ func TestUpdateJSON(t *testing.T) {
 				require.NoError(t, errStore)
 
 				switch metricInStore.MType {
-				case storage.GaugeType:
+				case metric.GaugeType:
 					require.NotNil(t, metricInStore.Value)
 					assert.Equal(t, *metricInStore.Value, *tt.requestMetric.Value)
-				case storage.CounterType:
+				case metric.CounterType:
 					require.NotNil(t, metricInStore.Delta)
 					assert.Equal(t, *metricInStore.Delta, *tt.requestMetric.Delta)
 				}
@@ -581,10 +583,10 @@ func TestUpdateJSON(t *testing.T) {
 
 func TestGetMetric(t *testing.T) {
 
-	gauge, _ := storage.CreateMetric(storage.GaugeType, "testGauge", 100.023)
-	counter, _ := storage.CreateMetric(storage.CounterType, "testCounter", 100)
+	gauge, _ := metric.CreateMetric(metric.GaugeType, "testGauge", 100.023)
+	counter, _ := metric.CreateMetric(metric.CounterType, "testCounter", 100)
 
-	st := storage.InMemoryStorage{}
+	st := memoryStorage.InMemoryStorage{}
 
 	errUpsert := st.Upsert(gauge)
 	require.NoError(t, errUpsert)
@@ -611,7 +613,7 @@ func TestGetMetric(t *testing.T) {
 			name: "TestGetMetric - Type {Gauge} => [OK]",
 			metricData: metricData{
 				name:       "testGauge",
-				metricType: storage.GaugeType,
+				metricType: metric.GaugeType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodGet,
@@ -623,7 +625,7 @@ func TestGetMetric(t *testing.T) {
 		{
 			name: "TestGetMetric - Type {Gauge}, Without {Name} => [Error]",
 			metricData: metricData{
-				metricType: storage.GaugeType,
+				metricType: metric.GaugeType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodGet,
@@ -655,7 +657,7 @@ func TestGetMetric(t *testing.T) {
 			name: "TestGetMetric - Type {Counter} => [OK]",
 			metricData: metricData{
 				name:       "testCounter",
-				metricType: storage.CounterType,
+				metricType: metric.CounterType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodGet,
@@ -667,7 +669,7 @@ func TestGetMetric(t *testing.T) {
 		{
 			name: "TestGetMetric - Type {Counter}, Without {Name} => [Error]",
 			metricData: metricData{
-				metricType: storage.CounterType,
+				metricType: metric.CounterType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodGet,
@@ -737,21 +739,21 @@ func TestGetMetric(t *testing.T) {
 
 func TestUpdateMetricURL(t *testing.T) {
 
-	memoryStorage := storage.InMemoryStorage{}
+	memoryStorage := memoryStorage.InMemoryStorage{}
 
 	tests := []struct {
 		name        string
 		contentType string
 		httpMethod  string
-		metric      storage.Metric
+		metric      metric.Metric
 		wantCode    int
 		wantError   bool
 	}{
 		{
 			name: "Success update metric counter -> OK",
-			metric: storage.Metric{
+			metric: metric.Metric{
 				ID:    "testCounter",
-				MType: storage.CounterType,
+				MType: metric.CounterType,
 				Delta: randInt64(),
 			},
 			contentType: "text/plain",
@@ -761,8 +763,8 @@ func TestUpdateMetricURL(t *testing.T) {
 		},
 		{
 			name: "Fail update metric counter - without id, delta -> ERROR",
-			metric: storage.Metric{
-				MType: storage.CounterType,
+			metric: metric.Metric{
+				MType: metric.CounterType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodPost,
@@ -771,9 +773,9 @@ func TestUpdateMetricURL(t *testing.T) {
 		},
 		{
 			name: "Success update metric gauge -> OK",
-			metric: storage.Metric{
+			metric: metric.Metric{
 				ID:    "testGauge",
-				MType: storage.GaugeType,
+				MType: metric.GaugeType,
 				Value: randFloat64(),
 			},
 			contentType: "text/plain",
@@ -783,8 +785,8 @@ func TestUpdateMetricURL(t *testing.T) {
 		},
 		{
 			name: "Fail update metric gauge - without id, value -> ERROR",
-			metric: storage.Metric{
-				MType: storage.GaugeType,
+			metric: metric.Metric{
+				MType: metric.GaugeType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodPost,
@@ -835,7 +837,7 @@ func TestUpdateMetricURL(t *testing.T) {
 			if !tt.wantError {
 				require.Equal(t, tt.contentType, response.Header.Get("Content-Type"))
 
-				metric, _ := storage.CreateMetric(tt.metric.MType, tt.metric.ID)
+				metric, _ := metric.CreateMetric(tt.metric.MType, tt.metric.ID)
 				_, err := memoryStorage.Get(metric)
 				assert.NoError(t, err)
 			}
@@ -845,11 +847,11 @@ func TestUpdateMetricURL(t *testing.T) {
 
 func TestGetMetrics(t *testing.T) {
 
-	st := storage.InMemoryStorage{}
+	st := memoryStorage.InMemoryStorage{}
 
-	gauge := storage.Metric{
+	gauge := metric.Metric{
 		ID:    "testGauge",
-		MType: storage.GaugeType,
+		MType: metric.GaugeType,
 		Value: randFloat64(),
 	}
 
@@ -858,7 +860,7 @@ func TestGetMetrics(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		metric storage.Metric
+		metric metric.Metric
 
 		contentType string
 		httpMethod  string
@@ -868,9 +870,9 @@ func TestGetMetrics(t *testing.T) {
 	}{
 		{
 			name: "TestGetMetrics => [OK]",
-			metric: storage.Metric{
+			metric: metric.Metric{
 				ID:    "testGauge",
-				MType: storage.GaugeType,
+				MType: metric.GaugeType,
 				Value: gauge.Value,
 			},
 			contentType: "text/html",
@@ -905,3 +907,4 @@ func TestGetMetrics(t *testing.T) {
 		})
 	}
 }
+*/

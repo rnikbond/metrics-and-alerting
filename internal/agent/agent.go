@@ -1,0 +1,126 @@
+package agent
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"metrics-and-alerting/internal/agent/services/reporter"
+	"metrics-and-alerting/internal/agent/services/scanner"
+	"metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/pkg/logpack"
+)
+
+type OptionsAgent func(*Agent)
+
+type Agent struct {
+	reportInterval time.Duration
+	pollInterval   time.Duration
+	addr           string
+	reportType     string
+	storage        storage.Repository
+	logger         *logpack.LogPack
+}
+
+// NewAgent Создание экземпляра агента
+// Используется паттерн "Функциональные опции"
+func NewAgent(storage storage.Repository, opts ...OptionsAgent) *Agent {
+	a := &Agent{
+		storage: storage,
+	}
+
+	for _, opt := range opts {
+		opt(a)
+	}
+
+	return a
+}
+
+func WithReportInterval(interval time.Duration) OptionsAgent {
+	return func(agent *Agent) {
+		agent.reportInterval = interval
+	}
+}
+
+func WithPollInterval(interval time.Duration) OptionsAgent {
+	return func(agent *Agent) {
+		agent.pollInterval = interval
+	}
+}
+
+func WithAddr(addr string) OptionsAgent {
+	return func(agent *Agent) {
+		agent.addr = addr
+	}
+}
+
+func WithLogger(logger *logpack.LogPack) OptionsAgent {
+	return func(agent *Agent) {
+		agent.logger = logger
+	}
+}
+
+func WithReportURL(reportURL string) OptionsAgent {
+	return func(agent *Agent) {
+		agent.reportType = reportURL
+	}
+}
+
+// Start Запуск агента для сбора и отправки метрик
+func (a Agent) Start(ctx context.Context) error {
+
+	if a.storage == nil {
+		return fmt.Errorf("could not start agent: not setted storage")
+	}
+
+	if len(a.addr) == 0 {
+		return fmt.Errorf("could not start agent: not setted report address")
+	}
+
+	if len(a.reportType) == 0 {
+		return fmt.Errorf("could not start agent: not setted report type")
+	}
+
+	go a.updateMetrics(ctx)
+	go a.reportMetrics(ctx)
+
+	return nil
+}
+
+func (a Agent) updateMetrics(ctx context.Context) {
+
+	scan := scanner.NewScanner(a.storage)
+	ticker := time.NewTicker(a.pollInterval)
+
+	for {
+		select {
+
+		case <-ticker.C:
+			if err := scan.Scan(); err != nil {
+				a.logger.Err.Printf("scan task failed with error: %v\n", err)
+			}
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (a Agent) reportMetrics(ctx context.Context) {
+
+	report := reporter.NewReporter(a.addr, a.storage)
+	ticker := time.NewTicker(a.reportInterval)
+
+	for {
+		select {
+
+		case <-ticker.C:
+			if err := report.Report(ctx, a.reportType); err != nil {
+				a.logger.Err.Printf("report failed with error: %v\n", err)
+			}
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}

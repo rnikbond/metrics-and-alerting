@@ -1,4 +1,4 @@
-package storage
+package errs
 
 import (
 	"errors"
@@ -30,7 +30,7 @@ var (
 
 // Ошибки внешнего хранилища
 var (
-	ErrInvalidFilePath  = NewErr("invalid path to file storage")
+	ErrInvalidFilePath  = NewErr("invalid path to fileStorage storage")
 	ErrInvalidDSN       = NewErr("invalid data source name")
 	ErrFailedConnection = NewErr("can not create connection")
 )
