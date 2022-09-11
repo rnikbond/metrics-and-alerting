@@ -24,9 +24,9 @@ func NewServer(addr string, h *handler.Handler) *MetricsServer {
 	r.Get("/ping/", h.Ping())
 
 	r.Get("/", h.GetMetrics())
-	r.Get("/value/*", h.Get())
-	r.Post("/value", h.Get())
-	r.Post("/value/", h.Get())
+	r.Get("/value/*", h.GetAsText())
+	r.Post("/value", h.GetAsJSON())
+	r.Post("/value/", h.GetAsJSON())
 
 	r.Post("/update/*", h.UpdateURL())
 	r.Post("/update", h.UpdateJSON())

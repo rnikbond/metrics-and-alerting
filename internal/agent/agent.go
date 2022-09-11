@@ -9,6 +9,7 @@ import (
 	"metrics-and-alerting/internal/agent/services/scanner"
 	"metrics-and-alerting/internal/storage"
 	"metrics-and-alerting/pkg/logpack"
+	"metrics-and-alerting/pkg/metric"
 )
 
 type OptionsAgent func(*Agent)
@@ -124,6 +125,12 @@ func (a Agent) reportMetrics(ctx context.Context) {
 		case <-ticker.C:
 			if err := report.Report(ctx, a.reportType); err != nil {
 				a.logger.Err.Printf("report failed with error: %v\n", err)
+			}
+
+			// Сброс значения метрики PollCount
+			pollCount, _ := metric.CreateMetric(metric.CounterType, "PollCount", metric.WithValueInt(0))
+			if err := a.storage.Upsert(pollCount); err != nil {
+				a.logger.Err.Printf("error reset metric %s after report\n", pollCount.ShotString())
 			}
 
 		case <-ctx.Done():

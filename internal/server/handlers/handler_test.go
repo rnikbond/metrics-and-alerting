@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"io"
 	"math/rand"
 	"net/http"
@@ -48,27 +51,21 @@ func NewCounterMetric() metric.Metric {
 	}
 }
 
-/*
 // TestGetJSON - Тест на получение метрики в JSON виде
 func TestGetJSON(t *testing.T) {
 
-	cfg := config.Config{}
-	cfg.DefaultConfig()
-	cfg.VerifyOnUpdate = false
-	cfg.SecretKey = signKey
-
-	st := memoryStorage.InMemoryStorage{}
-	errInit := st.Init(cfg)
-	require.NoError(t, errInit)
+	logger := logpack.NewLogger()
+	st := memorystorage.NewStorage()
+	handlers := New(st, logger)
 
 	gaugeMetric := NewGaugeMetric()
 	counterMetric := NewCounterMetric()
 
-	signGauge, errSign := metric.Sign(gaugeMetric, []byte(signKey))
+	signGauge, errSign := gaugeMetric.Sign([]byte(signKey))
 	require.NoError(t, errSign)
 	gaugeMetric.Hash = signGauge
 
-	signCounter, errSign := metric.Sign(counterMetric, []byte(signKey))
+	signCounter, errSign := counterMetric.Sign([]byte(signKey))
 	require.NoError(t, errSign)
 	counterMetric.Hash = signCounter
 
@@ -112,18 +109,6 @@ func TestGetJSON(t *testing.T) {
 				MType: metric.GaugeType,
 			},
 		},
-		{ // Запрос с некорректным HTTP методом
-			name:        "Test get gauge by http.Get -> ERROR",
-			method:      http.MethodGet,
-			contentType: ApplicationJSON,
-			wantStatus:  http.StatusMethodNotAllowed,
-			wantError:   true,
-			wantMetric:  gaugeMetric,
-			requestMetric: metric.Metric{
-				ID:    gaugeMetric.ID,
-				MType: metric.GaugeType,
-			},
-		},
 		{ // Запрос без указания заголовка Content-Type
 			name:       "Test get gauge without content-type -> ERROR",
 			method:     http.MethodPost,
@@ -155,18 +140,6 @@ func TestGetJSON(t *testing.T) {
 			contentType: ApplicationJSON,
 			wantStatus:  http.StatusOK,
 			wantError:   false,
-			wantMetric:  counterMetric,
-			requestMetric: metric.Metric{
-				ID:    counterMetric.ID,
-				MType: metric.CounterType,
-			},
-		},
-		{ // Запрос с некорректным HTTP методом
-			name:        "Test get counter by http.Get -> ERROR",
-			method:      http.MethodGet,
-			contentType: ApplicationJSON,
-			wantStatus:  http.StatusMethodNotAllowed,
-			wantError:   true,
 			wantMetric:  counterMetric,
 			requestMetric: metric.Metric{
 				ID:    counterMetric.ID,
@@ -221,8 +194,8 @@ func TestGetJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			encode, _ := json.Marshal(tt.requestMetric)
 
-			nextHandler := GetJSON(&st)
-			middleware := GZipHandle(nextHandler)
+			nextHandler := handlers.GetAsJSON()
+			middleware := handlers.DecompressRequest(nextHandler)
 
 			var request *http.Request
 			switch tt.contentEncoding {
@@ -236,11 +209,11 @@ func TestGetJSON(t *testing.T) {
 				errGZip = gzipWriter.Close()
 				require.NoError(t, errGZip)
 
-				request = httptest.NewRequest(tt.method, PartURLValue, &compress)
+				request = httptest.NewRequest(tt.method, "/value/", &compress)
 				request.Header.Set(ContentEncoding, tt.contentEncoding)
 
 			default:
-				request = httptest.NewRequest(tt.method, PartURLValue, bytes.NewReader(encode))
+				request = httptest.NewRequest(tt.method, "/value/", bytes.NewReader(encode))
 			}
 
 			request.Header.Set(ContentType, tt.contentType)
@@ -283,7 +256,6 @@ func TestGetJSON(t *testing.T) {
 		})
 	}
 }
-*/
 
 /*
 func TestUpdateJSON(t *testing.T) {
@@ -719,7 +691,7 @@ func TestGetMetric(t *testing.T) {
 			request.Header.Set("Content-Type", tt.contentType)
 
 			w := httptest.NewRecorder()
-			h := handlers.Get()
+			h := handlers.GetAsText()
 			h.ServeHTTP(w, request)
 
 			response := w.Result()

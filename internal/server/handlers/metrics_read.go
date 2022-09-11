@@ -10,26 +10,13 @@ import (
 	metricPkg "metrics-and-alerting/pkg/metric"
 )
 
-func (h Handler) Get() http.HandlerFunc {
+func (h Handler) GetAsText() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		switch r.Method {
-		case http.MethodGet:
-			h.GetAsText()(w, r)
-
-		case http.MethodPost:
-			h.GetAsJSON()(w, r)
-
-		default:
-			h.logger.Err.Printf("request endpoint %s with unsupported HTTP method %s\n", r.URL, r.Method)
+		if r.Header.Get(ContentType) != TextPlain {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-	}
-}
-
-func (h Handler) GetAsText() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set(ContentType, TextPlain)
 
