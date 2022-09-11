@@ -57,7 +57,7 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 func (h Handler) DecompressRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		if !strings.Contains(r.Header.Get(AcceptEncoding), GZip) {
+		if !strings.Contains(r.Header.Get(ContentEncoding), GZip) {
 			next.ServeHTTP(w, r)
 			return
 		}
