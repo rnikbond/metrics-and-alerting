@@ -26,9 +26,9 @@ func NewServer(addr string, store storage.Repository, h *handler.Handler) *Metri
 	r.Get("/ping/", h.Ping())
 
 	r.Get("/", h.GetMetrics())
-	r.Get("/value", h.Get())
-	r.Get("/value/", h.Get())
 	r.Get("/value/*", h.Get())
+	r.Post("/value", h.Get())
+	r.Post("/value/", h.Get())
 
 	r.Post("/update/*", handler.UpdateURL(store))
 	r.Post("/update", handler.UpdateJSON(store))
