@@ -92,6 +92,10 @@ func (manager MetricsManager) Delete(metric metric.Metric) error {
 	return manager.storage.Delete(metric)
 }
 
+func (manager MetricsManager) String() string {
+	return manager.storage.String()
+}
+
 func (manager MetricsManager) CheckHealth() bool {
 	return manager.storage.CheckHealth()
 }

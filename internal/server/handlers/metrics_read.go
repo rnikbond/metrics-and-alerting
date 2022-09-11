@@ -42,6 +42,8 @@ func (h Handler) GetAsText() http.HandlerFunc {
 
 		h.logger.Info.Printf("Request GetAsText: %s", r.URL)
 
+		h.logger.Info.Println(h.store.String())
+
 		if len(partsURL) != partsGetURL {
 
 			h.logger.Err.Printf("request endpoint %s with invalid URL\n", r.URL.String())

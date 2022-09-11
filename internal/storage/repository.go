@@ -13,6 +13,8 @@ type Repository interface {
 
 	Delete(metric metric.Metric) error
 
+	String() string
+
 	CheckHealth() bool
 	Close() error
 }

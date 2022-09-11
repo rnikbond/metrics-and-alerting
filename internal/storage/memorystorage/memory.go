@@ -2,6 +2,7 @@ package memorystorage
 
 import (
 	"fmt"
+	"strings"
 
 	"metrics-and-alerting/pkg/errs"
 	metricPkg "metrics-and-alerting/pkg/metric"
@@ -83,6 +84,21 @@ func (ms *MemoryStorage) Delete(metric metricPkg.Metric) error {
 
 	ms.metrics = append(ms.metrics[:idx], ms.metrics[idx+1:]...)
 	return nil
+}
+
+func (ms MemoryStorage) String() string {
+
+	builder := strings.Builder{}
+
+	builder.WriteString("\nSTORAGE DATA\n")
+	builder.WriteString(fmt.Sprintf("Items in storage: %d\n", len(ms.metrics)))
+
+	for _, m := range ms.metrics {
+
+		builder.WriteString(m.String())
+	}
+
+	return builder.String()
 }
 
 func (ms MemoryStorage) CheckHealth() bool {
