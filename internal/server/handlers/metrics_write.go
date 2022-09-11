@@ -8,20 +8,22 @@ import (
 	"net/http"
 	"strings"
 
-	"metrics-and-alerting/internal/storage"
 	"metrics-and-alerting/pkg/errs"
 	metricPkg "metrics-and-alerting/pkg/metric"
 )
 
-func UpdateURL(store storage.Repository) http.HandlerFunc {
+func (h Handler) UpdateURL() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "text/plain")
 
 		if r.Method != http.MethodPost {
-			err := fmt.Errorf("method '%s' is not supported", r.Method)
-			log.Printf("error in request: %v\n", err)
-			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		if r.Header.Get("Content-Type") != TextPlain {
+			w.WriteHeader(http.StatusUnsupportedMediaType)
 			return
 		}
 
@@ -34,6 +36,7 @@ func UpdateURL(store storage.Repository) http.HandlerFunc {
 		partsURL := strings.Split(dataURL, "/")
 
 		if len(partsURL) != partsUpdateURL {
+
 			err := fmt.Errorf("invalid URL: %s", r.URL.String())
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -42,7 +45,8 @@ func UpdateURL(store storage.Repository) http.HandlerFunc {
 		metric, err := metricPkg.CreateMetric(
 			partsURL[idxType],
 			partsURL[idxName],
-			metricPkg.WithValue(partsURL[idxValue]))
+			metricPkg.WithValue(partsURL[idxValue]),
+		)
 
 		if err != nil {
 			log.Printf("error create metric: %v\n", err)
@@ -50,7 +54,7 @@ func UpdateURL(store storage.Repository) http.HandlerFunc {
 			return
 		}
 
-		if err := store.Upsert(metric); err != nil {
+		if err := h.store.Upsert(metric); err != nil {
 			log.Printf("error upsert metric: %v\n", err)
 			http.Error(w, err.Error(), errs.ErrorHTTP(err))
 			return
@@ -60,7 +64,7 @@ func UpdateURL(store storage.Repository) http.HandlerFunc {
 	}
 }
 
-func UpdateJSON(store storage.Repository) http.HandlerFunc {
+func (h Handler) UpdateJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set(ContentType, "text/plain")
@@ -108,7 +112,7 @@ func UpdateJSON(store storage.Repository) http.HandlerFunc {
 			return
 		}
 
-		if err := store.Upsert(metric); err != nil {
+		if err := h.store.Upsert(metric); err != nil {
 			log.Printf("error update metric: %v\n", err)
 			http.Error(w, err.Error(), errs.ErrorHTTP(err))
 			return
@@ -118,7 +122,7 @@ func UpdateJSON(store storage.Repository) http.HandlerFunc {
 	}
 }
 
-func UpdateDataJSON(store storage.Repository) http.HandlerFunc {
+func (h Handler) UpdateDataJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set(ContentType, "text/plain")
@@ -153,7 +157,7 @@ func UpdateDataJSON(store storage.Repository) http.HandlerFunc {
 			return
 		}
 
-		if err := store.UpsertSlice(metrics); err != nil {
+		if err := h.store.UpsertSlice(metrics); err != nil {
 			log.Printf("error update metric: %v\n", err)
 			http.Error(w, err.Error(), errs.ErrorHTTP(err))
 			return

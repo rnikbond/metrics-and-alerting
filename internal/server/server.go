@@ -30,10 +30,10 @@ func NewServer(addr string, store storage.Repository, h *handler.Handler) *Metri
 	r.Post("/value", h.Get())
 	r.Post("/value/", h.Get())
 
-	r.Post("/update/*", handler.UpdateURL(store))
-	r.Post("/update", handler.UpdateJSON(store))
-	r.Post("/updates", handler.UpdateDataJSON(store))
-	r.Post("/updates/", handler.UpdateDataJSON(store))
+	r.Post("/update/*", h.UpdateURL())
+	r.Post("/update", h.UpdateJSON())
+	r.Post("/updates", h.UpdateDataJSON())
+	r.Post("/updates/", h.UpdateDataJSON())
 
 	serv := &MetricsServer{
 		HTTP: &http.Server{
