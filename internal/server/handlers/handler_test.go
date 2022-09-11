@@ -1,20 +1,15 @@
 package handler
 
-/*
 import (
-	"bytes"
-	"compress/gzip"
-	"encoding/json"
 	"io"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
-	"metrics-and-alerting/internal/storage/memoryStorage"
-	"metrics-and-alerting/pkg/config"
+	"metrics-and-alerting/internal/storage/memorystorage"
+	"metrics-and-alerting/pkg/logpack"
 	"metrics-and-alerting/pkg/metric"
 
 	"github.com/stretchr/testify/assert"
@@ -53,6 +48,7 @@ func NewCounterMetric() metric.Metric {
 	}
 }
 
+/*
 // TestGetJSON - Тест на получение метрики в JSON виде
 func TestGetJSON(t *testing.T) {
 
@@ -287,7 +283,9 @@ func TestGetJSON(t *testing.T) {
 		})
 	}
 }
+*/
 
+/*
 func TestUpdateJSON(t *testing.T) {
 
 	cfg := config.Config{}
@@ -580,13 +578,17 @@ func TestUpdateJSON(t *testing.T) {
 		})
 	}
 }
+*/
 
 func TestGetMetric(t *testing.T) {
 
-	gauge, _ := metric.CreateMetric(metric.GaugeType, "testGauge", 100.023)
-	counter, _ := metric.CreateMetric(metric.CounterType, "testCounter", 100)
+	logger := logpack.NewLogger()
 
-	st := memoryStorage.InMemoryStorage{}
+	gauge, _ := metric.CreateMetric(metric.GaugeType, "testGauge", metric.WithValueFloat(100.023))
+	counter, _ := metric.CreateMetric(metric.CounterType, "testCounter", metric.WithValueInt(100))
+
+	st := memorystorage.NewStorage()
+	handlers := New(st, logger)
 
 	errUpsert := st.Upsert(gauge)
 	require.NoError(t, errUpsert)
@@ -700,7 +702,7 @@ func TestGetMetric(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			target := PartURLValue + "/"
+			target := "/value/"
 			if len(tt.metricData.metricType) > 0 {
 				target += tt.metricData.metricType
 			}
@@ -717,7 +719,7 @@ func TestGetMetric(t *testing.T) {
 			request.Header.Set("Content-Type", tt.contentType)
 
 			w := httptest.NewRecorder()
-			h := Get(&st)
+			h := handlers.Get()
 			h.ServeHTTP(w, request)
 
 			response := w.Result()
@@ -739,7 +741,7 @@ func TestGetMetric(t *testing.T) {
 
 func TestUpdateMetricURL(t *testing.T) {
 
-	memoryStorage := memoryStorage.InMemoryStorage{}
+	logger := logpack.NewLogger()
 
 	tests := []struct {
 		name        string
@@ -796,12 +798,12 @@ func TestUpdateMetricURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 
-		errReset := memoryStorage.Reset()
-		require.NoError(t, errReset)
+		memoryStorage := memorystorage.NewStorage()
+		handlers := New(memoryStorage, logger)
 
 		t.Run(tt.name, func(t *testing.T) {
 
-			target := PartURLUpdate + "/"
+			target := "/update/"
 			if len(tt.metric.MType) > 0 {
 				target += tt.metric.MType
 			}
@@ -826,7 +828,7 @@ func TestUpdateMetricURL(t *testing.T) {
 			request.Header.Set("Content-Type", tt.contentType)
 
 			w := httptest.NewRecorder()
-			h := UpdateURL(&memoryStorage)
+			h := handlers.UpdateURL()
 			h.ServeHTTP(w, request)
 
 			response := w.Result()
@@ -845,6 +847,7 @@ func TestUpdateMetricURL(t *testing.T) {
 	}
 }
 
+/*
 func TestGetMetrics(t *testing.T) {
 
 	st := memoryStorage.InMemoryStorage{}

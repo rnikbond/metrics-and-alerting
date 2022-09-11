@@ -37,9 +37,15 @@ func (ms *MemoryStorage) Upsert(metric metricPkg.Metric) error {
 	if idx, err := ms.Find(metric); err != nil {
 		ms.metrics = append(ms.metrics, metric)
 	} else {
-		ms.metrics[idx].Delta = metric.Delta
-		ms.metrics[idx].Value = metric.Value
+
 		ms.metrics[idx].Hash = metric.Hash
+
+		switch metric.MType {
+		case metricPkg.GaugeType:
+			ms.metrics[idx].Value = metric.Value
+		case metricPkg.CounterType:
+			*ms.metrics[idx].Delta += *metric.Delta
+		}
 	}
 
 	return nil
