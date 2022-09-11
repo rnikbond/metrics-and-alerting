@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/pkg/metric"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -116,7 +117,7 @@ func (r Reporter) reportJSON(ctx context.Context) error {
 
 		sign, errSign := m.Sign(r.signKey)
 		if errSign != nil {
-			return fmt.Errorf("could not report metrics: %v\n", errSign)
+			return fmt.Errorf("could not report metrics: %v", errSign)
 		}
 
 		m.Hash = sign
@@ -152,17 +153,22 @@ func (r Reporter) reportBatchJSON(ctx context.Context) error {
 		return fmt.Errorf("could not report metrics: %v", errStorage)
 	}
 
+	// TODO :: Разобраться, как изменять текущий слайс, а не записывать в новый
+	metricsSigned := make([]metric.Metric, len(metrics))
+
 	for i, m := range metrics {
 
 		sign, errSign := m.Sign(r.signKey)
 		if errSign != nil {
-			return fmt.Errorf("could not report metrics: %v\n", errSign)
+			return fmt.Errorf("could not report metrics: %v", errSign)
 		}
 
-		metrics[i].Hash = sign
+		m.Hash = sign
+		metricsSigned[i] = m
+
 	}
 
-	data, err := json.Marshal(&metrics)
+	data, err := json.Marshal(&metricsSigned)
 	if err != nil {
 		return fmt.Errorf("error encode metrics to JSON: %w", err)
 	}

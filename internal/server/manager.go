@@ -36,7 +36,7 @@ func WithSignKey(signKey []byte) OptionsManager {
 
 // VerifySign - Проверка подписи метрики
 func (manager MetricsManager) VerifySign(metric metric.Metric) error {
-	if manager.signKey == nil {
+	if len(manager.signKey) == 0 {
 		return nil
 	}
 
@@ -46,8 +46,13 @@ func (manager MetricsManager) VerifySign(metric metric.Metric) error {
 	}
 
 	if hash != metric.Hash {
+
+		fmt.Printf("wait hash: %s\n", hash)
+		fmt.Printf("metric hash: %s\n", metric.Hash)
+
 		return errs.ErrSignFailed
 	}
+
 	return nil
 }
 
@@ -64,7 +69,7 @@ func (manager MetricsManager) UpsertSlice(metrics []metric.Metric) error {
 
 	for _, m := range metrics {
 		if err := manager.VerifySign(m); err != nil {
-			return fmt.Errorf("could not upsert metric: %w", err)
+			return fmt.Errorf("could not upsert metrics %s: %w", m, err)
 		}
 	}
 

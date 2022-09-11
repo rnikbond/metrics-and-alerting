@@ -131,7 +131,7 @@ func WithValueInt(value int64) OptionsMetric {
 // и при помощи алгоритка SHA256 и ключа key вычиляется хеш метрики
 func (metric Metric) Sign(key []byte) (string, error) {
 
-	if key == nil {
+	if len(key) == 0 {
 		return ``, nil
 	}
 
@@ -254,9 +254,9 @@ func (metric Metric) String() string {
 	}
 
 	if metric.Value != nil {
-		builder.WriteString(fmt.Sprintf("\t DELTA: %f\n", *metric.Value))
+		builder.WriteString(fmt.Sprintf("\t VALUE: %f\n", *metric.Value))
 	} else {
-		builder.WriteString("\t DELTA: nil\n")
+		builder.WriteString("\t VALUE: nil\n")
 	}
 
 	return builder.String()
