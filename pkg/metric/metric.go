@@ -199,12 +199,12 @@ func (metric Metric) StringValue() string {
 	switch metric.MType {
 	case GaugeType:
 		if metric.Value != nil {
-			return fmt.Sprintf("%f", *metric.Value)
+			return strconv.FormatFloat(*metric.Value, 'f', -1, 64)
 		}
 
 	case CounterType:
 		if metric.Delta != nil {
-			return fmt.Sprintf("%d", *metric.Delta)
+			return strconv.FormatInt(*metric.Delta, 10)
 		}
 	}
 
