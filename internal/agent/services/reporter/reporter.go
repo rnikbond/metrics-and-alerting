@@ -87,6 +87,7 @@ func (r Reporter) reportURL(ctx context.Context) error {
 
 		client.R()
 		resp, err := client.R().
+			SetHeader("Content-Type", "text/plain").
 			SetPathParams(m.Map()).
 			SetContext(ctx).
 			Post(r.addr + "/update/" + "{type}/{name}/{value}")
