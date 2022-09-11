@@ -64,6 +64,8 @@ func prepareConfig() {
 
 func main() {
 
+	fmt.Println("Test Hello!")
+
 	prepareConfig()
 	fmt.Println(cfg)
 
