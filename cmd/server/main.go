@@ -44,7 +44,7 @@ func main() {
 
 	handlers := handler.New(storeManager, logger)
 
-	serv := server.NewServer(cfg.Addr, storeManager, handlers)
+	serv := server.NewServer(cfg.Addr, handlers)
 	serv.Start()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
