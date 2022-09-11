@@ -15,12 +15,12 @@ import (
 func (h Handler) UpdateURL() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		w.Header().Set("Content-Type", "text/plain")
-
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
+
+		w.Header().Set(ContentType, TextPlain)
 
 		// оставляем из url только <ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 		// затем разбиваем на массив:
@@ -29,6 +29,8 @@ func (h Handler) UpdateURL() http.HandlerFunc {
 		// [2] - Значение метрики
 		dataURL := strings.ReplaceAll(r.URL.String(), "/update/", "")
 		partsURL := strings.Split(dataURL, "/")
+
+		h.logger.Info.Printf("Request UpdateURL: %s", r.URL)
 
 		if len(partsURL) != partsUpdateURL {
 
@@ -42,6 +44,8 @@ func (h Handler) UpdateURL() http.HandlerFunc {
 			partsURL[idxName],
 			metricPkg.WithValue(partsURL[idxValue]),
 		)
+
+		h.logger.Info.Printf("Created metric: %s", metric)
 
 		if err != nil {
 			log.Printf("error create metric: %v\n", err)

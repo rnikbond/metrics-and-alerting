@@ -40,6 +40,8 @@ func (h Handler) GetAsText() http.HandlerFunc {
 		dataURL := strings.ReplaceAll(r.URL.String(), "/value/", "")
 		partsURL := strings.Split(dataURL, "/")
 
+		h.logger.Info.Printf("Request GetAsText: %s", r.URL)
+
 		if len(partsURL) != partsGetURL {
 
 			h.logger.Err.Printf("request endpoint %s with invalid URL\n", r.URL.String())
@@ -60,6 +62,8 @@ func (h Handler) GetAsText() http.HandlerFunc {
 			http.Error(w, err.Error(), errs.ErrorHTTP(err))
 			return
 		}
+
+		h.logger.Info.Printf("Metric from storage: %s", metric)
 
 		h.CompressResponse(w, r, metric.StringValue())
 	}
