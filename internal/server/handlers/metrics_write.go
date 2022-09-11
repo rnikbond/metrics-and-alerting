@@ -22,11 +22,6 @@ func (h Handler) UpdateURL() http.HandlerFunc {
 			return
 		}
 
-		if r.Header.Get("Content-Type") != TextPlain {
-			w.WriteHeader(http.StatusUnsupportedMediaType)
-			return
-		}
-
 		// оставляем из url только <ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 		// затем разбиваем на массив:
 		// [0] - Тип метрики
