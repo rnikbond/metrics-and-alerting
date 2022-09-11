@@ -13,26 +13,24 @@ import (
 )
 
 type Config struct {
-	Addr           string        `env:"ADDRESS"`
-	StoreInterval  time.Duration `env:"STORE_INTERVAL"`
-	Restore        bool          `env:"RESTORE"`
-	DatabaseDSN    string        `env:"DATABASE_DSN"`
-	StoreFile      string        `env:"STORE_FILE"`
-	SecretKey      string        `env:"KEY"`
-	VerifyOnUpdate bool          `env:"VERIFY_ON_UPDATE"`
+	Addr          string        `env:"ADDRESS"`
+	StoreInterval time.Duration `env:"STORE_INTERVAL"`
+	Restore       bool          `env:"RESTORE"`
+	DatabaseDSN   string        `env:"DATABASE_DSN"`
+	StoreFile     string        `env:"STORE_FILE"`
+	SecretKey     string        `env:"KEY"`
 }
 
 // DefaultConfig Конфигурация для сервиса агента со значениями по умолчанию
 func DefaultConfig() *Config {
 
 	return &Config{
-		Addr:           ":8080",
-		StoreInterval:  10 * time.Second,
-		Restore:        true,
-		DatabaseDSN:    "",
-		StoreFile:      "",
-		SecretKey:      "",
-		VerifyOnUpdate: true,
+		Addr:          ":8080",
+		StoreInterval: 10 * time.Second,
+		Restore:       true,
+		DatabaseDSN:   "",
+		StoreFile:     "",
+		SecretKey:     "",
 	}
 }
 
@@ -43,7 +41,6 @@ func (cfg *Config) ParseFlags() error {
 	flag.DurationVar(&cfg.StoreInterval, "i", cfg.StoreInterval, "duration - interval store metrics")
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key sign")
 	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "string - database data source name")
-	flag.BoolVar(&cfg.VerifyOnUpdate, "vu", cfg.VerifyOnUpdate, "bool - verify changes")
 
 	addr := flag.String("a", cfg.Addr, "string - host:port")
 	flag.Parse()
@@ -82,7 +79,6 @@ func (cfg Config) String() string {
 	builder.WriteString(fmt.Sprintf("\t DATABASE_DSN: %s\n", cfg.DatabaseDSN))
 	builder.WriteString(fmt.Sprintf("\t STORE_FILE: %s\n", cfg.StoreFile))
 	builder.WriteString(fmt.Sprintf("\t KEY: %s\n", cfg.SecretKey))
-	builder.WriteString(fmt.Sprintf("\t VerifyOnUpdate: %v\n", cfg.VerifyOnUpdate))
 
 	return builder.String()
 }

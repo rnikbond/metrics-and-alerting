@@ -17,15 +17,33 @@ const (
 	ReportAsBatchJSON = "BatchJSON"
 )
 
-type Reporter struct {
-	addr    string
-	storage storage.Repository
-}
+type (
+	OptionReporter func(*Reporter)
 
-func NewReporter(addr string, storage storage.Repository) *Reporter {
-	return &Reporter{
+	Reporter struct {
+		addr    string
+		signKey []byte
+		storage storage.Repository
+	}
+)
+
+func NewReporter(addr string, storage storage.Repository, opts ...OptionReporter) *Reporter {
+
+	r := &Reporter{
 		addr:    addr,
 		storage: storage,
+	}
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	return r
+}
+
+func WithSignKey(key []byte) OptionReporter {
+	return func(reporter *Reporter) {
+		reporter.signKey = key
 	}
 }
 
@@ -95,6 +113,14 @@ func (r Reporter) reportJSON(ctx context.Context) error {
 	client := resty.New()
 
 	for _, m := range metrics {
+
+		sign, errSign := m.Sign(r.signKey)
+		if errSign != nil {
+			return fmt.Errorf("could not report metrics: %v\n", errSign)
+		}
+
+		m.Hash = sign
+
 		data, err := json.Marshal(&m)
 		if err != nil {
 			return fmt.Errorf("error encode metric to JSON: %w", err)
@@ -124,6 +150,16 @@ func (r Reporter) reportBatchJSON(ctx context.Context) error {
 	metrics, errStorage := r.storage.GetSlice()
 	if errStorage != nil {
 		return fmt.Errorf("could not report metrics: %v", errStorage)
+	}
+
+	for i, m := range metrics {
+
+		sign, errSign := m.Sign(r.signKey)
+		if errSign != nil {
+			return fmt.Errorf("could not report metrics: %v\n", errSign)
+		}
+
+		metrics[i].Hash = sign
 	}
 
 	data, err := json.Marshal(&metrics)

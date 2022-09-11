@@ -9,7 +9,6 @@ import (
 
 	"metrics-and-alerting/internal/server"
 	handler "metrics-and-alerting/internal/server/handlers"
-	"metrics-and-alerting/internal/storage"
 	"metrics-and-alerting/internal/storage/memorystorage"
 	"metrics-and-alerting/pkg/logpack"
 )
@@ -38,8 +37,11 @@ func main() {
 	//}
 
 	store := memorystorage.NewStorage()
+	storeManager := server.NewMetricsManager(
+		store,
+		server.WithSignKey([]byte(cfg.SecretKey)),
+	)
 
-	storeManager := storage.NewMetricsManager(store)
 	handlers := handler.New(storeManager, logger)
 
 	serv := server.NewServer(cfg.Addr, storeManager, handlers)

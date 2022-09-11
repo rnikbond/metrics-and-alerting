@@ -18,6 +18,7 @@ type Agent struct {
 	pollInterval   time.Duration
 	addr           string
 	reportType     string
+	signKey        []byte
 	storage        storage.Repository
 	logger         *logpack.LogPack
 }
@@ -66,6 +67,12 @@ func WithReportURL(reportURL string) OptionsAgent {
 	}
 }
 
+func WithSignKey(key []byte) OptionsAgent {
+	return func(agent *Agent) {
+		agent.signKey = key
+	}
+}
+
 // Start Запуск агента для сбора и отправки метрик
 func (a Agent) Start(ctx context.Context) error {
 
@@ -108,7 +115,7 @@ func (a Agent) updateMetrics(ctx context.Context) {
 
 func (a Agent) reportMetrics(ctx context.Context) {
 
-	report := reporter.NewReporter(a.addr, a.storage)
+	report := reporter.NewReporter(a.addr, a.storage, reporter.WithSignKey(a.signKey))
 	ticker := time.NewTicker(a.reportInterval)
 
 	for {

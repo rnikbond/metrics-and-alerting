@@ -1,8 +1,9 @@
-package storage
+package server
 
 import (
 	"fmt"
 
+	storage2 "metrics-and-alerting/internal/storage"
 	"metrics-and-alerting/pkg/errs"
 	"metrics-and-alerting/pkg/metric"
 )
@@ -10,12 +11,11 @@ import (
 type OptionsManager func(*MetricsManager)
 
 type MetricsManager struct {
-	storage  Repository
-	signKey  []byte
-	isVerify bool
+	storage storage2.Repository
+	signKey []byte
 }
 
-func NewMetricsManager(storage Repository, opts ...OptionsManager) *MetricsManager {
+func NewMetricsManager(storage storage2.Repository, opts ...OptionsManager) *MetricsManager {
 
 	manager := &MetricsManager{
 		storage: storage,
@@ -34,19 +34,9 @@ func WithSignKey(signKey []byte) OptionsManager {
 	}
 }
 
-func WithVerify() OptionsManager {
-	return func(manager *MetricsManager) {
-		manager.isVerify = true
-	}
-}
-
 // VerifySign - Проверка подписи метрики
 func (manager MetricsManager) VerifySign(metric metric.Metric) error {
-	if !manager.isVerify {
-		return nil
-	}
-
-	if len(manager.signKey) < 1 {
+	if manager.signKey == nil {
 		return nil
 	}
 

@@ -131,7 +131,7 @@ func WithValueInt(value int64) OptionsMetric {
 // и при помощи алгоритка SHA256 и ключа key вычиляется хеш метрики
 func (metric Metric) Sign(key []byte) (string, error) {
 
-	if len(key) < 1 {
+	if key == nil {
 		return ``, nil
 	}
 
