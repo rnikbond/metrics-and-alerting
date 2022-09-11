@@ -25,13 +25,13 @@ func NewServer(addr string, h *handler.Handler) *MetricsServer {
 
 	r.Get("/", h.GetMetrics())
 	r.Get("/value/*", h.Get())
-	//r.Post("/value", h.Get())
-	//r.Post("/value/", h.Get())
+	r.Post("/value", h.Get())
+	r.Post("/value/", h.Get())
 
 	r.Post("/update/*", h.UpdateURL())
-	//r.Post("/update", h.UpdateJSON())
-	//r.Post("/updates", h.UpdateDataJSON())
-	//r.Post("/updates/", h.UpdateDataJSON())
+	r.Post("/update", h.UpdateJSON())
+	r.Post("/updates", h.UpdateDataJSON())
+	r.Post("/updates/", h.UpdateDataJSON())
 
 	serv := &MetricsServer{
 		HTTP: &http.Server{
