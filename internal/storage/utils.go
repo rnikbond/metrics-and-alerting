@@ -4,6 +4,7 @@ import (
 	"strconv"
 )
 
+// ToInt64 Конвертирование значения в int64
 func ToInt64(value interface{}) (int64, error) {
 
 	switch i := value.(type) {
