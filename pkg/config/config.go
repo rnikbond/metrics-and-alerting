@@ -29,6 +29,7 @@ type Config struct {
 	DatabaseDSN    string        `env:"DATABASE_DSN"`
 	ReportType     string        `env:"REPORT_TYPE"`
 	VerifyOnUpdate bool          `env:"VERIFY_ON_UPDATE"`
+	PprofHTTP      string        `env:"PPROF_HTTP"`
 }
 
 // SetDefault Инициализация значений по умолчанию
@@ -57,6 +58,7 @@ func (cfg Config) String() string {
 	fmt.Fprintln(w, "DATABASE_DSN\t", cfg.DatabaseDSN)
 	fmt.Fprintln(w, "KEY\t", cfg.SecretKey)
 	fmt.Fprintln(w, "REPORT_TYPE\t", cfg.ReportType)
+	fmt.Fprintln(w, "PPROF_HTTP\t", cfg.PprofHTTP)
 
 	if err := w.Flush(); err != nil {
 		return err.Error()

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strconv"
@@ -27,6 +29,7 @@ func parseFlags() {
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key sign")
 	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "string - database data source name")
 	flag.BoolVar(&cfg.VerifyOnUpdate, "vu", cfg.VerifyOnUpdate, "bool - verify changes")
+	flag.StringVar(&cfg.PprofHTTP, "pa", cfg.PprofHTTP, "pprof address - for run profiler")
 
 	addr := flag.String("a", cfg.Addr, "string - host:port")
 	flag.Parse()
@@ -62,10 +65,22 @@ func prepareConfig() {
 	cfg.ReadEnvVars()
 }
 
+func runProfiler(addr string) {
+	go func() {
+		if err := http.ListenAndServe(addr, nil); err != nil {
+			log.Printf("error start profiler server: %v\n", err)
+		}
+	}()
+
+	fmt.Printf("Profiler: http://%s/debug/pprof/profile\n", addr)
+}
+
 func main() {
 
 	prepareConfig()
 	fmt.Println(cfg)
+
+	runProfiler(cfg.PprofHTTP)
 
 	var store storage.Storager
 
