@@ -122,6 +122,9 @@ func (r Reporter) reportJSON(ctx context.Context) error {
 		}
 
 		m.Hash = sign
+		if m.ID == "PollCount" {
+			fmt.Printf("send PollCount: %s\n", m)
+		}
 
 		data, err := json.Marshal(&m)
 		if err != nil {

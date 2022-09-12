@@ -95,7 +95,7 @@ func (a Agent) Start(ctx context.Context) error {
 	return nil
 }
 
-func (a Agent) updateMetrics(ctx context.Context) {
+func (a *Agent) updateMetrics(ctx context.Context) {
 
 	scan := scanner.NewScanner(a.storage)
 	ticker := time.NewTicker(a.pollInterval)
@@ -114,7 +114,7 @@ func (a Agent) updateMetrics(ctx context.Context) {
 	}
 }
 
-func (a Agent) reportMetrics(ctx context.Context) {
+func (a *Agent) reportMetrics(ctx context.Context) {
 
 	report := reporter.NewReporter(a.addr, a.storage, reporter.WithSignKey(a.signKey))
 	ticker := time.NewTicker(a.reportInterval)
@@ -131,7 +131,11 @@ func (a Agent) reportMetrics(ctx context.Context) {
 			pollCount, _ := metric.CreateMetric(metric.CounterType, "PollCount", metric.WithValueInt(0))
 			if err := a.storage.Upsert(pollCount); err != nil {
 				a.logger.Err.Printf("error reset metric %s after report\n", pollCount.ShotString())
+			} else {
+				fmt.Println("Success reset PollCount")
 			}
+
+			fmt.Println(a.storage.String())
 
 		case <-ctx.Done():
 			return
