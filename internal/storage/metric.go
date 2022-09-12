@@ -15,6 +15,10 @@ const (
 	CounterType string = "counter"
 )
 
+type (
+	OptionMetric func(*Metric)
+)
+
 type Metric struct {
 	ID    string   `json:"id"`              // имя метрики
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
@@ -60,6 +64,58 @@ func CreateMetric(typeMetric, id string, value ...interface{}) (Metric, error) {
 	}
 
 	return metric, nil
+}
+
+func NewMetric(typeMetric, id string, opts ...OptionMetric) (Metric, error) {
+
+	if len(id) < 1 {
+		return Metric{}, ErrInvalidID
+	}
+
+	if len(typeMetric) < 1 {
+		return Metric{}, ErrInvalidType
+	}
+
+	m := Metric{
+		ID:    id,
+		MType: typeMetric,
+	}
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	return m, nil
+}
+
+func WithValueFloat64(val float64) OptionMetric {
+	return func(metric *Metric) {
+
+		switch metric.MType {
+
+		case GaugeType:
+			metric.Value = &val
+
+		case CounterType:
+			tmp := int64(val)
+			metric.Delta = &tmp
+		}
+	}
+}
+
+func WithValueInt64(val int64) OptionMetric {
+	return func(metric *Metric) {
+
+		switch metric.MType {
+
+		case GaugeType:
+			tmp := float64(val)
+			metric.Value = &tmp
+
+		case CounterType:
+			metric.Delta = &val
+		}
+	}
 }
 
 func (metric Metric) StringValue() string {
