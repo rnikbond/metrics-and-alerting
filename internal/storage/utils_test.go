@@ -11,10 +11,8 @@ import (
 func ExampleToInt64() {
 
 	someStruct := struct {
-		id    string
 		value interface{}
 	}{
-		id:    "test",
 		value: 1231,
 	}
 
@@ -29,10 +27,8 @@ func ExampleToInt64() {
 func ExampleToFloat64() {
 
 	someStruct := struct {
-		id    string
 		value interface{}
 	}{
-		id:    "test",
 		value: 1231.2222,
 	}
 
