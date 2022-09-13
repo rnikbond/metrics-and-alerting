@@ -19,6 +19,7 @@ import (
 var (
 	_ storage.Repository = (*server.MetricsManager)(nil)
 	_ storage.Repository = (*memorystorage.MemoryStorage)(nil)
+	_ storage.Repository = (*filestorage.Storage)(nil)
 )
 
 func main() {

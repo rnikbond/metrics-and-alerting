@@ -145,7 +145,7 @@ func (store *Storage) Set(metric metricPkg.Metric) error {
 
 	if store.asyncSave() {
 		if err := store.save(); err != nil {
-			store.logger.Err.Printf("could not flush metrics: %w", err)
+			store.logger.Err.Printf("could not flush metrics: %v\n", err)
 		}
 	}
 
@@ -162,7 +162,7 @@ func (store *Storage) Upsert(metric metricPkg.Metric) error {
 
 	if store.asyncSave() {
 		if err := store.save(); err != nil {
-			store.logger.Err.Printf("could not flush metrics: %w", err)
+			store.logger.Err.Printf("could not flush metrics: %v\n", err)
 		}
 	}
 
@@ -179,7 +179,7 @@ func (store *Storage) UpsertSlice(metrics []metricPkg.Metric) error {
 
 	if store.asyncSave() {
 		if err := store.save(); err != nil {
-			store.logger.Err.Printf("could not flush metrics: %w", err)
+			store.logger.Err.Printf("could not flush metrics: %v\n", err)
 		}
 	}
 
@@ -205,7 +205,7 @@ func (store *Storage) Delete(metric metricPkg.Metric) error {
 
 	if store.asyncSave() {
 		if err := store.save(); err != nil {
-			store.logger.Err.Printf("could not flush metrics: %w", err)
+			store.logger.Err.Printf("could not flush metrics: %v\n", err)
 		}
 	}
 
@@ -213,7 +213,7 @@ func (store *Storage) Delete(metric metricPkg.Metric) error {
 }
 
 func (store *Storage) String() string {
-	return store.String()
+	return store.memory.String()
 }
 
 func (store *Storage) CheckHealth() bool {
@@ -230,7 +230,7 @@ func (store *Storage) Close() error {
 	}
 
 	if err := store.save(); err != nil {
-		store.logger.Err.Printf("could not flush metrics: %w", err)
+		store.logger.Err.Printf("could not flush metrics: %v\n", err)
 	}
 
 	return nil
