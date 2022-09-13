@@ -32,9 +32,9 @@ func ExampleToFloat64() {
 		value: 1231.2222,
 	}
 
-	intVal, _ := ToFloat64(someStruct.value)
+	floatVal, _ := ToFloat64(someStruct.value)
 
-	fmt.Printf("value: %.4f\n", intVal)
+	fmt.Printf("value: %.4f\n", floatVal)
 
 	// Output:
 	// value: 1231.2222
