@@ -124,7 +124,7 @@ func (ms *MemoryStorage) Delete(metric metricPkg.Metric) error {
 	return nil
 }
 
-func (ms MemoryStorage) String() string {
+func (ms *MemoryStorage) String() string {
 
 	builder := strings.Builder{}
 
@@ -139,10 +139,10 @@ func (ms MemoryStorage) String() string {
 	return builder.String()
 }
 
-func (ms MemoryStorage) CheckHealth() bool {
+func (ms *MemoryStorage) CheckHealth() bool {
 	return true
 }
 
-func (ms MemoryStorage) Close() error {
+func (ms *MemoryStorage) Close() error {
 	return nil
 }

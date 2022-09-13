@@ -17,7 +17,7 @@ type MetricsServer struct {
 func NewServer(addr string, h *handler.Handler) *MetricsServer {
 
 	r := chi.NewRouter()
-	r.Use(h.DecompressRequest)
+	//r.Use(h.DecompressRequest)
 	//r.Use(middleware.Logger)
 
 	r.Get("/ping", h.Ping())
@@ -31,8 +31,8 @@ func NewServer(addr string, h *handler.Handler) *MetricsServer {
 	r.Post("/update/*", h.UpdateURL())
 	r.Post("/update", h.UpdateJSON())
 	r.Post("/update/", h.UpdateJSON())
-	r.Post("/updates", h.UpdateDataJSON())
-	r.Post("/updates/", h.UpdateDataJSON())
+	//r.Post("/updates", h.UpdateDataJSON())
+	//r.Post("/updates/", h.UpdateDataJSON())
 
 	serv := &MetricsServer{
 		HTTP: &http.Server{
