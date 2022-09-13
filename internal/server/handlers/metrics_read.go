@@ -13,10 +13,10 @@ import (
 func (h Handler) GetAsText() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		if r.Header.Get(ContentType) != TextPlain {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
+		//if r.Header.Get(ContentType) != TextPlain {
+		//	w.WriteHeader(http.StatusMethodNotAllowed)
+		//	return
+		//}
 
 		w.Header().Set(ContentType, TextPlain)
 
