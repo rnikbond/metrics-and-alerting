@@ -30,8 +30,6 @@ func (h Handler) UpdateURL() http.HandlerFunc {
 		dataURL := strings.ReplaceAll(r.URL.String(), "/update/", "")
 		partsURL := strings.Split(dataURL, "/")
 
-		h.logger.Info.Printf("Request UpdateURL: %s", r.URL)
-
 		if len(partsURL) != partsUpdateURL {
 
 			err := fmt.Errorf("invalid URL: %s", r.URL.String())
@@ -44,8 +42,6 @@ func (h Handler) UpdateURL() http.HandlerFunc {
 			partsURL[idxName],
 			metricPkg.WithValue(partsURL[idxValue]),
 		)
-
-		h.logger.Info.Printf("Created metric: %s", metric)
 
 		if err != nil {
 			log.Printf("error create metric: %v\n", err)

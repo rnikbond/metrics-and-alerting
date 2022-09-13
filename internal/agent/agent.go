@@ -129,13 +129,9 @@ func (a *Agent) reportMetrics(ctx context.Context) {
 
 			// Сброс значения метрики PollCount
 			pollCount, _ := metric.CreateMetric(metric.CounterType, "PollCount", metric.WithValueInt(0))
-			if err := a.storage.Upsert(pollCount); err != nil {
+			if err := a.storage.Set(pollCount); err != nil {
 				a.logger.Err.Printf("error reset metric %s after report\n", pollCount.ShotString())
-			} else {
-				fmt.Println("Success reset PollCount")
 			}
-
-			fmt.Println(a.storage.String())
 
 		case <-ctx.Done():
 			return

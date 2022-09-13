@@ -5,6 +5,7 @@ import (
 )
 
 type Repository interface {
+	Set(metric metric.Metric) error
 	Upsert(metric metric.Metric) error
 	UpsertSlice(metrics []metric.Metric) error
 

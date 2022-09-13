@@ -9,8 +9,14 @@ import (
 
 	"metrics-and-alerting/internal/server"
 	handler "metrics-and-alerting/internal/server/handlers"
+	"metrics-and-alerting/internal/storage"
 	"metrics-and-alerting/internal/storage/memorystorage"
 	"metrics-and-alerting/pkg/logpack"
+)
+
+var (
+	_ storage.Repository = (*server.MetricsManager)(nil)
+	_ storage.Repository = (*memorystorage.MemoryStorage)(nil)
 )
 
 func main() {

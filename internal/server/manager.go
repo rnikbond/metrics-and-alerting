@@ -56,6 +56,15 @@ func (manager MetricsManager) VerifySign(metric metric.Metric) error {
 	return nil
 }
 
+func (manager MetricsManager) Set(metric metric.Metric) error {
+
+	if err := manager.VerifySign(metric); err != nil {
+		return fmt.Errorf("could not set metric: %w", err)
+	}
+
+	return manager.storage.Set(metric)
+}
+
 func (manager MetricsManager) Upsert(metric metric.Metric) error {
 
 	if err := manager.VerifySign(metric); err != nil {
