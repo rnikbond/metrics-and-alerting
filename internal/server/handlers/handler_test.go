@@ -2,7 +2,6 @@ package handler
 
 import (
 	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	"io"
 	"math/rand"
@@ -73,25 +72,21 @@ func TestGetJSON(t *testing.T) {
 	require.NoError(t, st.Upsert(counterMetric))
 
 	tests := []struct {
-		name            string
-		acceptEncoding  string
-		contentEncoding string
-		method          string
-		contentType     string
-		wantStatus      int
-		wantError       bool
-		wantMetric      metric.Metric
-		requestMetric   metric.Metric
+		name          string
+		method        string
+		contentType   string
+		wantStatus    int
+		wantError     bool
+		wantMetric    metric.Metric
+		requestMetric metric.Metric
 	}{
 		{ // Тело запроса отправляется в сжатом виде и ответ должен быть в сжатом виде
-			name:            "Test get gauge -> OK",
-			acceptEncoding:  GZip,
-			contentEncoding: GZip,
-			method:          http.MethodPost,
-			contentType:     ApplicationJSON,
-			wantStatus:      http.StatusOK,
-			wantError:       false,
-			wantMetric:      gaugeMetric,
+			name:        "Test get gauge -> OK",
+			method:      http.MethodPost,
+			contentType: ApplicationJSON,
+			wantStatus:  http.StatusOK,
+			wantError:   false,
+			wantMetric:  gaugeMetric,
 			requestMetric: metric.Metric{
 				ID:    gaugeMetric.ID,
 				MType: metric.GaugeType,
@@ -121,14 +116,12 @@ func TestGetJSON(t *testing.T) {
 			},
 		},
 		{ // Тело запроса отправляется в сжатом виде и ответ должен быть в сжатом виде
-			name:            "Test get counter -> OK",
-			acceptEncoding:  GZip,
-			contentEncoding: GZip,
-			method:          http.MethodPost,
-			contentType:     ApplicationJSON,
-			wantStatus:      http.StatusOK,
-			wantError:       false,
-			wantMetric:      counterMetric,
+			name:        "Test get counter -> OK",
+			method:      http.MethodPost,
+			contentType: ApplicationJSON,
+			wantStatus:  http.StatusOK,
+			wantError:   false,
+			wantMetric:  counterMetric,
 			requestMetric: metric.Metric{
 				ID:    counterMetric.ID,
 				MType: metric.CounterType,
@@ -197,27 +190,9 @@ func TestGetJSON(t *testing.T) {
 			nextHandler := handlers.GetAsJSON()
 			middleware := handlers.DecompressRequest(nextHandler)
 
-			var request *http.Request
-			switch tt.contentEncoding {
-
-			case GZip:
-				var compress bytes.Buffer
-				gzipWriter := gzip.NewWriter(&compress)
-				_, errGZip := gzipWriter.Write(encode)
-				require.NoError(t, errGZip)
-
-				errGZip = gzipWriter.Close()
-				require.NoError(t, errGZip)
-
-				request = httptest.NewRequest(tt.method, "/value/", &compress)
-				request.Header.Set(ContentEncoding, tt.contentEncoding)
-
-			default:
-				request = httptest.NewRequest(tt.method, "/value/", bytes.NewReader(encode))
-			}
+			request := httptest.NewRequest(tt.method, "/value/", bytes.NewReader(encode))
 
 			request.Header.Set(ContentType, tt.contentType)
-			request.Header.Set(AcceptEncoding, tt.acceptEncoding)
 
 			w := httptest.NewRecorder()
 			middleware.ServeHTTP(w, request)
@@ -229,22 +204,10 @@ func TestGetJSON(t *testing.T) {
 
 			if !tt.wantError {
 				require.Equal(t, response.Header.Get(ContentType), tt.contentType)
-				require.Equal(t, response.Header.Get(ContentEncoding), tt.acceptEncoding)
 
-				var reader io.ReadCloser
-				var errReader error
+				defer response.Body.Close()
 
-				switch tt.contentEncoding {
-				case GZip:
-					reader, errReader = gzip.NewReader(response.Body)
-				default:
-					reader = response.Body
-				}
-
-				require.NoError(t, errReader)
-				defer reader.Close()
-
-				data, errData := io.ReadAll(reader)
+				data, errData := io.ReadAll(response.Body)
 				require.NoError(t, errData)
 
 				var metric metric.Metric
