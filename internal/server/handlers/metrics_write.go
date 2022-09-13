@@ -100,8 +100,6 @@ func (h Handler) UpdateJSON() http.HandlerFunc {
 			return
 		}
 
-		fmt.Printf("UpdateJSON: %s\n", string(data))
-
 		var metric metricPkg.Metric
 		if err := json.Unmarshal(data, &metric); err != nil {
 			log.Printf("error decode JSON body: %v\n", err)

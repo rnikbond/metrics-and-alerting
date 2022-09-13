@@ -1,79 +1,118 @@
 package filestorage
 
-/*
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"time"
+
+	"metrics-and-alerting/internal/storage/memorystorage"
+	"metrics-and-alerting/pkg/errs"
+	"metrics-and-alerting/pkg/logpack"
+	metricPkg "metrics-and-alerting/pkg/metric"
 )
 
-type FileStorage struct {
-	fileName string
-	interval time.Duration
+type Storage struct {
+	fileName      string
+	intervalFlush time.Duration
+	logger        *logpack.LogPack
+	memory        *memorystorage.MemoryStorage
+	ctx           context.Context
+	cancel        context.CancelFunc
 }
 
-func (fs *FileStorage) File(flag int) (*os.File, error) {
-	if len(fs.fileName) < 1 {
-		return nil, ErrInvalidFilePath
+func New(fileName string, intervalFlush time.Duration, logger *logpack.LogPack) *Storage {
+
+	store := &Storage{
+		fileName:      fileName,
+		intervalFlush: intervalFlush,
+		logger:        logger,
+		memory:        memorystorage.NewStorage(),
 	}
 
-	return os.OpenFile(fs.fileName, flag, 0777)
+	store.ctx, store.cancel = context.WithCancel(context.Background())
+
+	if store.asyncSave() {
+		return nil
+	}
+
+	// Запуск задачи для сброса матрик в файл
+	// TODO :: Вынести в сервис Flusher
+	go func() {
+		ticker := time.NewTicker(store.intervalFlush)
+
+		for {
+			select {
+			case <-ticker.C:
+				if err := store.save(); err != nil {
+					store.logger.Err.Printf("Cold not flush metrics in file: %v\n", err)
+				}
+
+			case <-store.ctx.Done():
+				return
+			}
+
+		}
+	}()
+
+	return store
 }
 
-func (fs FileStorage) IsAsyncSave() bool {
-	return fs.interval == 0
+func (store Storage) openFile(flag int) (*os.File, error) {
+	if len(store.fileName) < 1 {
+		return nil, errs.ErrInvalidFilePath
+	}
+
+	return os.OpenFile(store.fileName, flag, 0777)
 }
 
-func (fs FileStorage) Save() error {
-	file, err := fs.File(os.O_CREATE | os.O_WRONLY | os.O_TRUNC)
+func (store Storage) asyncSave() bool {
+	return store.intervalFlush == 0
+}
+
+func (store Storage) save() error {
+	file, err := store.openFile(os.O_CREATE | os.O_WRONLY | os.O_TRUNC)
 	if err != nil {
-		err = fmt.Errorf("error open fileStorage fo rewrite: %w", err)
-		log.Println(err)
-		return err
+		return fmt.Errorf("error open fileStorage fo rewrite: %w", err)
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			log.Printf("error close fileStorage after Save: %v\n", err)
+			store.logger.Err.Printf("could not close file after save: %v\n", err)
 		}
 	}()
 
 	writer := bufio.NewWriter(file)
-	metrics := fs.inMemory.GetData()
-	for _, metric := range metrics {
+	metrics, errMemory := store.memory.GetSlice()
+	if errMemory != nil {
+		return fmt.Errorf("could not save metrics. Memory storage returned error: %w", err)
+	}
 
-		data, err := json.Marshal(&metric)
-		if err != nil {
-			log.Printf("error encode metric '%s'. %v\n", metric.ShotString(), err)
-			continue
-		}
+	data, err := json.Marshal(&metrics)
+	if err != nil {
+		return fmt.Errorf("could not save metrics. Marshal slice metrics retured error: %w", err)
+	}
 
-		if _, err = writer.Write(data); err == nil {
-			if err := writer.WriteByte('\n'); err != nil {
-				log.Printf("error write endline in fileStorage: %v\n", err)
-			}
-		} else {
-			log.Printf("error write JSON metric '%s' in fileStorage storage: %v\n", string(data), err)
-		}
+	if _, err = writer.Write(data); err != nil {
+		return fmt.Errorf("could not save metrics. Can not write in file: %w", err)
 	}
 
 	return writer.Flush()
 }
 
-func (fs *FileStorage) Restore() error {
+func (store *Storage) Restore() error {
 
-	file, err := fs.File(os.O_RDONLY)
+	file, err := store.openFile(os.O_RDONLY)
 	if err != nil {
-		err = fmt.Errorf("error open fileStorage fo read: %w", err)
-		log.Println(err)
+		err = fmt.Errorf("could not restore metrics. Can not open file for read: %w", err)
+		store.logger.Err.Println(err)
 		return err
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			log.Printf("error close fileStorage after Restore: %v\n", err)
+			store.logger.Err.Printf("could not close file after restore: %v\n", err)
 		}
 	}()
 
@@ -82,136 +121,117 @@ func (fs *FileStorage) Restore() error {
 	for scanner.Scan() {
 		data := scanner.Bytes()
 
-		metric := Metric{}
-		if err := json.Unmarshal(data, &metric); err != nil {
-			log.Printf("error decode metric. JSON: %s. %v", string(data), err)
+		var metrics []metricPkg.Metric
+
+		if err := json.Unmarshal(data, &metrics); err != nil {
+			store.logger.Err.Printf("could not restore metrics. Can not Unmarshal from file: %v\n", err)
 			continue
 		}
 
-		if err := fs.inMemory.Upsert(metric); err != nil {
-			log.Printf("error updating metric in memofy fileStorage storage: %s. %v", metric.ShotString(), err)
+		if err := store.memory.UpsertSlice(metrics); err != nil {
+			store.logger.Err.Printf("could not restore metrics. Can not write in memory storage: %v\n", err)
 		}
 	}
 
 	return nil
 }
 
-func (fs *FileStorage) Init(cfg config.Config) error {
-	fs.fileName = cfg.StoreFile
-	fs.interval = cfg.StoreInterval
-
-	fs.inMemory = InMemoryStorage{}
-	if err := fs.inMemory.Init(cfg); err != nil {
-		return fmt.Errorf("error init memoryStorage storage in fileStorage storage: %w", err)
+func (store *Storage) Set(metric metricPkg.Metric) error {
+	if err := store.memory.Set(metric); err != nil {
+		err = fmt.Errorf("could not set metric: %w", err)
+		store.logger.Err.Println(err)
+		return err
 	}
 
-	if cfg.Restore {
-		if err := fs.Restore(); err != nil {
-			return fmt.Errorf("error restore fileStorage storage: %w", err)
-		}
-	}
-
-	if fs.IsAsyncSave() {
-		return nil
-	}
-
-	// Запуск горутинки интервального сохранения метрик
-	go func() {
-		ticker := time.NewTicker(fs.interval)
-
-		for {
-			<-ticker.C
-			fmt.Println("store in fileStorage ...")
-			if err := fs.Save(); err != nil {
-				log.Printf("error regular save in fileStorage storage: %v\n", err)
-			}
-		}
-	}()
-
-	return nil
-}
-
-// Upsert Обновление значения метрики
-func (fs *FileStorage) Upsert(metric Metric) error {
-
-	if err := fs.inMemory.Upsert(metric); err != nil {
-		return fmt.Errorf("error update metric in fileStorage storage: %w", err)
-	}
-
-	if fs.IsAsyncSave() {
-		if err := fs.Save(); err != nil {
-			return fmt.Errorf("error save metrics in fileStorage storage: %w", err)
+	if store.asyncSave() {
+		if err := store.save(); err != nil {
+			store.logger.Err.Printf("could not flush metrics: %w", err)
 		}
 	}
 
 	return nil
 }
 
-// UpsertData Всех метрик
-func (fs *FileStorage) UpsertData(metrics []Metric) error {
+func (store *Storage) Upsert(metric metricPkg.Metric) error {
 
-	if err := fs.inMemory.UpsertData(metrics); err != nil {
-		return fmt.Errorf("error update metric in fileStorage storage: %w", err)
+	if err := store.memory.Upsert(metric); err != nil {
+		err = fmt.Errorf("could not upsert metric: %w", err)
+		store.logger.Err.Println(err)
+		return err
 	}
 
-	if fs.IsAsyncSave() {
-		if err := fs.Save(); err != nil {
-			return fmt.Errorf("error save metrics in fileStorage storage: %w", err)
+	if store.asyncSave() {
+		if err := store.save(); err != nil {
+			store.logger.Err.Printf("could not flush metrics: %w", err)
 		}
 	}
 
 	return nil
 }
 
-// Get - Получение полность заполненной метрики
-func (fs FileStorage) Get(metric Metric) (Metric, error) {
-	return fs.inMemory.Get(metric)
+func (store *Storage) UpsertSlice(metrics []metricPkg.Metric) error {
+
+	if err := store.memory.UpsertSlice(metrics); err != nil {
+		err = fmt.Errorf("error update batch metrics in file storage: %w", err)
+		store.logger.Err.Println(err)
+		return err
+	}
+
+	if store.asyncSave() {
+		if err := store.save(); err != nil {
+			store.logger.Err.Printf("could not flush metrics: %w", err)
+		}
+	}
+
+	return nil
 }
 
-// GetData - Получение всех, полностью заполненных, метрик
-func (fs FileStorage) GetData() []Metric {
-	return fs.inMemory.GetData()
+func (store *Storage) Get(metric metricPkg.Metric) (metricPkg.Metric, error) {
+	return store.memory.Get(metric)
+}
+
+func (store *Storage) GetSlice() ([]metricPkg.Metric, error) {
+	return store.memory.GetSlice()
 }
 
 // Delete - Удаление метрики
-func (fs *FileStorage) Delete(metric Metric) error {
+func (store *Storage) Delete(metric metricPkg.Metric) error {
 
-	if err := fs.inMemory.Delete(metric); err != nil {
-		return fmt.Errorf("error delete metric in memoryStorage fileStorage storage: %w", err)
+	if err := store.memory.Delete(metric); err != nil {
+		err = fmt.Errorf("could not delete metric: %w", err)
+		store.logger.Err.Println(err)
+		return err
 	}
 
-	if fs.IsAsyncSave() {
-		if err := fs.Save(); err != nil {
-			return fmt.Errorf("error save metrics in fileStorage storage: %w", err)
+	if store.asyncSave() {
+		if err := store.save(); err != nil {
+			store.logger.Err.Printf("could not flush metrics: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (fs *FileStorage) Reset() error {
-	if err := fs.inMemory.Reset(); err != nil {
-		return fmt.Errorf("error reset memoryStorage storage in fileStorage storage: %w", err)
-	}
-
-	file, err := fs.File(os.O_TRUNC)
-	if !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("error reset fileStorage storage: %w", err)
-	}
-
-	return file.Close()
+func (store *Storage) String() string {
+	return store.String()
 }
 
-func (fs FileStorage) CheckHealth() bool {
-	_, err := os.Stat(fs.fileName)
+func (store *Storage) CheckHealth() bool {
+	_, err := os.Stat(store.fileName)
 	return !errors.Is(err, os.ErrNotExist)
 }
 
-func (fs FileStorage) Destroy() {
-	if err := fs.Save(); err != nil {
-		log.Printf("error save data in fileStorage storage defore destroy: %v\n", err)
+func (store *Storage) Close() error {
+
+	store.cancel()
+
+	if store.asyncSave() {
+		return nil
 	}
 
-	fs.inMemory.Destroy()
+	if err := store.save(); err != nil {
+		store.logger.Err.Printf("could not flush metrics: %w", err)
+	}
+
+	return nil
 }
-*/

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os/signal"
 	"syscall"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"metrics-and-alerting/internal/server"
 	handler "metrics-and-alerting/internal/server/handlers"
 	"metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/internal/storage/filestorage"
 	"metrics-and-alerting/internal/storage/memorystorage"
 	"metrics-and-alerting/pkg/logpack"
 )
@@ -31,18 +33,23 @@ func main() {
 	cfg.ReadEnvVars()
 	fmt.Println(cfg)
 
-	//var store storage.Repository
-	//if cfg.DatabaseDSN != "" {
-	//	//store = &storage.DataBaseStorage{}
-	//} else if cfg.StoreFile != "" {
-	//	//store = &storage.FileStorage{}
-	//	log.Println("using storage: File")
-	//} else {
-	//	store = memoryStorage.NewStorage()
-	//	log.Println("using storage: Memory")
-	//}
+	var store storage.Repository
+	if cfg.DatabaseDSN != "" {
+		//store = &storage.DataBaseStorage{}
+		store = memorystorage.NewStorage()
+	} else if cfg.StoreFile != "" {
+		fs := filestorage.New(cfg.StoreFile, cfg.StoreInterval, logger)
+		if cfg.Restore {
+			fs.Restore()
+		}
 
-	store := memorystorage.NewStorage()
+		store = fs
+		log.Println("using storage: File")
+	} else {
+		store = memorystorage.NewStorage()
+		log.Println("using storage: Memory")
+	}
+
 	storeManager := server.NewMetricsManager(
 		store,
 		server.WithSignKey([]byte(cfg.SecretKey)),
