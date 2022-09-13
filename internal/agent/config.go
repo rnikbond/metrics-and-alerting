@@ -53,10 +53,14 @@ func (cfg *Config) ParseFlags() error {
 		return fmt.Errorf("need address in a format host:port")
 	}
 
-	if len(parsedAddr[0]) > 0 && parsedAddr[0] != "localhost" {
-		if ip := net.ParseIP(parsedAddr[0]); ip == nil {
-			return fmt.Errorf("incorrect ip: " + parsedAddr[0])
+	if len(parsedAddr[0]) > 0 {
+		if parsedAddr[0] != "localhost" {
+			if ip := net.ParseIP(parsedAddr[0]); ip == nil {
+				return fmt.Errorf("incorrect ip: " + parsedAddr[0])
+			}
 		}
+	} else {
+		*addr = "localhost" + *addr
 	}
 
 	if _, err := strconv.Atoi(parsedAddr[1]); err != nil {
