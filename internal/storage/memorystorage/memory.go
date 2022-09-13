@@ -22,7 +22,7 @@ func NewStorage() *MemoryStorage {
 
 // Find - Поиск метрики в слайсе
 // Возвращается индекс метрики в слайсе и ошибку, если такой метрики не существует
-func (ms MemoryStorage) Find(mSeek metricPkg.Metric) (int, error) {
+func (ms *MemoryStorage) Find(mSeek metricPkg.Metric) (int, error) {
 
 	for i, m := range ms.metrics {
 		if m.MType == mSeek.MType && m.ID == mSeek.ID {
@@ -104,7 +104,7 @@ func (ms *MemoryStorage) Get(metric metricPkg.Metric) (metricPkg.Metric, error) 
 }
 
 // GetSlice - Получение всех метрик в виде списка
-func (ms MemoryStorage) GetSlice() ([]metricPkg.Metric, error) {
+func (ms *MemoryStorage) GetSlice() ([]metricPkg.Metric, error) {
 
 	return ms.metrics, nil
 }
