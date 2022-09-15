@@ -29,7 +29,7 @@ func parseFlags() {
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key sign")
 	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "string - database data source name")
 	flag.BoolVar(&cfg.VerifyOnUpdate, "vu", cfg.VerifyOnUpdate, "bool - verify changes")
-	flag.StringVar(&cfg.PprofHTTP, "pa", cfg.PprofHTTP, "pprof address - for run profiler")
+	flag.StringVar(&cfg.PprofAddr, "pa", cfg.PprofAddr, "pprof address - for run profiler")
 
 	addr := flag.String("a", cfg.Addr, "string - host:port")
 	flag.Parse()
@@ -71,8 +71,6 @@ func runProfiler(addr string) {
 			log.Printf("error start profiler server: %v\n", err)
 		}
 	}()
-
-	fmt.Printf("Profiler: http://%s/debug/pprof/profile\n", addr)
 }
 
 func main() {
@@ -80,7 +78,7 @@ func main() {
 	prepareConfig()
 	fmt.Println(cfg)
 
-	runProfiler(cfg.PprofHTTP)
+	runProfiler(cfg.PprofAddr)
 
 	var store storage.Storager
 
