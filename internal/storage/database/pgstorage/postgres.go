@@ -2,16 +2,18 @@ package pgstorage
 
 import (
 	"database/sql"
+	"time"
 
 	"metrics-and-alerting/pkg/logpack"
 )
 
 type Postgres struct {
 	driver *sql.DB
+
 	logger *logpack.LogPack
 }
 
-func NewStorage(dsn string, logger *logpack.LogPack) (*Postgres, error) {
+func New(dsn string, intervalFlush time.Duration, logger *logpack.LogPack) (*Postgres, error) {
 
 	driver, errConnect := sql.Open("pgStorage", dsn)
 	if errConnect != nil {
