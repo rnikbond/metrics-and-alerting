@@ -14,7 +14,7 @@ type InMemoryStorage struct {
 	isVerify bool
 }
 
-// VerifySign - Проверка подписи метрики
+// VerifySign - Проверка подписи метрики.
 func (ims InMemoryStorage) VerifySign(metric Metric) error {
 	if !ims.isVerify {
 		return nil
@@ -36,7 +36,7 @@ func (ims InMemoryStorage) VerifySign(metric Metric) error {
 }
 
 // Find - Поиск метрики пл типу и идентификатору.
-// Возвращается индекс метрики в слайсе и ошибка, если такой метрики не существует
+// Возвращается индекс метрики в слайсе и ошибку, если такой метрики не существует.
 func (ims *InMemoryStorage) Find(typeMetric, id string) (int, error) {
 
 	for i, metric := range ims.metrics {
@@ -50,7 +50,7 @@ func (ims *InMemoryStorage) Find(typeMetric, id string) (int, error) {
 
 // CreateIfNotExist - Ищет метрику по типу и идентификатору.
 // Если метриик не существует, то создается новая с указанными типом и идентификатором.
-// Возвращается индекс метрики в слайсе
+// Возвращается индекс метрики в слайсе.
 func (ims *InMemoryStorage) CreateIfNotExist(typeMetric, id string) (int, error) {
 
 	if len(id) < 1 {
@@ -81,9 +81,10 @@ func (ims *InMemoryStorage) Init(cfg config.Config) error {
 	return nil
 }
 
-// Upsert Обновление значения метрики
-// Для типа "gauge" - значение обновляется на value
-// Для типа "counter" -  старому значению добавляется новое значение value
+// Upsert Обновление значения метрики.
+// Если обновляемой метрики ранее не было - она будет создана.
+// Для типа "gauge" - значение обновляется на value.
+// Для типа "counter" -  старому значению добавляется новое значение value.
 func (ims *InMemoryStorage) Upsert(metric Metric) error {
 
 	if err := ims.VerifySign(metric); err != nil {
@@ -126,7 +127,7 @@ func (ims *InMemoryStorage) Upsert(metric Metric) error {
 	return nil
 }
 
-// UpsertData - Обновление всех метрик
+// UpsertData - Обновление всех метрик.
 func (ims *InMemoryStorage) UpsertData(metrics []Metric) error {
 	for _, metric := range metrics {
 		if err := ims.Upsert(metric); err != nil {
@@ -137,7 +138,7 @@ func (ims *InMemoryStorage) UpsertData(metrics []Metric) error {
 	return nil
 }
 
-// Get - Получение полность заполненной метрики
+// Get - Получение полностью заполненной метрики.
 func (ims InMemoryStorage) Get(metric Metric) (Metric, error) {
 
 	idx, err := ims.Find(metric.MType, metric.ID)
@@ -152,7 +153,7 @@ func (ims InMemoryStorage) Get(metric Metric) (Metric, error) {
 	return ims.metrics[idx], nil
 }
 
-// GetData - Получение всех, полностью заполненных, метрик
+// GetData - Получение всех, полностью заполненных, метрик.
 func (ims InMemoryStorage) GetData() []Metric {
 
 	if len(ims.signKey) > 0 {
@@ -166,7 +167,7 @@ func (ims InMemoryStorage) GetData() []Metric {
 	return ims.metrics
 }
 
-// Delete - Удаление метрики
+// Delete - Удаление метрики.
 func (ims *InMemoryStorage) Delete(metric Metric) error {
 
 	idx, err := ims.Find(metric.MType, metric.ID)
@@ -178,6 +179,7 @@ func (ims *InMemoryStorage) Delete(metric Metric) error {
 	return nil
 }
 
+// Reset Удаление всех данных из хранилища.
 func (ims *InMemoryStorage) Reset() error {
 	ims.metrics = ims.metrics[:0]
 	return nil

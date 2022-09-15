@@ -11,6 +11,18 @@ import (
 	"github.com/go-chi/chi"
 )
 
+// StartMetricsHTTPServer Запуск HTTP сервера.
+// Настраивается роутер для обработки запросов.
+//
+// Обрабатываются следующие запросы для получения данных:
+// • GET /ping - Возвращает признак работоспособности storage.
+// • GET /value/<type>/<id> - Возвращает в теле значение метрики.
+// • POST /value | /value/ - Возвращает данные метрики в виде JSON.
+//
+// Обрабатываются следующие запросы для изменения данных:
+// • POST /update/<type>/<id>/<value> - Обновление значения одной метрики, данные передаеются в URL запроса.
+// • POST /update | /update/ - Обновление значения одной метрики, данные передаеются в теле запроса в виде JSON.
+// • POST /updates | /updates/ - Обновление значений метрик, данные передаеются в теле запроса в виде JSON.
 func StartMetricsHTTPServer(memStore storage.Storager, cfg config.Config) *http.Server {
 
 	r := chi.NewRouter()

@@ -1,11 +1,44 @@
 package storage
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func ExampleToInt64() {
+
+	someStruct := struct {
+		value interface{}
+	}{
+		value: 1231,
+	}
+
+	intVal, _ := ToInt64(someStruct.value)
+
+	fmt.Printf("value: %d\n", intVal)
+
+	// Output:
+	// value: 1231
+}
+
+func ExampleToFloat64() {
+
+	someStruct := struct {
+		value interface{}
+	}{
+		value: 1231.2222,
+	}
+
+	floatVal, _ := ToFloat64(someStruct.value)
+
+	fmt.Printf("value: %.4f\n", floatVal)
+
+	// Output:
+	// value: 1231.2222
+}
 
 func TestToInt64(t *testing.T) {
 	type args struct {

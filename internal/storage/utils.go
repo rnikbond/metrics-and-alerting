@@ -4,6 +4,7 @@ import (
 	"strconv"
 )
 
+// ToInt64 Конвертирование значения в int64
 func ToInt64(value interface{}) (int64, error) {
 
 	switch i := value.(type) {
@@ -43,6 +44,7 @@ func ToInt64(value interface{}) (int64, error) {
 	}
 }
 
+// ToFloat64 Конвертирование значения в float64
 func ToFloat64(value interface{}) (float64, error) {
 
 	switch i := value.(type) {
