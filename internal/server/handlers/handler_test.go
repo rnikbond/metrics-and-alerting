@@ -12,7 +12,7 @@ import (
 
 	"metrics-and-alerting/internal/storage/memstore"
 	"metrics-and-alerting/pkg/logpack"
-	"metrics-and-alerting/pkg/metric"
+	metricPkg "metrics-and-alerting/pkg/metric"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,18 +34,18 @@ func randInt64() *int64 {
 	return &val
 }
 
-func NewGaugeMetric() metric.Metric {
-	return metric.Metric{
+func NewGaugeMetric() metricPkg.Metric {
+	return metricPkg.Metric{
 		ID:    "testGauge",
-		MType: metric.GaugeType,
+		MType: metricPkg.GaugeType,
 		Value: randFloat64(),
 	}
 }
 
-func NewCounterMetric() metric.Metric {
-	return metric.Metric{
+func NewCounterMetric() metricPkg.Metric {
+	return metricPkg.Metric{
 		ID:    "testCounter",
-		MType: metric.CounterType,
+		MType: metricPkg.CounterType,
 		Delta: randInt64(),
 	}
 }
@@ -54,7 +54,7 @@ func NewCounterMetric() metric.Metric {
 func TestGetJSON(t *testing.T) {
 
 	logger := logpack.NewLogger()
-	st := memstore.NewStorage()
+	st := memstore.New()
 	handlers := New(st, logger)
 
 	gaugeMetric := NewGaugeMetric()
@@ -77,8 +77,8 @@ func TestGetJSON(t *testing.T) {
 		contentType   string
 		wantStatus    int
 		wantError     bool
-		wantMetric    metric.Metric
-		requestMetric metric.Metric
+		wantMetric    metricPkg.Metric
+		requestMetric metricPkg.Metric
 	}{
 		{ // Тело запроса отправляется в сжатом виде и ответ должен быть в сжатом виде
 			name:        "Test get gauge -> OK",
@@ -87,9 +87,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:  http.StatusOK,
 			wantError:   false,
 			wantMetric:  gaugeMetric,
-			requestMetric: metric.Metric{
+			requestMetric: metricPkg.Metric{
 				ID:    gaugeMetric.ID,
-				MType: metric.GaugeType,
+				MType: metricPkg.GaugeType,
 			},
 		},
 		{ // Тело запроса отправляется без сжатия, а ответ должен быть в сжатом виде
@@ -99,9 +99,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:  http.StatusOK,
 			wantError:   false,
 			wantMetric:  gaugeMetric,
-			requestMetric: metric.Metric{
+			requestMetric: metricPkg.Metric{
 				ID:    gaugeMetric.ID,
-				MType: metric.GaugeType,
+				MType: metricPkg.GaugeType,
 			},
 		},
 		{ // Запрос без указания заголовка Content-Type
@@ -110,9 +110,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus: http.StatusUnsupportedMediaType,
 			wantError:  true,
 			wantMetric: gaugeMetric,
-			requestMetric: metric.Metric{
+			requestMetric: metricPkg.Metric{
 				ID:    gaugeMetric.ID,
-				MType: metric.GaugeType,
+				MType: metricPkg.GaugeType,
 			},
 		},
 		{ // Тело запроса отправляется в сжатом виде и ответ должен быть в сжатом виде
@@ -122,9 +122,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:  http.StatusOK,
 			wantError:   false,
 			wantMetric:  counterMetric,
-			requestMetric: metric.Metric{
+			requestMetric: metricPkg.Metric{
 				ID:    counterMetric.ID,
-				MType: metric.CounterType,
+				MType: metricPkg.CounterType,
 			},
 		},
 		{ // Тело запроса отправляется без сжатия, а ответ должен быть в сжатом виде
@@ -134,9 +134,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:  http.StatusOK,
 			wantError:   false,
 			wantMetric:  counterMetric,
-			requestMetric: metric.Metric{
+			requestMetric: metricPkg.Metric{
 				ID:    counterMetric.ID,
-				MType: metric.CounterType,
+				MType: metricPkg.CounterType,
 			},
 		},
 		{ // Запрос без указания заголовка Content-Type
@@ -145,9 +145,9 @@ func TestGetJSON(t *testing.T) {
 			wantStatus: http.StatusUnsupportedMediaType,
 			wantError:  true,
 			wantMetric: counterMetric,
-			requestMetric: metric.Metric{
+			requestMetric: metricPkg.Metric{
 				ID:    counterMetric.ID,
-				MType: metric.CounterType,
+				MType: metricPkg.CounterType,
 			},
 		},
 		{ // Запрос с неизвестным типом метрики
@@ -157,7 +157,7 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:  http.StatusNotFound,
 			wantError:   true,
 			wantMetric:  counterMetric,
-			requestMetric: metric.Metric{
+			requestMetric: metricPkg.Metric{
 				ID:    counterMetric.ID,
 				MType: "ololo",
 			},
@@ -169,7 +169,7 @@ func TestGetJSON(t *testing.T) {
 			wantStatus:  http.StatusNotFound,
 			wantError:   true,
 			wantMetric:  counterMetric,
-			requestMetric: metric.Metric{
+			requestMetric: metricPkg.Metric{
 				ID: counterMetric.ID,
 			},
 		},
@@ -210,7 +210,7 @@ func TestGetJSON(t *testing.T) {
 				data, errData := io.ReadAll(response.Body)
 				require.NoError(t, errData)
 
-				var metric metric.Metric
+				var metric metricPkg.Metric
 				errDecode := json.Unmarshal(data, &metric)
 				require.NoError(t, errDecode)
 
@@ -519,10 +519,10 @@ func TestGetMetric(t *testing.T) {
 
 	logger := logpack.NewLogger()
 
-	gauge, _ := metric.CreateMetric(metric.GaugeType, "testGauge", metric.WithValueFloat(100.023))
-	counter, _ := metric.CreateMetric(metric.CounterType, "testCounter", metric.WithValueInt(100))
+	gauge, _ := metricPkg.CreateMetric(metricPkg.GaugeType, "testGauge", metricPkg.WithValueFloat(100.023))
+	counter, _ := metricPkg.CreateMetric(metricPkg.CounterType, "testCounter", metricPkg.WithValueInt(100))
 
-	st := memstore.NewStorage()
+	st := memstore.New()
 	handlers := New(st, logger)
 
 	errUpsert := st.Upsert(gauge)
@@ -550,7 +550,7 @@ func TestGetMetric(t *testing.T) {
 			name: "TestGetMetric - Type {Gauge} => [OK]",
 			metricData: metricData{
 				name:       "testGauge",
-				metricType: metric.GaugeType,
+				metricType: metricPkg.GaugeType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodGet,
@@ -562,7 +562,7 @@ func TestGetMetric(t *testing.T) {
 		{
 			name: "TestGetMetric - Type {Gauge}, Without {Name} => [Error]",
 			metricData: metricData{
-				metricType: metric.GaugeType,
+				metricType: metricPkg.GaugeType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodGet,
@@ -594,7 +594,7 @@ func TestGetMetric(t *testing.T) {
 			name: "TestGetMetric - Type {Counter} => [OK]",
 			metricData: metricData{
 				name:       "testCounter",
-				metricType: metric.CounterType,
+				metricType: metricPkg.CounterType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodGet,
@@ -606,7 +606,7 @@ func TestGetMetric(t *testing.T) {
 		{
 			name: "TestGetMetric - Type {Counter}, Without {Name} => [Error]",
 			metricData: metricData{
-				metricType: metric.CounterType,
+				metricType: metricPkg.CounterType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodGet,
@@ -682,15 +682,15 @@ func TestUpdateMetricURL(t *testing.T) {
 		name        string
 		contentType string
 		httpMethod  string
-		metric      metric.Metric
+		metric      metricPkg.Metric
 		wantCode    int
 		wantError   bool
 	}{
 		{
 			name: "Success update metric counter -> OK",
-			metric: metric.Metric{
+			metric: metricPkg.Metric{
 				ID:    "testCounter",
-				MType: metric.CounterType,
+				MType: metricPkg.CounterType,
 				Delta: randInt64(),
 			},
 			contentType: "text/plain",
@@ -700,8 +700,8 @@ func TestUpdateMetricURL(t *testing.T) {
 		},
 		{
 			name: "Fail update metric counter - without id, delta -> ERROR",
-			metric: metric.Metric{
-				MType: metric.CounterType,
+			metric: metricPkg.Metric{
+				MType: metricPkg.CounterType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodPost,
@@ -710,9 +710,9 @@ func TestUpdateMetricURL(t *testing.T) {
 		},
 		{
 			name: "Success update metric gauge -> OK",
-			metric: metric.Metric{
+			metric: metricPkg.Metric{
 				ID:    "testGauge",
-				MType: metric.GaugeType,
+				MType: metricPkg.GaugeType,
 				Value: randFloat64(),
 			},
 			contentType: "text/plain",
@@ -722,8 +722,8 @@ func TestUpdateMetricURL(t *testing.T) {
 		},
 		{
 			name: "Fail update metric gauge - without id, value -> ERROR",
-			metric: metric.Metric{
-				MType: metric.GaugeType,
+			metric: metricPkg.Metric{
+				MType: metricPkg.GaugeType,
 			},
 			contentType: "text/plain",
 			httpMethod:  http.MethodPost,
@@ -733,7 +733,7 @@ func TestUpdateMetricURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 
-		memoryStorage := memstore.NewStorage()
+		memoryStorage := memstore.New()
 		handlers := New(memoryStorage, logger)
 
 		t.Run(tt.name, func(t *testing.T) {
@@ -774,7 +774,7 @@ func TestUpdateMetricURL(t *testing.T) {
 			if !tt.wantError {
 				require.Equal(t, tt.contentType, response.Header.Get("Content-Type"))
 
-				metric, _ := metric.CreateMetric(tt.metric.MType, tt.metric.ID)
+				metric, _ := metricPkg.CreateMetric(tt.metric.MType, tt.metric.ID)
 				_, err := memoryStorage.Get(metric)
 				assert.NoError(t, err)
 			}

@@ -6,26 +6,28 @@ import (
 	"fmt"
 	"log"
 
+	_ "github.com/lib/pq"
+
 	"metrics-and-alerting/internal/storage/memstore"
 	"metrics-and-alerting/pkg/logpack"
 	metricPkg "metrics-and-alerting/pkg/metric"
 )
 
 const (
-	queryChangeGauge = `INSERT INTO metrics (name,type,value)
+	queryChangeGauge = `INSERT INTO runtimeMetrics (name,type,value)
                          VALUES ($1,$2,$3)
                          ON CONFLICT (name)
                          DO UPDATE
                          SET name=$1,type=$2,value=$3;`
 
-	queryChangeCounter = `INSERT INTO metrics (name,type,delta)
+	queryChangeCounter = `INSERT INTO runtimeMetrics (name,type,delta)
                            VALUES ($1,$2,$3)
                            ON CONFLICT (name)
                            DO UPDATE
                            SET name=$1,type=$2,delta=$3;`
 
 	queryGetMetrics = `SELECT name,type,delta, value
-                       FROM metrics`
+                       FROM runtimeMetrics`
 )
 
 type Storage struct {
@@ -36,7 +38,7 @@ type Storage struct {
 
 func New(dsn string, logger *logpack.LogPack) (*Storage, error) {
 
-	driver, errConnect := sql.Open("pgStorage", dsn)
+	driver, errConnect := sql.Open("postgres", dsn)
 	if errConnect != nil {
 		return nil, errConnect
 	}
@@ -94,7 +96,7 @@ func (store *Storage) Delete(metric metricPkg.Metric) error {
 		return err
 	}
 
-	query := `DELETE FROM metrics WHERE name=$1 AND type=$2;`
+	query := `DELETE FROM runtimeMetrics WHERE name=$1 AND type=$2;`
 	if _, err := store.db.Exec(query, metric.ID, metric.MType); err != nil {
 		return fmt.Errorf("could not delete metric from database: %w", err)
 	}
@@ -222,6 +224,7 @@ func (store *Storage) Restore() error {
 
 func (store *Storage) Close() error {
 	return store.db.Close()
+
 }
 
 func (store Storage) Health() bool {
@@ -230,7 +233,7 @@ func (store Storage) Health() bool {
 
 func (store Storage) applyMigrations() error {
 
-	query := `CREATE TABLE IF NOT EXISTS metrics (
+	query := `CREATE TABLE IF NOT EXISTS runtimeMetrics (
               id     SERIAL,
 		      name   CHARACTER VARYING(50) PRIMARY KEY,
 		      type   CHARACTER VARYING(50),
