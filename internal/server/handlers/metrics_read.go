@@ -128,7 +128,7 @@ func (h Handler) GetMetrics() http.HandlerFunc {
 
 		w.Header().Set(ContentType, TextHTML)
 
-		metrics, err := h.store.GetSlice()
+		metrics, err := h.store.GetBatch()
 		if err != nil {
 			h.logger.Err.Printf("could not get all metrics from storage: %v\n", err)
 			http.Error(w, err.Error(), errs.ErrorHTTP(err))

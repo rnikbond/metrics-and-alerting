@@ -33,7 +33,7 @@ func main() {
 
 	logger := logpack.NewLogger()
 	cfg := ReadyConfig(logger)
-	inMemory := memstore.NewStorage()
+	inMemory := memstore.New()
 
 	agentService := agent.NewAgent(
 		inMemory,

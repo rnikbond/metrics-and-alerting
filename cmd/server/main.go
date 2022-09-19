@@ -38,7 +38,6 @@ func main() {
 
 	var store storage.Repository
 	if cfg.DatabaseDSN != "" {
-
 		db, err := dbstore.New(cfg.DatabaseDSN, logger)
 		if err != nil {
 			panic(err)

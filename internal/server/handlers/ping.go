@@ -7,7 +7,7 @@ import (
 func (h *Handler) Ping() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		if !h.store.CheckHealth() {
+		if !h.store.Health() {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

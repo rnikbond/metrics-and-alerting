@@ -109,7 +109,7 @@ func (scan *Scanner) updateRuntime() error {
 	metrics = append(metrics, TotalAlloc)
 	metrics = append(metrics, PollCount)
 
-	return scan.storage.UpsertSlice(metrics)
+	return scan.storage.UpsertBatch(metrics)
 }
 
 // updateRuntime Обновление метрик загрузки памяти и ядер процессора
@@ -137,5 +137,5 @@ func (scan *Scanner) updateWorkload() error {
 		metrics = append(metrics, cpuN)
 	}
 
-	return scan.storage.UpsertSlice(metrics)
+	return scan.storage.UpsertBatch(metrics)
 }

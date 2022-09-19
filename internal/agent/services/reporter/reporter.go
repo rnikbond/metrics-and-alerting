@@ -76,7 +76,7 @@ func (r Reporter) Report(ctx context.Context, reportType string) error {
 // reportURL Отправка метрик через URL отдельными запросами
 func (r Reporter) reportURL(ctx context.Context) error {
 
-	metrics, errStorage := r.storage.GetSlice()
+	metrics, errStorage := r.storage.GetBatch()
 	if errStorage != nil {
 		return fmt.Errorf("could not report metrics: %v", errStorage)
 	}
@@ -107,7 +107,7 @@ func (r Reporter) reportURL(ctx context.Context) error {
 // reportJSON Отправка метрик в виде JSON отдельными запросами
 func (r Reporter) reportJSON(ctx context.Context) error {
 
-	metrics, errStorage := r.storage.GetSlice()
+	metrics, errStorage := r.storage.GetBatch()
 	if errStorage != nil {
 		return fmt.Errorf("could not report metrics: %v", errStorage)
 	}
@@ -149,7 +149,7 @@ func (r Reporter) reportJSON(ctx context.Context) error {
 // reportBatchJSON Отправка метрик в виде JSON одним запросом
 func (r Reporter) reportBatchJSON(ctx context.Context) error {
 
-	metrics, errStorage := r.storage.GetSlice()
+	metrics, errStorage := r.storage.GetBatch()
 	if errStorage != nil {
 		return fmt.Errorf("could not report metrics: %v", errStorage)
 	}

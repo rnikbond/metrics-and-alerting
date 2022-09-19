@@ -152,7 +152,7 @@ func (h Handler) UpdateDataJSON() http.HandlerFunc {
 			return
 		}
 
-		if err := h.store.UpsertSlice(metrics); err != nil {
+		if err := h.store.UpsertBatch(metrics); err != nil {
 			log.Printf("error update metric: %v\n", err)
 			http.Error(w, err.Error(), errs.ErrorHTTP(err))
 			return
