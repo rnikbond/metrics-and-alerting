@@ -166,7 +166,6 @@ func (store Storage) Flush() error {
 
 		default:
 			store.logger.Err.Printf("could not flush metric with unknown type: %s\n", metric.ShotString())
-			break
 		}
 
 		if errExec != nil {
@@ -217,6 +216,11 @@ func (store *Storage) Restore() error {
 		if errMem := store.memory.Upsert(metric); errMem != nil {
 			store.logger.Err.Printf("could not restore metric: %s. %v\n", metric.ShotString(), errMem)
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		store.logger.Err.Printf("could not restore metric: %v\n", err)
+		return err
 	}
 
 	return nil
