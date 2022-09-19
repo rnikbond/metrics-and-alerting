@@ -2,7 +2,7 @@ package storage
 
 //import (
 //	"context"
-//	"database/sql"
+//	"dbstore/sql"
 //	"errors"
 //	"fmt"
 //	"log"
@@ -440,6 +440,6 @@ func (dbStore DataBaseStorage) CheckHealth() bool {
 }
 
 func (dbStore DataBaseStorage) Destroy() {
-	log.Println("Destroy database storage... Goodbye :)")
+	log.Println("Destroy dbstore storage... Goodbye :)")
 }
 */

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"metrics-and-alerting/internal/storage/memorystorage"
+	"metrics-and-alerting/internal/storage/memstore"
 	"metrics-and-alerting/pkg/logpack"
 	"metrics-and-alerting/pkg/metric"
 
@@ -54,7 +54,7 @@ func NewCounterMetric() metric.Metric {
 func TestGetJSON(t *testing.T) {
 
 	logger := logpack.NewLogger()
-	st := memorystorage.NewStorage()
+	st := memstore.NewStorage()
 	handlers := New(st, logger)
 
 	gaugeMetric := NewGaugeMetric()
@@ -522,7 +522,7 @@ func TestGetMetric(t *testing.T) {
 	gauge, _ := metric.CreateMetric(metric.GaugeType, "testGauge", metric.WithValueFloat(100.023))
 	counter, _ := metric.CreateMetric(metric.CounterType, "testCounter", metric.WithValueInt(100))
 
-	st := memorystorage.NewStorage()
+	st := memstore.NewStorage()
 	handlers := New(st, logger)
 
 	errUpsert := st.Upsert(gauge)
@@ -733,7 +733,7 @@ func TestUpdateMetricURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 
-		memoryStorage := memorystorage.NewStorage()
+		memoryStorage := memstore.NewStorage()
 		handlers := New(memoryStorage, logger)
 
 		t.Run(tt.name, func(t *testing.T) {

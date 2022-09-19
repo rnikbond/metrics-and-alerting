@@ -5,17 +5,15 @@ import (
 )
 
 type Repository interface {
-	Set(metric metric.Metric) error
 	Upsert(metric metric.Metric) error
-	UpsertSlice(metrics []metric.Metric) error
-
+	UpsertBatch(metrics []metric.Metric) error
 	Get(metric metric.Metric) (metric.Metric, error)
-	GetSlice() ([]metric.Metric, error)
-
+	GetBatch() ([]metric.Metric, error)
 	Delete(metric metric.Metric) error
 
-	String() string
-
-	CheckHealth() bool
+	Flush() error
+	Restore() error
 	Close() error
+
+	Health() bool
 }

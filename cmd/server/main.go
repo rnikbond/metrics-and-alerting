@@ -11,15 +11,17 @@ import (
 	"metrics-and-alerting/internal/server"
 	handler "metrics-and-alerting/internal/server/handlers"
 	"metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/internal/storage/dbstore"
 	"metrics-and-alerting/internal/storage/filestorage"
-	"metrics-and-alerting/internal/storage/memorystorage"
+	"metrics-and-alerting/internal/storage/memstore"
 	"metrics-and-alerting/pkg/logpack"
 )
 
 var (
 	_ storage.Repository = (*server.MetricsManager)(nil)
-	_ storage.Repository = (*memorystorage.MemoryStorage)(nil)
+	_ storage.Repository = (*memstore.Storage)(nil)
 	_ storage.Repository = (*filestorage.Storage)(nil)
+	_ storage.Repository = (*dbstore.Storage)(nil)
 )
 
 func main() {
@@ -36,24 +38,28 @@ func main() {
 
 	var store storage.Repository
 	if cfg.DatabaseDSN != "" {
-		//store = &storage.DataBaseStorage{}
-		store = memorystorage.NewStorage()
-	} else if cfg.StoreFile != "" {
-		fs := filestorage.New(cfg.StoreFile, cfg.StoreInterval, logger)
-		if cfg.Restore {
-			fs.Restore()
+
+		db, err := dbstore.New(cfg.DatabaseDSN, logger)
+		if err != nil {
+			panic(err)
 		}
 
-		store = fs
+		store = db
+
+	} else if cfg.StoreFile != "" {
+		store = filestorage.New(cfg.StoreFile, logger)
 		log.Println("using storage: File")
 	} else {
-		store = memorystorage.NewStorage()
+		store = memstore.New()
 		log.Println("using storage: Memory")
 	}
 
-	storeManager := server.NewMetricsManager(
+	storeManager := server.New(
 		store,
+		logger,
 		server.WithSignKey([]byte(cfg.SecretKey)),
+		server.WithFlush(cfg.StoreInterval),
+		server.WithRestore(cfg.Restore),
 	)
 
 	handlers := handler.New(storeManager, logger)

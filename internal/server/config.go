@@ -40,7 +40,7 @@ func (cfg *Config) ParseFlags() error {
 	flag.StringVar(&cfg.StoreFile, "f", cfg.StoreFile, "string - path to fileStorage storage")
 	flag.DurationVar(&cfg.StoreInterval, "i", cfg.StoreInterval, "duration - interval store metrics")
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key sign")
-	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "string - database data source name")
+	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "string - dbstore data source name")
 
 	addr := flag.String("a", cfg.Addr, "string - host:port")
 	flag.Parse()

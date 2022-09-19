@@ -1,28 +1,49 @@
 package server
 
 import (
+	"context"
 	"fmt"
+	"time"
 
-	storage2 "metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/internal/storage"
 	"metrics-and-alerting/pkg/errs"
-	"metrics-and-alerting/pkg/metric"
+	"metrics-and-alerting/pkg/logpack"
+	metricPkg "metrics-and-alerting/pkg/metric"
 )
 
 type OptionsManager func(*MetricsManager)
 
 type MetricsManager struct {
-	storage storage2.Repository
-	signKey []byte
+	storage       storage.Repository
+	logger        *logpack.LogPack
+	intervalFlush time.Duration
+	restore       bool
+	signKey       []byte
+	ctx           context.Context
+	cancel        context.CancelFunc
 }
 
-func NewMetricsManager(storage storage2.Repository, opts ...OptionsManager) *MetricsManager {
+func New(storage storage.Repository, logger *logpack.LogPack, opts ...OptionsManager) *MetricsManager {
 
 	manager := &MetricsManager{
 		storage: storage,
+		logger:  logger,
 	}
+
+	manager.ctx, manager.cancel = context.WithCancel(context.Background())
 
 	for _, opt := range opts {
 		opt(manager)
+	}
+
+	if manager.restore {
+		if errRestore := storage.Restore(); errRestore != nil {
+			logger.Err.Printf("Could not restore: %v\n", errRestore)
+		}
+	}
+
+	if manager.intervalFlush > 0 {
+		go manager.flushByTick(manager.ctx)
 	}
 
 	return manager
@@ -34,8 +55,52 @@ func WithSignKey(signKey []byte) OptionsManager {
 	}
 }
 
-// VerifySign - Проверка подписи метрики
-func (manager MetricsManager) VerifySign(metric metric.Metric) error {
+func WithFlush(interval time.Duration) OptionsManager {
+	return func(manager *MetricsManager) {
+		manager.intervalFlush = interval
+	}
+}
+
+func WithRestore(restore bool) OptionsManager {
+	return func(manager *MetricsManager) {
+		manager.restore = restore
+	}
+}
+
+func (manager MetricsManager) flushByTick(ctx context.Context) {
+
+	ticker := time.NewTicker(manager.intervalFlush)
+
+	for {
+		select {
+		case <-ticker.C:
+			if err := manager.storage.Flush(); err != nil {
+				manager.logger.Err.Printf("could not flush metrics: %v\n", err)
+			}
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (manager MetricsManager) accumulateCounter(metric *metricPkg.Metric) {
+	if metric.MType != metricPkg.CounterType {
+		return
+	}
+
+	knownCounter, err := manager.storage.Get(*metric)
+	if err != nil {
+		return
+	}
+
+	accum := *metric.Delta + *knownCounter.Delta
+	metric.Delta = &accum
+
+}
+
+// verifySign - Проверка подписи метрики
+func (manager MetricsManager) verifySign(metric metricPkg.Metric) error {
 	if len(manager.signKey) == 0 {
 		return nil
 	}
@@ -46,69 +111,100 @@ func (manager MetricsManager) VerifySign(metric metric.Metric) error {
 	}
 
 	if hash != metric.Hash {
-
-		fmt.Printf("wait hash: %s\n", hash)
-		fmt.Printf("metric hash: %s\n", metric.Hash)
-
 		return errs.ErrSignFailed
 	}
 
 	return nil
 }
 
-func (manager MetricsManager) Set(metric metric.Metric) error {
+func (manager MetricsManager) Upsert(metric metricPkg.Metric) error {
 
-	if err := manager.VerifySign(metric); err != nil {
-		return fmt.Errorf("could not set metric: %w", err)
-	}
-
-	return manager.storage.Set(metric)
-}
-
-func (manager MetricsManager) Upsert(metric metric.Metric) error {
-
-	if err := manager.VerifySign(metric); err != nil {
+	if err := manager.verifySign(metric); err != nil {
 		return fmt.Errorf("could not upsert metric: %w", err)
 	}
 
-	return manager.storage.Upsert(metric)
-}
+	manager.accumulateCounter(&metric)
 
-func (manager MetricsManager) UpsertSlice(metrics []metric.Metric) error {
+	err := manager.storage.Upsert(metric)
 
-	for _, m := range metrics {
-		if err := manager.VerifySign(m); err != nil {
-			return fmt.Errorf("could not upsert metrics %s: %w", m, err)
+	if err == nil {
+		if err = manager.Flush(); err != nil {
+			manager.logger.Err.Printf("Could not flush metrics after upsert: %v\n", err)
 		}
+
+		return nil
 	}
 
-	return manager.storage.UpsertSlice(metrics)
+	return err
 }
 
-func (manager MetricsManager) Get(metric metric.Metric) (metric.Metric, error) {
+func (manager MetricsManager) UpsertBatch(metrics []metricPkg.Metric) error {
 
+	for _, m := range metrics {
+		if err := manager.verifySign(m); err != nil {
+			return fmt.Errorf("could not upsert metrics %s: %w", m, err)
+		}
+
+		manager.accumulateCounter(&m)
+	}
+
+	err := manager.storage.UpsertBatch(metrics)
+
+	if err == nil {
+		if err = manager.Flush(); err != nil {
+			manager.logger.Err.Printf("Could not flush metrics after upsert: batch %v\n", err)
+		}
+
+		return nil
+	}
+
+	return err
+}
+
+func (manager MetricsManager) Get(metric metricPkg.Metric) (metricPkg.Metric, error) {
+
+	// TODO :: Проверить подпись
 	return manager.storage.Get(metric)
 }
 
-func (manager MetricsManager) GetSlice() ([]metric.Metric, error) {
+func (manager MetricsManager) GetBatch() ([]metricPkg.Metric, error) {
 
-	return manager.storage.GetSlice()
+	// TODO :: Проверить подпись
+	return manager.storage.GetBatch()
 }
 
-// Delete - Удаление метрики
-func (manager MetricsManager) Delete(metric metric.Metric) error {
+func (manager MetricsManager) Delete(metric metricPkg.Metric) error {
 
-	return manager.storage.Delete(metric)
+	err := manager.storage.Delete(metric)
+
+	if err == nil {
+		if err = manager.Flush(); err != nil {
+			manager.logger.Err.Printf("Could not flush metrics after delete: %v\n", err)
+		}
+
+		return nil
+	}
+
+	return err
 }
 
-func (manager MetricsManager) String() string {
-	return manager.storage.String()
+func (manager MetricsManager) Flush() error {
+
+	if manager.intervalFlush == 0 {
+		return manager.storage.Flush()
+	}
+
+	return nil
 }
 
-func (manager MetricsManager) CheckHealth() bool {
-	return manager.storage.CheckHealth()
+func (manager MetricsManager) Restore() error {
+	return manager.storage.Restore()
 }
 
 func (manager MetricsManager) Close() error {
 	return manager.storage.Close()
+}
+
+func (manager MetricsManager) Health() bool {
+	return manager.storage.Health()
 }
