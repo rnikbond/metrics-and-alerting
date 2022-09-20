@@ -232,7 +232,7 @@ func (store *Storage) Close() error {
 }
 
 func (store Storage) Health() bool {
-	return store.db.Ping() != nil
+	return store.db.Ping() == nil
 }
 
 func (store Storage) applyMigrations() error {
