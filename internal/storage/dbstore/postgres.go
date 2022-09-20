@@ -44,6 +44,8 @@ func New(dsn string, logger *logpack.LogPack) (*Storage, error) {
 		return nil, errConnect
 	}
 
+	logger.Info.Printf("Success connect to database: %v\n", errConnect)
+
 	dbStore := &Storage{
 		db:     driver,
 		logger: logger,
@@ -230,7 +232,19 @@ func (store *Storage) Close() error {
 }
 
 func (store Storage) Health() bool {
-	return store.db != nil && store.db.Ping() == nil
+
+	if store.db == nil {
+		store.logger.Err.Println("database driver is nil\n")
+		return false
+	}
+
+	err := store.db.Ping()
+	if err != nil {
+		store.logger.Err.Println("ping driver returned error: %v\n", err)
+		return false
+	}
+
+	return true
 }
 
 func (store Storage) applyMigrations() error {
