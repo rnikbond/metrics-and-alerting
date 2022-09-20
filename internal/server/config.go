@@ -16,7 +16,7 @@ type Config struct {
 	Addr          string        `env:"ADDRESS"`
 	StoreInterval time.Duration `env:"STORE_INTERVAL"`
 	Restore       bool          `env:"RESTORE"`
-	DatabaseDSN   string        `env:"DATABASE_URI"`
+	DatabaseDSN   string        `env:"DATABASE_DSN"`
 	StoreFile     string        `env:"STORE_FILE"`
 	SecretKey     string        `env:"KEY"`
 }
