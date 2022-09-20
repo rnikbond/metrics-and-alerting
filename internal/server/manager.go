@@ -140,12 +140,13 @@ func (manager MetricsManager) Upsert(metric metricPkg.Metric) error {
 
 func (manager MetricsManager) UpsertBatch(metrics []metricPkg.Metric) error {
 
-	for _, m := range metrics {
+	for i, m := range metrics {
 		if err := manager.verifySign(m); err != nil {
 			return fmt.Errorf("could not upsert metrics %s: %w", m, err)
 		}
 
 		manager.accumulateCounter(&m)
+		metrics[i].Delta = m.Delta
 	}
 
 	err := manager.storage.UpsertBatch(metrics)

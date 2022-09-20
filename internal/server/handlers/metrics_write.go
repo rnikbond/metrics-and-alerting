@@ -120,8 +120,6 @@ func (h Handler) UpdateJSON() http.HandlerFunc {
 func (h Handler) UpdateDataJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		w.Header().Set(ContentType, "text/plain")
-
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
@@ -138,7 +136,20 @@ func (h Handler) UpdateDataJSON() http.HandlerFunc {
 			}
 		}()
 
-		data, err := io.ReadAll(r.Body)
+		reader, errReader := BodyReader(r)
+		if errReader != nil {
+			log.Printf("error get body reader: %v\n", errReader)
+			http.Error(w, errReader.Error(), http.StatusBadRequest)
+			return
+		}
+
+		defer func() {
+			if err := reader.Close(); err != nil {
+				log.Printf("error close reader: %v\n", err)
+			}
+		}()
+
+		data, err := io.ReadAll(reader)
 		if err != nil {
 			log.Printf("error read body request: %v\n", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
