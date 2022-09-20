@@ -29,11 +29,12 @@ func main() {
 	logger := logpack.NewLogger()
 	cfg := server.DefaultConfig()
 
+	cfg.ReadEnvVars()
+
 	if err := cfg.ParseFlags(); err != nil {
 		logger.Fatal.Fatalf("error argv: %v\n", err)
 	}
 
-	cfg.ReadEnvVars()
 	fmt.Println(cfg)
 
 	var store storage.Repository
