@@ -147,19 +147,19 @@ func (manager MetricsManager) UpsertBatch(metrics []metricPkg.Metric) error {
 
 		manager.accumulateCounter(&m)
 		metrics[i].Delta = m.Delta
-	}
 
-	err := manager.storage.UpsertBatch(metrics)
-
-	if err == nil {
-		if err = manager.Flush(); err != nil {
-			manager.logger.Err.Printf("Could not flush metrics after upsert: batch %v\n", err)
+		if err := manager.storage.Upsert(m); err != nil {
+			err = fmt.Errorf("could not update metric %s: %v\n", m.ShotString(), err)
+			manager.logger.Err.Println(err)
+			return err
 		}
-
-		return nil
 	}
 
-	return err
+	if err := manager.Flush(); err != nil {
+		manager.logger.Err.Printf("Could not flush metrics after upsert: batch %v\n", err)
+	}
+
+	return nil
 }
 
 func (manager MetricsManager) Get(metric metricPkg.Metric) (metricPkg.Metric, error) {
