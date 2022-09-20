@@ -36,7 +36,7 @@ func main() {
 	fmt.Println(cfg)
 
 	var store storage.Repository
-	if cfg.DatabaseDSN != "" {
+	if len(cfg.DatabaseDSN) != 0 {
 		db, err := dbstore.New(cfg.DatabaseDSN, logger)
 		if err != nil {
 			panic(err)
@@ -45,7 +45,7 @@ func main() {
 		store = db
 		logger.Info.Println("Using storage: Database")
 
-	} else if cfg.StoreFile != "" {
+	} else if len(cfg.StoreFile) != 0 {
 		store = filestorage.New(cfg.StoreFile, logger)
 		logger.Info.Println("Using storage: File")
 	} else {

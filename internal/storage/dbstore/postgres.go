@@ -171,6 +171,12 @@ func (store Storage) Flush() error {
 		}
 	}
 
+	if errCommit := tx.Commit(); errCommit != nil {
+		errCommit = fmt.Errorf("could not commit flush transaction: %w", errCommit)
+		store.logger.Err.Println(errCommit)
+		return errCommit
+	}
+
 	return nil
 }
 
@@ -209,6 +215,8 @@ func (store *Storage) Restore() error {
 
 		metric.Delta = &delta.Int64
 		metric.Value = &value.Float64
+
+		store.logger.Info.Printf("restore: %v\n", metric)
 
 		if errMem := store.memory.Upsert(metric); errMem != nil {
 			store.logger.Err.Printf("could not restore metric: %s. %v\n", metric.ShotString(), errMem)
