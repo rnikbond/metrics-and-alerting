@@ -213,10 +213,16 @@ func (store *Storage) Restore() error {
 			continue
 		}
 
-		metric.Delta = &delta.Int64
-		metric.Value = &value.Float64
-
-		store.logger.Info.Printf("restore: %v\n", metric)
+		switch metric.MType {
+		case metricPkg.GaugeType:
+			if value.Valid {
+				metric.Value = &value.Float64
+			}
+		case metricPkg.CounterType:
+			if delta.Valid {
+				metric.Delta = &delta.Int64
+			}
+		}
 
 		if errMem := store.memory.Upsert(metric); errMem != nil {
 			store.logger.Err.Printf("could not restore metric: %s. %v\n", metric.ShotString(), errMem)
