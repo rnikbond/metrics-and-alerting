@@ -156,6 +156,8 @@ func (h Handler) UpdateDataJSON() http.HandlerFunc {
 			return
 		}
 
+		h.logger.Info.Printf("Metrics: %s", string(data))
+
 		var metrics []metricPkg.Metric
 		if err := json.Unmarshal(data, &metrics); err != nil {
 			log.Printf("error decode JSON body: %v\n", err)
