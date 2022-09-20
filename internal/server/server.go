@@ -17,7 +17,7 @@ type MetricsServer struct {
 func NewServer(addr string, h *handler.Handler) *MetricsServer {
 
 	r := chi.NewRouter()
-	//r.Use(h.DecompressRequest)
+	r.Use(h.DecompressRequest)
 	//r.Use(middleware.Logger)
 
 	r.Get("/ping", h.Ping())

@@ -48,12 +48,13 @@ func (h Handler) GetAsText() http.HandlerFunc {
 			return
 		}
 
-		if _, err := w.Write([]byte(metric.StringValue())); err != nil {
-			h.logger.Err.Printf("error write data in response body: %v\n", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		//h.CompressResponse(w, r, metric.StringValue())
+		//if _, err := w.Write([]byte(metric.StringValue())); err != nil {
+		//	h.logger.Err.Printf("error write data in response body: %v\n", err)
+		//	http.Error(w, err.Error(), http.StatusInternalServerError)
+		//	return
+		//}
+
+		h.CompressResponse(w, r, metric.StringValue())
 	}
 }
 
@@ -114,12 +115,12 @@ func (h Handler) GetAsJSON() http.HandlerFunc {
 			return
 		}
 
-		if _, err := w.Write(encode); err != nil {
-			h.logger.Err.Printf("error write data in response body: %v\n", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		//h.CompressResponse(w, r, string(encode))
+		//if _, err := w.Write(encode); err != nil {
+		//	h.logger.Err.Printf("error write data in response body: %v\n", err)
+		//	http.Error(w, err.Error(), http.StatusInternalServerError)
+		//	return
+		//}
+		h.CompressResponse(w, r, string(encode))
 	}
 }
 
@@ -140,11 +141,12 @@ func (h Handler) GetMetrics() http.HandlerFunc {
 			html += metric.ShotString() + "<br/>"
 		}
 
-		if _, err := w.Write([]byte(html)); err != nil {
-			h.logger.Err.Printf("error write data in response body: %v\n", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		//h.CompressResponse(w, r, html)
+		//if _, err := w.Write([]byte(html)); err != nil {
+		//	h.logger.Err.Printf("error write data in response body: %v\n", err)
+		//	http.Error(w, err.Error(), http.StatusInternalServerError)
+		//	return
+		//}
+
+		h.CompressResponse(w, r, html)
 	}
 }
