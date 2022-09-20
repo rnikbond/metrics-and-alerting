@@ -40,6 +40,7 @@ func New(dsn string, logger *logpack.LogPack) (*Storage, error) {
 
 	driver, errConnect := sql.Open("postgres", dsn)
 	if errConnect != nil {
+		logger.Err.Printf("Could not connect to database: %v\n", errConnect)
 		return nil, errConnect
 	}
 
@@ -53,14 +54,14 @@ func New(dsn string, logger *logpack.LogPack) (*Storage, error) {
 		logger.Err.Printf("could not apply migration: %v\n", errMigrate)
 
 		if errClose := driver.Close(); errClose != nil {
-			dbStore.logger.Err.Printf("could not close database connection: %v\n", errClose)
+			logger.Err.Printf("could not close database connection: %v\n", errClose)
 		}
 	}
 
 	if errRestore := dbStore.Restore(); errRestore != nil {
 
 		if errClose := driver.Close(); errClose != nil {
-			dbStore.logger.Err.Printf("could not close database connection: %v\n", errClose)
+			logger.Err.Printf("could not close database connection: %v\n", errClose)
 		}
 	}
 
@@ -229,7 +230,7 @@ func (store *Storage) Close() error {
 }
 
 func (store Storage) Health() bool {
-	return store.db.Ping() == nil
+	return store.db != nil && store.db.Ping() == nil
 }
 
 func (store Storage) applyMigrations() error {

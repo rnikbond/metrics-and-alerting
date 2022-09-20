@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os/signal"
 	"syscall"
 	"time"
@@ -29,12 +28,11 @@ func main() {
 	logger := logpack.NewLogger()
 	cfg := server.DefaultConfig()
 
-	cfg.ReadEnvVars()
-
 	if err := cfg.ParseFlags(); err != nil {
 		logger.Fatal.Fatalf("error argv: %v\n", err)
 	}
 
+	cfg.ReadEnvVars()
 	fmt.Println(cfg)
 
 	var store storage.Repository
@@ -45,13 +43,14 @@ func main() {
 		}
 
 		store = db
+		logger.Info.Println("Using storage: Database")
 
 	} else if cfg.StoreFile != "" {
 		store = filestorage.New(cfg.StoreFile, logger)
-		log.Println("using storage: File")
+		logger.Info.Println("Using storage: File")
 	} else {
 		store = memstore.New()
-		log.Println("using storage: Memory")
+		logger.Info.Println("Using storage: Memory")
 	}
 
 	storeManager := server.New(
