@@ -73,28 +73,6 @@ func (h Handler) DecompressRequest(next http.Handler) http.Handler {
 	})
 }
 
-func (h Handler) CompressResponse(w http.ResponseWriter, r *http.Request, data string) {
-
-	switch r.Header.Get(AcceptEncoding) {
-	case GZip:
-
-		w.Header().Set(ContentEncoding, GZip)
-		if _, err := io.WriteString(w, data); err != nil {
-			h.logger.Err.Printf("error compress data to GZIP: %v\n", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-	default:
-
-		if _, err := w.Write([]byte(data)); err != nil {
-			h.logger.Err.Printf("error write data in response body: %v\n", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-}
-
 func BodyReader(r *http.Request) (io.ReadCloser, error) {
 
 	switch r.Header.Get(ContentEncoding) {

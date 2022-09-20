@@ -48,30 +48,10 @@ func (h Handler) GetAsText() http.HandlerFunc {
 			return
 		}
 
-		//if _, err := w.Write([]byte(metric.StringValue())); err != nil {
-		//	h.logger.Err.Printf("error write data in response body: %v\n", err)
-		//	http.Error(w, err.Error(), http.StatusInternalServerError)
-		//	return
-		//}
-
-		switch r.Header.Get(AcceptEncoding) {
-		case GZip:
-
-			w.Header().Set(ContentEncoding, GZip)
-			if _, err := io.WriteString(w, metric.StringValue()); err != nil {
-				h.logger.Err.Printf("error compress data to GZIP: %v\n", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-
-		default:
-
-			if _, err := w.Write([]byte(metric.StringValue())); err != nil {
-				h.logger.Err.Printf("error write data in response body: %v\n", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
+		if _, err := w.Write([]byte(metric.StringValue())); err != nil {
+			h.logger.Err.Printf("error write data in response body: %v\n", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-
-		//h.CompressResponse(w, r, metric.StringValue())
 	}
 }
 
@@ -132,30 +112,10 @@ func (h Handler) GetAsJSON() http.HandlerFunc {
 			return
 		}
 
-		//if _, err := w.Write(encode); err != nil {
-		//	h.logger.Err.Printf("error write data in response body: %v\n", err)
-		//	http.Error(w, err.Error(), http.StatusInternalServerError)
-		//	return
-		//}
-
-		switch r.Header.Get(AcceptEncoding) {
-		case GZip:
-
-			w.Header().Set(ContentEncoding, GZip)
-			if _, err := io.WriteString(w, string(encode)); err != nil {
-				h.logger.Err.Printf("error compress data to GZIP: %v\n", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-
-		default:
-
-			if _, err := w.Write(encode); err != nil {
-				h.logger.Err.Printf("error write data in response body: %v\n", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
+		if _, err := w.Write(encode); err != nil {
+			h.logger.Err.Printf("error write data in response body: %v\n", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-
-		//h.CompressResponse(w, r, string(encode))
 	}
 }
 
@@ -176,29 +136,9 @@ func (h Handler) GetMetrics() http.HandlerFunc {
 			html += metric.ShotString() + "<br/>"
 		}
 
-		//if _, err := w.Write([]byte(html)); err != nil {
-		//	h.logger.Err.Printf("error write data in response body: %v\n", err)
-		//	http.Error(w, err.Error(), http.StatusInternalServerError)
-		//	return
-		//}
-
-		switch r.Header.Get(AcceptEncoding) {
-		case GZip:
-
-			w.Header().Set(ContentEncoding, GZip)
-			if _, err := io.WriteString(w, html); err != nil {
-				h.logger.Err.Printf("error compress data to GZIP: %v\n", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-
-		default:
-
-			if _, err := w.Write([]byte(html)); err != nil {
-				h.logger.Err.Printf("error write data in response body: %v\n", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
+		if _, err := w.Write([]byte(html)); err != nil {
+			h.logger.Err.Printf("error write data in response body: %v\n", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-
-		//h.CompressResponse(w, r, html)
 	}
 }
