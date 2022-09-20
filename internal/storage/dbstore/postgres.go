@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	_ "github.com/lib/pq"
 
@@ -43,8 +42,6 @@ func New(dsn string, logger *logpack.LogPack) (*Storage, error) {
 		logger.Err.Printf("Could not connect to database: %v\n", errConnect)
 		return nil, errConnect
 	}
-
-	logger.Info.Printf("Success connect to database: %v\n", errConnect)
 
 	dbStore := &Storage{
 		db:     driver,
@@ -200,7 +197,7 @@ func (store *Storage) Restore() error {
 		)
 
 		if err := rows.Scan(&id, &mtype, &delta, &value); err != nil {
-			log.Printf("error scan: %v\n", err)
+			store.logger.Err.Printf("error scan: %v\n", err)
 			continue
 		}
 
@@ -234,13 +231,13 @@ func (store *Storage) Close() error {
 func (store Storage) Health() bool {
 
 	if store.db == nil {
-		store.logger.Err.Println("database driver is nil\n")
+		store.logger.Err.Println("database driver is nil")
 		return false
 	}
 
 	err := store.db.Ping()
 	if err != nil {
-		store.logger.Err.Println("ping driver returned error: %v\n", err)
+		store.logger.Err.Printf("ping driver returned error: %v\n", err)
 		return false
 	}
 
