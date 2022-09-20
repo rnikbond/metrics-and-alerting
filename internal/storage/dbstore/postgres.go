@@ -55,7 +55,6 @@ func New(dsn string, logger *logpack.LogPack) (*Storage, error) {
 		if errClose := driver.Close(); errClose != nil {
 			dbStore.logger.Err.Printf("could not close database connection: %v\n", errClose)
 		}
-		return nil, errMigrate
 	}
 
 	if errRestore := dbStore.Restore(); errRestore != nil {
@@ -63,8 +62,6 @@ func New(dsn string, logger *logpack.LogPack) (*Storage, error) {
 		if errClose := driver.Close(); errClose != nil {
 			dbStore.logger.Err.Printf("could not close database connection: %v\n", errClose)
 		}
-
-		return nil, errRestore
 	}
 
 	return dbStore, nil

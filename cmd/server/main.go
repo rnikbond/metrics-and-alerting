@@ -33,14 +33,14 @@ func main() {
 		logger.Fatal.Fatalf("error argv: %v\n", err)
 	}
 
-	cfg.ReadEnvVars()
+	//cfg.ReadEnvVars()
 	fmt.Println(cfg)
 
 	var store storage.Repository
 	if cfg.DatabaseDSN != "" {
 		db, err := dbstore.New(cfg.DatabaseDSN, logger)
 		if err != nil {
-			panic(err)
+			//panic(err)
 		}
 
 		store = db
