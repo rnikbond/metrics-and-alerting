@@ -37,6 +37,8 @@ func main() {
 
 	var store storage.Repository
 	if len(cfg.DatabaseDSN) != 0 {
+
+		cfg.StoreInterval = 0
 		db, err := dbstore.New(cfg.DatabaseDSN, logger)
 		if err != nil {
 			panic(err)
