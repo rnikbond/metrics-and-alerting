@@ -163,14 +163,38 @@ func (manager MetricsManager) UpsertBatch(metrics []metricPkg.Metric) error {
 
 func (manager MetricsManager) Get(metric metricPkg.Metric) (metricPkg.Metric, error) {
 
-	// TODO :: Проверить подпись
-	return manager.storage.Get(metric)
+	m, err := manager.storage.Get(metric)
+	if err != nil {
+		return metricPkg.Metric{}, err
+	}
+
+	if hash, err := m.Sign(manager.signKey); err == nil {
+		m.Hash = hash
+	} else {
+		manager.logger.Err.Printf("could not get hash metric: %v\n", err)
+	}
+
+	return m, nil
 }
 
 func (manager MetricsManager) GetBatch() ([]metricPkg.Metric, error) {
 
-	// TODO :: Проверить подпись
-	return manager.storage.GetBatch()
+	metrics, err := manager.storage.GetBatch()
+	if err != nil {
+		return nil, err
+	}
+
+	for i, m := range metrics {
+		hash, err := m.Sign(manager.signKey)
+		if err != nil {
+			manager.logger.Err.Printf("could not get hash metric: %v\n", err)
+			continue
+		}
+
+		metrics[i].Hash = hash
+	}
+
+	return metrics, nil
 }
 
 func (manager MetricsManager) Delete(metric metricPkg.Metric) error {
