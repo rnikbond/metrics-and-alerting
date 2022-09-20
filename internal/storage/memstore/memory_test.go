@@ -1,16 +1,15 @@
-package storage
+package memstore
 
 import (
 	"strconv"
 	"testing"
 
-	"metrics-and-alerting/internal/storage/memstore"
 	"metrics-and-alerting/pkg/metric"
 )
 
 func BenchmarkInMemoryStorage_Upsert(b *testing.B) {
 
-	memStore := memstore.Storage{}
+	memStore := Storage{}
 
 	for i := 0; i < b.N; i++ {
 
