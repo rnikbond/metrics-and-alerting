@@ -57,7 +57,7 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 func (h Handler) DecompressRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		if !strings.Contains(r.Header.Get(ContentEncoding), GZip) {
+		if !strings.Contains(r.Header.Get(AcceptEncoding), GZip) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -65,10 +65,11 @@ func (h Handler) DecompressRequest(next http.Handler) http.Handler {
 		writer := gzip.NewWriter(w)
 		defer func() {
 			if err := writer.Close(); err != nil {
-				log.Printf("error close GZIP writer: %v\n", err)
+				log.Printf("error close gzip writer: %v\n", err)
 			}
 		}()
 
+		w.Header().Set(ContentEncoding, GZip)
 		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: writer}, r)
 	})
 }
