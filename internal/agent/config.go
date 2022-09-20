@@ -29,7 +29,7 @@ func DefaultConfig() *Config {
 		Addr:           ":8080",
 		ReportInterval: 10 * time.Second,
 		PollInterval:   2 * time.Second,
-		ReportURL:      reporter.ReportAsJSON,
+		ReportURL:      reporter.ReportAsBatchJSON,
 		SecretKey:      "",
 	}
 }
