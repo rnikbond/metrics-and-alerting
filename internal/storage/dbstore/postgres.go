@@ -58,10 +58,7 @@ func New(dsn string, logger *logpack.LogPack) (*Storage, error) {
 	}
 
 	if errRestore := dbStore.Restore(); errRestore != nil {
-
-		if errClose := driver.Close(); errClose != nil {
-			logger.Err.Printf("could not close database connection: %v\n", errClose)
-		}
+		logger.Err.Printf("could not restore metrics from database: %v\n", errRestore)
 	}
 
 	return dbStore, nil

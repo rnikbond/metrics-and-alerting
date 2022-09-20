@@ -44,11 +44,14 @@ func main() {
 
 		store = db
 		logger.Info.Println("Using storage: Database")
+	}
 
-	} else if len(cfg.StoreFile) != 0 {
+	if store == nil && len(cfg.StoreFile) != 0 {
 		store = filestorage.New(cfg.StoreFile, logger)
 		logger.Info.Println("Using storage: File")
-	} else {
+	}
+
+	if store == nil {
 		store = memstore.New()
 		logger.Info.Println("Using storage: Memory")
 	}
