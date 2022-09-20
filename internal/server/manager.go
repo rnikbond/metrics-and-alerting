@@ -149,7 +149,7 @@ func (manager MetricsManager) UpsertBatch(metrics []metricPkg.Metric) error {
 		metrics[i].Delta = m.Delta
 
 		if err := manager.storage.Upsert(m); err != nil {
-			err = fmt.Errorf("could not update metric %s: %v\n", m.ShotString(), err)
+			err = fmt.Errorf("could not update metric %s: %w", m.ShotString(), err)
 			manager.logger.Err.Println(err)
 			return err
 		}
