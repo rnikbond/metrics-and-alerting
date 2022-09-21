@@ -1,6 +1,7 @@
 package main
 
 import (
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
 	"golang.org/x/tools/go/analysis/passes/bools"
 	"golang.org/x/tools/go/analysis/passes/errorsas"
@@ -11,11 +12,12 @@ import (
 	"golang.org/x/tools/go/analysis/passes/structtag"
 	"golang.org/x/tools/go/analysis/passes/unmarshal"
 	"golang.org/x/tools/go/analysis/passes/unreachable"
+	"honnef.co/go/tools/staticcheck"
 )
 
 func main() {
 
-	multichecker.Main(
+	analyzers := []*analysis.Analyzer{
 		printf.Analyzer,
 		shadow.Analyzer,
 		structtag.Analyzer,
@@ -25,5 +27,14 @@ func main() {
 		httpresponse.Analyzer,
 		nilfunc.Analyzer,
 		unreachable.Analyzer,
+	}
+
+	// Добавление всех анализаторов staticheck
+	for _, v := range staticcheck.Analyzers {
+		analyzers = append(analyzers, v.Analyzer)
+	}
+
+	multichecker.Main(
+		analyzers...,
 	)
 }
