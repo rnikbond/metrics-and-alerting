@@ -1,3 +1,21 @@
+// Package main предназначен для создания анализатора.
+//
+// Анализатор состоит из:
+// Анализатора спецификаторов формативания текста (printf)
+// Анализатора затененных переменных (shadow)
+// Анализатора структурных тегов (structtag)
+// Анализатора проверяет передачу указателя на структуру при декодировании (unmarshal)
+// Анализатора излишней проверки переменной bool с константой (bools)
+// Анализатора упакованных ошибок (errorsas)
+// Анализатор проверяет наличие ошибок с помощью ответов HTTP (httpresponse)
+// Анализатор проверяет бесполезные сравнения с nil (nilfunc)
+// Анализатора кода, который никогда не будет выполнен (unreachable)
+// Анализатора вызова os.Exit() из функции main (exitchecker)
+//
+// Для добавления классов анализоторов из пакета statickcheck,
+// нужно создать одноименный с бинарным файлом анализатора JSON конфигурационный файл и перечислить
+// в нем классы.
+
 package main
 
 import (
@@ -24,7 +42,7 @@ import (
 	"honnef.co/go/tools/stylecheck"
 )
 
-// ConfigChecks описывает .
+// ConfigChecks содержит названия анализаторов из пакета staticcheck
 type ConfigChecks struct {
 	AnalyzerNames []string `json:"staticlint"`
 }
@@ -57,16 +75,16 @@ func configAnalyzers() (*ConfigChecks, error) {
 func main() {
 
 	analyzers := []*analysis.Analyzer{
-		printf.Analyzer,       // Анализатор спецификаторов формативания текста
-		shadow.Analyzer,       // Анализатор затененных переменных
-		structtag.Analyzer,    // Анализатор структурных тегов
-		unmarshal.Analyzer,    // Анализатор проверяет передачу указателя на структуру при декодировании
-		bools.Analyzer,        // Анализатор излишней проверки переменной bool с константой
-		errorsas.Analyzer,     // Анализатор упакованных ошибок
-		httpresponse.Analyzer, //
-		nilfunc.Analyzer,      //
-		unreachable.Analyzer,  // Анализатор кода, который никогда не будет выполнен
-		exitchecker.ExitCheckAnalyzer,
+		printf.Analyzer,               // Анализатор спецификаторов формативания текста
+		shadow.Analyzer,               // Анализатор затененных переменных
+		structtag.Analyzer,            // Анализатор структурных тегов
+		unmarshal.Analyzer,            // Анализатор проверяет передачу указателя на структуру при декодировании
+		bools.Analyzer,                // Анализатор излишней проверки переменной bool с константой
+		errorsas.Analyzer,             // Анализатор упакованных ошибок
+		httpresponse.Analyzer,         // Анализатор проверяет наличие ошибок с помощью ответов HTTP
+		nilfunc.Analyzer,              // Анализатор проверяет бесполезные сравнения с nil
+		unreachable.Analyzer,          // Анализатор кода, который никогда не будет выполнен
+		exitchecker.ExitCheckAnalyzer, // Анализатор вызова os.Exit() из функции main
 	}
 
 	conf, errConf := configAnalyzers()
