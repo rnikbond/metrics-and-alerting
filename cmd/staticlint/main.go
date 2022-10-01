@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,7 +40,6 @@ func configAnalyzers() (*ConfigChecks, error) {
 	}
 
 	configPath := strings.TrimSuffix(fullPath, filepath.Ext(fullPath)) + ".json"
-	fmt.Println(configPath)
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
