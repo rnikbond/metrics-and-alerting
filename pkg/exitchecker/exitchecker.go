@@ -1,3 +1,4 @@
+// Package exitchecker - анализатор, который запрещает прямой вызов os.Exit() из функции main
 package exitchecker
 
 import (
@@ -42,6 +43,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			Не понял, как его обойти и почему анализатор туда загялдывает.
 			Поэтому пока такой костыль.
 		*/
+		// BUG(rnikbond): Разобраться, почему в pass.Files попадают файлы из какой-то временной директории
 		if fullPath := pass.Fset.Position(file.Pos()).String(); strings.Contains(fullPath, tmpDir) {
 			continue
 		}
