@@ -1,7 +1,6 @@
 package exitchecker
 
 import (
-	"fmt"
 	"go/ast"
 	"os"
 	"strings"
@@ -11,7 +10,7 @@ import (
 
 var ExitCheckAnalyzer = &analysis.Analyzer{
 	Name: "exitcheck",
-	Doc:  "check call os.Exit in main()",
+	Doc:  "check call os.Exit in func main() package main",
 	Run:  run,
 }
 
@@ -65,7 +64,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			if callExpr, ok := node.(*ast.CallExpr); ok {
 				if s, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
 					if s.Sel.Name == "Exit" {
-						fmt.Printf("%v: you call Exit from main, but you do it without respect!\n", pass.Fset.Position(callExpr.Fun.Pos()))
+						pass.Reportf(s.Pos(), "you call Exit from main, but you do it without respect")
 					}
 				}
 			}
@@ -74,6 +73,5 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		})
 	}
 
-	// реализация будет ниже
 	return nil, nil
 }

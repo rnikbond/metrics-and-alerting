@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"metrics-and-alerting/pkg/exitchecker"
+
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
 	"golang.org/x/tools/go/analysis/passes/bools"
@@ -21,8 +23,6 @@ import (
 	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
 	"honnef.co/go/tools/stylecheck"
-
-	"metrics-and-alerting/internal/exitchecker"
 )
 
 // ConfigChecks описывает .
