@@ -19,6 +19,7 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -42,6 +43,9 @@ import (
 	"honnef.co/go/tools/stylecheck"
 )
 
+//go:embed staticlint_default.json
+var defaultConfig []byte
+
 // ConfigChecks содержит названия анализаторов из пакета staticcheck
 type ConfigChecks struct {
 	AnalyzerNames []string `json:"staticlint"`
@@ -61,7 +65,7 @@ func configAnalyzers() (*ConfigChecks, error) {
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, err
+		data = defaultConfig
 	}
 
 	var cfg ConfigChecks
