@@ -8,7 +8,6 @@ import (
 	handler "metrics-and-alerting/internal/server/handlers"
 
 	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
 )
 
 type MetricsServer struct {
@@ -19,7 +18,7 @@ func NewServer(addr string, h *handler.Handler) *MetricsServer {
 
 	r := chi.NewRouter()
 	r.Use(h.DecompressRequest)
-	r.Use(middleware.Logger)
+	//r.Use(middleware.Logger)
 
 	r.Get("/ping", h.Ping())
 	r.Get("/ping/", h.Ping())
