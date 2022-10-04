@@ -1,0 +1,30 @@
+services:
+  database:
+    image: postgres:14.5
+    restart: always
+    environment:
+        - POSTGRES_USER=user
+        - POSTGRES_PASSWORD=0582
+        - POSTGRES_DB=metrics
+        - POSTGRES_HOST_AUTH_METHOD=trust
+    ports:
+        - 5432:5432
+  metrics_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+        - STORE_INTERVAL=0s
+        - POLL_INTERVAL=2s
+        - REPORT_INTERVAL=2s
+        - REPORT_TYPE=BatchJSON
+        - DATABASE_DSN=host=database port=5432 user=user password=0582 dbname=metrics sslmode=disable
+        - KEY=ITS_SECRET_KEY
+    ports:
+      - 8080:8080
+    links:
+      - database
+    depends_on:
+      - database
+   
+  
