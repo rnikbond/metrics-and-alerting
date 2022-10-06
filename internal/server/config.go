@@ -19,6 +19,7 @@ type Config struct {
 	DatabaseDSN   string        `env:"DATABASE_DSN"`
 	StoreFile     string        `env:"STORE_FILE"`
 	SecretKey     string        `env:"KEY"`
+	CryptoKey     string        `env:"CRYPTO_KEY"`
 }
 
 // DefaultConfig Конфигурация для сервиса агента со значениями по умолчанию
@@ -31,6 +32,7 @@ func DefaultConfig() *Config {
 		DatabaseDSN:   "",
 		StoreFile:     "",
 		SecretKey:     "",
+		CryptoKey:     "",
 	}
 }
 
@@ -41,6 +43,7 @@ func (cfg *Config) ParseFlags() error {
 	flag.DurationVar(&cfg.StoreInterval, "i", cfg.StoreInterval, "duration - interval store metrics")
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key sign")
 	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "string - dbstore data source name")
+	flag.StringVar(&cfg.CryptoKey, "crypto-key", cfg.CryptoKey, "string - path to file with private crypto key")
 
 	addr := flag.String("a", cfg.Addr, "string - host:port")
 	flag.Parse()
@@ -79,6 +82,7 @@ func (cfg Config) String() string {
 	builder.WriteString(fmt.Sprintf("\t DATABASE_DSN: %s\n", cfg.DatabaseDSN))
 	builder.WriteString(fmt.Sprintf("\t STORE_FILE: %s\n", cfg.StoreFile))
 	builder.WriteString(fmt.Sprintf("\t KEY: %s\n", cfg.SecretKey))
+	builder.WriteString(fmt.Sprintf("\t CRYPTO_KEY: %s\n", cfg.CryptoKey))
 
 	return builder.String()
 }

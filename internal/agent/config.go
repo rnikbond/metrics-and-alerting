@@ -20,6 +20,7 @@ type Config struct {
 	PollInterval   time.Duration `env:"POLL_INTERVAL"`
 	ReportURL      string        `env:"REPORT_TYPE"`
 	SecretKey      string        `env:"KEY"`
+	CryptoKey      string        `env:"CRYPTO_KEY"`
 }
 
 // DefaultConfig Конфигурация для сервиса агента со значениями по умолчанию
@@ -31,6 +32,7 @@ func DefaultConfig() *Config {
 		PollInterval:   2 * time.Second,
 		ReportURL:      reporter.ReportAsBatchJSON,
 		SecretKey:      "",
+		CryptoKey:      "",
 	}
 }
 
@@ -39,6 +41,7 @@ func (cfg *Config) ParseFlags() error {
 	flag.DurationVar(&cfg.ReportInterval, "r", cfg.ReportInterval, "report interval (duration)")
 	flag.DurationVar(&cfg.PollInterval, "p", cfg.PollInterval, "poll interval (duration)")
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - secret key for sign metrics")
+	flag.StringVar(&cfg.CryptoKey, "crypto-key", cfg.CryptoKey, "string - path to file with public crypto key")
 	flag.StringVar(&cfg.ReportURL, "rt", cfg.ReportURL, fmt.Sprint("support types: ",
 		reporter.ReportAsURL, "|", reporter.ReportAsJSON, "|", reporter.ReportAsBatchJSON))
 	addr := flag.String("a", cfg.Addr, "ip address: ip:port")
@@ -93,6 +96,7 @@ func (cfg Config) String() string {
 	builder.WriteString(fmt.Sprintf("\t POLL_INTERVAL: %s\n", cfg.PollInterval.String()))
 	builder.WriteString(fmt.Sprintf("\t REPORT_TYPE: %s\n", cfg.ReportURL))
 	builder.WriteString(fmt.Sprintf("\t KEY: %s\n", cfg.SecretKey))
+	builder.WriteString(fmt.Sprintf("\t CRYPTO_KEY: %s\n", cfg.CryptoKey))
 
 	return builder.String()
 }
