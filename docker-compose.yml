@@ -14,6 +14,7 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
+        - ADDRESS=:8080
         - STORE_INTERVAL=0s
         - POLL_INTERVAL=2s
         - REPORT_INTERVAL=2s

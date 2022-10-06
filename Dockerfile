@@ -7,7 +7,7 @@ RUN go build -o /home/agent cmd/agent/main.go
 RUN go build -o /home/server cmd/server/main.go
 
 COPY start.sh /home/
-RUN chmod a+x start.sh
+RUN chmod a+x /home/start.sh
 
 EXPOSE 8080
 WORKDIR /home
