@@ -105,9 +105,9 @@ func (store Storage) Flush() error {
 		return fmt.Errorf("could not flush metrics to database: %w", err)
 	}
 	defer func() {
-		if err := tx.Rollback(); err != nil {
-			if !errors.Is(err, sql.ErrTxDone) {
-				store.logger.Err.Printf("error rollback: %v\n", err)
+		if errRollBack := tx.Rollback(); errRollBack != nil {
+			if !errors.Is(errRollBack, sql.ErrTxDone) {
+				store.logger.Err.Printf("error rollback: %v\n", errRollBack)
 			}
 		}
 	}()
@@ -117,8 +117,8 @@ func (store Storage) Flush() error {
 		return fmt.Errorf("error prepare statement 'gauge' : %w", err)
 	}
 	defer func() {
-		if err := stmtGauge.Close(); err != nil {
-			store.logger.Err.Printf("error close gauge statement: %v\n", err)
+		if errClose := stmtGauge.Close(); errClose != nil {
+			store.logger.Err.Printf("error close gauge statement: %v\n", errClose)
 		}
 	}()
 
@@ -127,8 +127,8 @@ func (store Storage) Flush() error {
 		return fmt.Errorf("error prepare statement 'counter': %w", err)
 	}
 	defer func() {
-		if err := stmtCounter.Close(); err != nil {
-			store.logger.Err.Printf("error close counter statement: %v\n", err)
+		if errClose := stmtCounter.Close(); errClose != nil {
+			store.logger.Err.Printf("error close counter statement: %v\n", errClose)
 		}
 	}()
 

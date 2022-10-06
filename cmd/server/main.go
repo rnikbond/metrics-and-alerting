@@ -17,11 +17,24 @@ import (
 )
 
 var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
+var (
 	_ storage.Repository = (*server.MetricsManager)(nil)
 	_ storage.Repository = (*memstore.Storage)(nil)
 	_ storage.Repository = (*filestorage.Storage)(nil)
 	_ storage.Repository = (*dbstore.Storage)(nil)
 )
+
+func init() {
+
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
+}
 
 func main() {
 
