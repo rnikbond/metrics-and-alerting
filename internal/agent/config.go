@@ -3,6 +3,7 @@ package agent
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"strconv"
@@ -38,14 +39,26 @@ func DefaultConfig() *Config {
 
 func (cfg *Config) ParseFlags() error {
 
+	var cryptoPath string
+
 	flag.DurationVar(&cfg.ReportInterval, "r", cfg.ReportInterval, "report interval (duration)")
 	flag.DurationVar(&cfg.PollInterval, "p", cfg.PollInterval, "poll interval (duration)")
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - secret key for sign metrics")
-	flag.StringVar(&cfg.CryptoKey, "crypto-key", cfg.CryptoKey, "string - path to file with public crypto key")
+	flag.StringVar(&cryptoPath, "crypto-key", cfg.CryptoKey, "string - path to file with public crypto key")
 	flag.StringVar(&cfg.ReportURL, "rt", cfg.ReportURL, fmt.Sprint("support types: ",
 		reporter.ReportAsURL, "|", reporter.ReportAsJSON, "|", reporter.ReportAsBatchJSON))
 	addr := flag.String("a", cfg.Addr, "ip address: ip:port")
 	flag.Parse()
+
+	if len(cryptoPath) > 0 {
+
+		key, err := ioutil.ReadFile(cryptoPath)
+		if err != nil {
+			return err
+		}
+
+		cfg.CryptoKey = string(key)
+	}
 
 	if addr == nil || *addr == "" {
 		return fmt.Errorf("address can not be empty")

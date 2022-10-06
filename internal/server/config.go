@@ -3,6 +3,7 @@ package server
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"strconv"
@@ -38,15 +39,27 @@ func DefaultConfig() *Config {
 
 func (cfg *Config) ParseFlags() error {
 
+	var cryptoPath string
+
 	flag.BoolVar(&cfg.Restore, "r", cfg.Restore, "bool - restore metrics")
 	flag.StringVar(&cfg.StoreFile, "f", cfg.StoreFile, "string - path to fileStorage storage")
 	flag.DurationVar(&cfg.StoreInterval, "i", cfg.StoreInterval, "duration - interval store metrics")
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key sign")
 	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "string - dbstore data source name")
-	flag.StringVar(&cfg.CryptoKey, "crypto-key", cfg.CryptoKey, "string - path to file with private crypto key")
+	flag.StringVar(&cryptoPath, "crypto-key", cfg.CryptoKey, "string - path to file with private crypto key")
 
 	addr := flag.String("a", cfg.Addr, "string - host:port")
 	flag.Parse()
+
+	if len(cryptoPath) > 0 {
+
+		key, err := ioutil.ReadFile(cryptoPath)
+		if err != nil {
+			return err
+		}
+
+		cfg.CryptoKey = string(key)
+	}
 
 	if addr == nil || *addr == "" {
 		return fmt.Errorf("address can not be empty")
