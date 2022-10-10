@@ -111,7 +111,7 @@ func (cfg Config) String() string {
 	builder.WriteString(fmt.Sprintf("\t KEY: %s\n", cfg.SecretKey))
 
 	if len(cfg.CryptoKey) != 0 {
-		builder.WriteString(fmt.Sprintf("\t CRYPTO_KEY: USE\n"))
+		builder.WriteString("\t CRYPTO_KEY: USE\n")
 	}
 
 	return builder.String()
