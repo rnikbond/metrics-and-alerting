@@ -20,6 +20,7 @@ type Agent struct {
 	addr           string
 	reportType     string
 	signKey        []byte
+	publicKey      []byte
 	storage        storage.Repository
 	logger         *logpack.LogPack
 }
@@ -74,6 +75,12 @@ func WithSignKey(key []byte) OptionsAgent {
 	}
 }
 
+func WithKey(key []byte) OptionsAgent {
+	return func(agent *Agent) {
+		agent.publicKey = key
+	}
+}
+
 // Start Запуск агента для сбора и отправки метрик
 func (a Agent) Start(ctx context.Context) error {
 
@@ -116,7 +123,13 @@ func (a *Agent) updateMetrics(ctx context.Context) {
 
 func (a *Agent) reportMetrics(ctx context.Context) {
 
-	report := reporter.NewReporter(a.addr, a.storage, reporter.WithSignKey(a.signKey))
+	report := reporter.NewReporter(
+		a.addr,
+		a.storage,
+		a.logger,
+		reporter.WithSignKey(a.signKey),
+		reporter.WithKey(a.publicKey))
+
 	ticker := time.NewTicker(a.reportInterval)
 
 	for {

@@ -2,6 +2,11 @@ package handler
 
 import (
 	"compress/gzip"
+	"crypto"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"hash"
 	"io"
 	"log"
 	"net/http"
@@ -32,9 +37,12 @@ const (
 )
 
 type (
+	OptionsHandler func(*Handler)
+
 	Handler struct {
-		store  storage.Repository
-		logger *logpack.LogPack
+		store      storage.Repository
+		logger     *logpack.LogPack
+		privateKey *rsa.PrivateKey
 	}
 
 	gzipWriter struct {
@@ -43,10 +51,39 @@ type (
 	}
 )
 
-func New(store storage.Repository, logger *logpack.LogPack) *Handler {
-	return &Handler{
+func New(store storage.Repository, logger *logpack.LogPack, opts ...OptionsHandler) *Handler {
+	h := &Handler{
 		store:  store,
 		logger: logger,
+	}
+
+	for _, opt := range opts {
+		opt(h)
+	}
+
+	return h
+}
+
+func WithKey(key string) OptionsHandler {
+	return func(h *Handler) {
+
+		if len(key) == 0 {
+			return
+		}
+
+		block, _ := pem.Decode([]byte(key))
+		if block == nil {
+			h.logger.Err.Println("failed decode private key!")
+			return
+		}
+
+		privateKey, errParse := x509.ParsePKCS1PrivateKey(block.Bytes)
+		if errParse != nil {
+			h.logger.Err.Printf("failed parse private key: %v\n", privateKey)
+			return
+		}
+
+		h.privateKey = privateKey
 	}
 }
 
@@ -72,6 +109,62 @@ func (h Handler) DecompressRequest(next http.Handler) http.Handler {
 		w.Header().Set(ContentEncoding, GZip)
 		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: writer}, r)
 	})
+}
+
+func DecryptOAEP(hash hash.Hash, random io.Reader, private *rsa.PrivateKey, msg []byte, label []byte) ([]byte, error) {
+	msgLen := len(msg)
+	step := private.PublicKey.Size()
+	var decryptedBytes []byte
+
+	for start := 0; start < msgLen; start += step {
+		finish := start + step
+		if finish > msgLen {
+			finish = msgLen
+		}
+
+		decryptedBlockBytes, err := rsa.DecryptOAEP(hash, random, private, msg[start:finish], label)
+		if err != nil {
+			return nil, err
+		}
+
+		decryptedBytes = append(decryptedBytes, decryptedBlockBytes...)
+	}
+
+	return decryptedBytes, nil
+}
+
+func (h Handler) Decrypt(r io.ReadCloser) ([]byte, error) {
+
+	data, errRead := io.ReadAll(r)
+	defer func() {
+		if err := r.Close(); err != nil {
+			h.logger.Err.Printf("could not close body http.Request: %v\n", err)
+		}
+	}()
+
+	if h.privateKey == nil {
+		return data, errRead
+	}
+
+	dataLen := len(data)
+	step := h.privateKey.PublicKey.Size()
+	var decryptedBytes []byte
+
+	for start := 0; start < dataLen; start += step {
+		finish := start + step
+		if finish > dataLen {
+			finish = dataLen
+		}
+
+		decryptedBlockBytes, err := h.privateKey.Decrypt(nil, data[start:finish], &rsa.OAEPOptions{Hash: crypto.SHA256})
+		if err != nil {
+			return nil, err
+		}
+
+		decryptedBytes = append(decryptedBytes, decryptedBlockBytes...)
+	}
+
+	return decryptedBytes, nil
 }
 
 func BodyReader(r *http.Request) (io.ReadCloser, error) {

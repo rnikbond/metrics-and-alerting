@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -87,13 +86,7 @@ func (h Handler) UpdateJSON() http.HandlerFunc {
 			return
 		}
 
-		defer func() {
-			if err := reader.Close(); err != nil {
-				log.Printf("error close reader: %v\n", err)
-			}
-		}()
-
-		data, err := io.ReadAll(reader)
+		data, err := h.Decrypt(reader)
 		if err != nil {
 			log.Printf("error read body request: %v\n", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -143,13 +136,7 @@ func (h Handler) UpdateDataJSON() http.HandlerFunc {
 			return
 		}
 
-		defer func() {
-			if err := reader.Close(); err != nil {
-				log.Printf("error close reader: %v\n", err)
-			}
-		}()
-
-		data, err := io.ReadAll(reader)
+		data, err := h.Decrypt(reader)
 		if err != nil {
 			log.Printf("error read body request: %v\n", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)

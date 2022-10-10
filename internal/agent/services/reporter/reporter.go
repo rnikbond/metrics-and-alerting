@@ -2,8 +2,16 @@ package reporter
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
+	"hash"
+	"io"
+	"metrics-and-alerting/pkg/logpack"
 	"net/http"
 
 	"metrics-and-alerting/internal/storage"
@@ -22,17 +30,20 @@ type (
 	OptionReporter func(*Reporter)
 
 	Reporter struct {
-		addr    string
-		signKey []byte
-		storage storage.Repository
+		addr      string
+		signKey   []byte
+		storage   storage.Repository
+		logger    *logpack.LogPack
+		publicKey *rsa.PublicKey
 	}
 )
 
-func NewReporter(addr string, storage storage.Repository, opts ...OptionReporter) *Reporter {
+func NewReporter(addr string, storage storage.Repository, logger *logpack.LogPack, opts ...OptionReporter) *Reporter {
 
 	r := &Reporter{
 		addr:    addr,
 		storage: storage,
+		logger:  logger,
 	}
 
 	for _, opt := range opts {
@@ -46,6 +57,88 @@ func WithSignKey(key []byte) OptionReporter {
 	return func(reporter *Reporter) {
 		reporter.signKey = key
 	}
+}
+
+func WithKey(key []byte) OptionReporter {
+	return func(reporter *Reporter) {
+
+		if len(key) == 0 {
+			return
+		}
+
+		block, _ := pem.Decode(key)
+		if block == nil {
+			//reporter.logger.Err.Printf("key %s has invalid format!\n", key)
+			return
+		}
+
+		publicKey, errKey := x509.ParsePKIXPublicKey(block.Bytes)
+		if errKey != nil {
+			reporter.logger.Err.Printf("could not create rsa.PublicKey: %v\n", errKey)
+			return
+		}
+
+		switch pub := publicKey.(type) {
+		case *rsa.PublicKey:
+			reporter.publicKey = pub
+		default:
+			reporter.logger.Err.Println("failed create rsa.PublicKey: key is not RSA!")
+		}
+	}
+}
+
+func EncryptOAEP(hash hash.Hash, random io.Reader, public *rsa.PublicKey, msg []byte, label []byte) ([]byte, error) {
+	msgLen := len(msg)
+	step := public.Size() - 2*hash.Size() - 2
+	var encryptedBytes []byte
+
+	for start := 0; start < msgLen; start += step {
+		finish := start + step
+		if finish > msgLen {
+			finish = msgLen
+		}
+
+		encryptedBlockBytes, err := rsa.EncryptOAEP(hash, random, public, msg[start:finish], label)
+		if err != nil {
+			return nil, err
+		}
+
+		encryptedBytes = append(encryptedBytes, encryptedBlockBytes...)
+	}
+
+	return encryptedBytes, nil
+}
+
+func (r Reporter) Encrypt(data []byte) ([]byte, error) {
+	if r.publicKey == nil {
+		return data, nil
+	}
+
+	hashFunc := sha256.New()
+	dataLen := len(data)
+	step := r.publicKey.Size() - hashFunc.Size()*2 - 2
+	var encryptedBytes []byte
+	for start := 0; start < dataLen; start += step {
+		finish := start + step
+		if finish > dataLen {
+			finish = dataLen
+		}
+
+		encryptedBlockBytes, err := rsa.EncryptOAEP(
+			hashFunc,
+			rand.Reader,
+			r.publicKey,
+			data[start:finish],
+			nil)
+
+		if err != nil {
+			return nil, err
+		}
+
+		encryptedBytes = append(encryptedBytes, encryptedBlockBytes...)
+	}
+
+	return encryptedBytes, nil
 }
 
 func (r Reporter) Report(ctx context.Context, reportType string) error {
@@ -85,7 +178,6 @@ func (r Reporter) reportURL(ctx context.Context) error {
 
 	for _, m := range metrics {
 
-		client.R()
 		resp, err := client.R().
 			SetHeader("Content-Type", "text/plain").
 			SetPathParams(m.Map()).
@@ -126,6 +218,11 @@ func (r Reporter) reportJSON(ctx context.Context) error {
 		data, err := json.Marshal(&m)
 		if err != nil {
 			return fmt.Errorf("error encode metric to JSON: %w", err)
+		}
+
+		data, err = r.Encrypt(data)
+		if err != nil {
+			return fmt.Errorf("error encrypt metric marshaled data: %w", err)
 		}
 
 		resp, err := client.R().
@@ -172,6 +269,11 @@ func (r Reporter) reportBatchJSON(ctx context.Context) error {
 	data, err := json.Marshal(&metricsSigned)
 	if err != nil {
 		return fmt.Errorf("error encode metrics to JSON: %w", err)
+	}
+
+	data, err = r.Encrypt(data)
+	if err != nil {
+		return fmt.Errorf("error encrypt metric marshaled data: %w", err)
 	}
 
 	client := resty.New()

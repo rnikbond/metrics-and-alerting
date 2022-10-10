@@ -56,6 +56,7 @@ func main() {
 		agent.WithLogger(logger),
 		agent.WithReportURL(cfg.ReportURL),
 		agent.WithSignKey([]byte(cfg.SecretKey)),
+		agent.WithKey([]byte(cfg.CryptoKey)),
 	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)

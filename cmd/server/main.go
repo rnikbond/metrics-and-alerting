@@ -79,7 +79,7 @@ func main() {
 		server.WithRestore(cfg.Restore),
 	)
 
-	handlers := handler.New(storeManager, logger)
+	handlers := handler.New(storeManager, logger, handler.WithKey(cfg.CryptoKey))
 
 	serv := server.NewServer(cfg.Addr, handlers)
 	serv.Start()

@@ -10,8 +10,11 @@ import (
 	"github.com/go-chi/chi"
 )
 
+type OptionsServer func(*MetricsServer)
+
 type MetricsServer struct {
-	HTTP *http.Server
+	HTTP       *http.Server
+	privateKey []byte
 }
 
 func NewServer(addr string, h *handler.Handler) *MetricsServer {

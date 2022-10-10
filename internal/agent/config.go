@@ -109,7 +109,10 @@ func (cfg Config) String() string {
 	builder.WriteString(fmt.Sprintf("\t POLL_INTERVAL: %s\n", cfg.PollInterval.String()))
 	builder.WriteString(fmt.Sprintf("\t REPORT_TYPE: %s\n", cfg.ReportURL))
 	builder.WriteString(fmt.Sprintf("\t KEY: %s\n", cfg.SecretKey))
-	builder.WriteString(fmt.Sprintf("\t CRYPTO_KEY: %s\n", cfg.CryptoKey))
+
+	if len(cfg.CryptoKey) != 0 {
+		builder.WriteString(fmt.Sprintf("\t CRYPTO_KEY: USE\n"))
+	}
 
 	return builder.String()
 }
