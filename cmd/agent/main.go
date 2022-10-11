@@ -50,8 +50,8 @@ func main() {
 
 	agentService := agent.NewAgent(
 		inMemory,
-		agent.WithPollInterval(cfg.PollInterval),
-		agent.WithReportInterval(cfg.ReportInterval),
+		agent.WithPollInterval(cfg.PollInterval.Duration),
+		agent.WithReportInterval(cfg.ReportInterval.Duration),
 		agent.WithAddr(cfg.Addr),
 		agent.WithLogger(logger),
 		agent.WithReportURL(cfg.ReportURL),

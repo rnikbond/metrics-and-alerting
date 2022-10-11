@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -14,13 +15,18 @@ import (
 )
 
 type Config struct {
-	Addr          string        `env:"ADDRESS"`
-	StoreInterval time.Duration `env:"STORE_INTERVAL"`
-	Restore       bool          `env:"RESTORE"`
-	DatabaseDSN   string        `env:"DATABASE_DSN"`
-	StoreFile     string        `env:"STORE_FILE"`
-	SecretKey     string        `env:"KEY"`
-	CryptoKey     string        `env:"CRYPTO_KEY"`
+	Addr          string   `env:"ADDRESS"        json:"address"        `
+	StoreInterval Duration `env:"STORE_INTERVAL" json:"store_interval" `
+	Restore       bool     `env:"RESTORE"        json:"restore"        `
+	DatabaseDSN   string   `env:"DATABASE_DSN"   json:"database_dsn"   `
+	StoreFile     string   `env:"STORE_FILE"     json:"store_file"     `
+	SecretKey     string   `env:"KEY"            json:"secret_key"     `
+	CryptoKey     string   `env:"CRYPTO_KEY"     json:"crypto_key"     `
+	ConfigFile    string   `env:"CONFIG"`
+}
+
+type Duration struct {
+	time.Duration
 }
 
 // DefaultConfig Конфигурация для сервиса агента со значениями по умолчанию
@@ -28,13 +34,96 @@ func DefaultConfig() *Config {
 
 	return &Config{
 		Addr:          ":8080",
-		StoreInterval: 10 * time.Second,
 		Restore:       true,
 		DatabaseDSN:   "",
 		StoreFile:     "",
 		SecretKey:     "",
 		CryptoKey:     "",
+		StoreInterval: Duration{Duration: 10 * time.Second},
 	}
+}
+
+func (duration *Duration) UnmarshalJSON(b []byte) error {
+	var unmarshalledJson interface{}
+
+	err := json.Unmarshal(b, &unmarshalledJson)
+	if err != nil {
+		return err
+	}
+
+	switch value := unmarshalledJson.(type) {
+	case float64:
+		duration.Duration = time.Duration(value)
+	case string:
+		duration.Duration, err = time.ParseDuration(value)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("invalid duration: %#v", unmarshalledJson)
+	}
+
+	return nil
+}
+
+func (cfg *Config) ReadConfig() error {
+
+	if len(cfg.ConfigFile) == 0 {
+		return nil
+	}
+
+	data, errRead := ioutil.ReadFile(cfg.ConfigFile)
+	if errRead != nil {
+		return errRead
+	}
+
+	cfgDef := DefaultConfig()
+	var cfgConf Config
+
+	if errJSON := json.Unmarshal(data, &cfgConf); errJSON != nil {
+		return errJSON
+	}
+
+	if cfg.Addr == cfgDef.Addr && cfg.Addr != cfgConf.Addr {
+		if len(cfgConf.Addr) != 0 {
+			cfg.Addr = cfgConf.Addr
+		}
+	}
+
+	if cfg.StoreInterval == cfgDef.StoreInterval &&
+		cfg.StoreInterval != cfgConf.StoreInterval {
+		cfg.StoreInterval = cfgConf.StoreInterval
+	}
+
+	if cfg.Restore == cfgDef.Restore && cfg.Restore != cfgConf.Restore {
+		cfg.Restore = cfgConf.Restore
+	}
+
+	if cfg.DatabaseDSN == cfgDef.DatabaseDSN && cfg.DatabaseDSN != cfgConf.DatabaseDSN {
+		if len(cfgConf.DatabaseDSN) != 0 {
+			cfg.DatabaseDSN = cfgConf.DatabaseDSN
+		}
+	}
+
+	if cfg.StoreFile == cfgDef.StoreFile && cfg.StoreFile != cfgConf.StoreFile {
+		if len(cfgConf.StoreFile) != 0 {
+			cfg.StoreFile = cfgConf.StoreFile
+		}
+	}
+
+	if cfg.SecretKey == cfgDef.SecretKey && cfg.SecretKey != cfgConf.SecretKey {
+		if len(cfgConf.SecretKey) != 0 {
+			cfg.SecretKey = cfgConf.SecretKey
+		}
+	}
+
+	if cfg.CryptoKey == cfgDef.CryptoKey && cfg.CryptoKey != cfgConf.CryptoKey {
+		if len(cfgConf.CryptoKey) != 0 {
+			cfg.CryptoKey = cfgConf.CryptoKey
+		}
+	}
+
+	return nil
 }
 
 func (cfg *Config) ParseFlags() error {
@@ -43,10 +132,11 @@ func (cfg *Config) ParseFlags() error {
 
 	flag.BoolVar(&cfg.Restore, "r", cfg.Restore, "bool - restore metrics")
 	flag.StringVar(&cfg.StoreFile, "f", cfg.StoreFile, "string - path to fileStorage storage")
-	flag.DurationVar(&cfg.StoreInterval, "i", cfg.StoreInterval, "duration - interval store metrics")
+	flag.DurationVar(&cfg.StoreInterval.Duration, "i", cfg.StoreInterval.Duration, "duration - interval store metrics")
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key sign")
 	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "string - dbstore data source name")
 	flag.StringVar(&cryptoPath, "crypto-key", cfg.CryptoKey, "string - path to file with private crypto key")
+	flag.StringVar(&cfg.ConfigFile, "c", cfg.ConfigFile, "string - path to config in JSON format")
 
 	addr := flag.String("a", cfg.Addr, "string - host:port")
 	flag.Parse()
@@ -81,6 +171,11 @@ func (cfg *Config) ParseFlags() error {
 	}
 
 	cfg.Addr = *addr
+
+	if err := cfg.ReadConfig(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

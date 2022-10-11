@@ -51,7 +51,7 @@ func main() {
 	var store storage.Repository
 	if len(cfg.DatabaseDSN) != 0 {
 
-		cfg.StoreInterval = 0
+		cfg.StoreInterval.Duration = 0
 		db, err := dbstore.New(cfg.DatabaseDSN, logger)
 		if err != nil {
 			panic(err)
@@ -75,7 +75,7 @@ func main() {
 		store,
 		logger,
 		server.WithSignKey([]byte(cfg.SecretKey)),
-		server.WithFlush(cfg.StoreInterval),
+		server.WithFlush(cfg.StoreInterval.Duration),
 		server.WithRestore(cfg.Restore),
 	)
 
