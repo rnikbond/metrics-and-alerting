@@ -77,9 +77,16 @@ func (cfg *Config) ParseFlags() error {
 	flag.StringVar(&cfg.ReportURL, "rt", cfg.ReportURL, fmt.Sprint("support types: ",
 		reporter.ReportAsURL, "|", reporter.ReportAsJSON, "|", reporter.ReportAsBatchJSON))
 	flag.StringVar(&cfg.ConfigFile, "c", cfg.ConfigFile, "string - path to config in JSON format")
-
-	addr := flag.String("a", cfg.Addr, "ip address: ip:port")
+	addr := flag.String("a", "", "ip address: ip:port")
 	flag.Parse()
+
+	if err := cfg.ReadConfig(); err != nil {
+		return err
+	}
+
+	if len(cryptoPath) == 0 {
+		cryptoPath = cfg.CryptoKey
+	}
 
 	if len(cryptoPath) > 0 {
 
@@ -92,7 +99,11 @@ func (cfg *Config) ParseFlags() error {
 	}
 
 	if addr == nil || *addr == "" {
-		return fmt.Errorf("address can not be empty")
+		if len(cfg.ConfigFile) == 0 {
+			return fmt.Errorf("address can not be empty")
+		}
+
+		*addr = cfg.Addr
 	}
 
 	parsedAddr := strings.Split(*addr, ":")
@@ -115,9 +126,6 @@ func (cfg *Config) ParseFlags() error {
 	}
 
 	cfg.Addr = *addr
-	if err := cfg.ReadConfig(); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -132,47 +140,7 @@ func (cfg *Config) ReadConfig() error {
 		return errRead
 	}
 
-	cfgDef := DefaultConfig()
-	var cfgConf Config
-
-	if errJSON := json.Unmarshal(data, &cfgConf); errJSON != nil {
-		return errJSON
-	}
-
-	if cfg.Addr == cfgDef.Addr && cfg.Addr != cfgConf.Addr {
-		if len(cfgConf.Addr) != 0 {
-			cfg.Addr = cfgConf.Addr
-		}
-	}
-
-	if cfg.ReportInterval == cfgDef.ReportInterval &&
-		cfg.ReportInterval != cfgConf.ReportInterval {
-		cfg.ReportInterval = cfgConf.ReportInterval
-	}
-
-	if cfg.PollInterval == cfgDef.PollInterval && cfg.PollInterval != cfgConf.PollInterval {
-		cfg.PollInterval = cfgConf.PollInterval
-	}
-
-	if cfg.ReportURL == cfgDef.ReportURL && cfg.ReportURL != cfgConf.ReportURL {
-		if len(cfgConf.ReportURL) != 0 {
-			cfg.ReportURL = cfgConf.ReportURL
-		}
-	}
-
-	if cfg.SecretKey == cfgDef.SecretKey && cfg.SecretKey != cfgConf.SecretKey {
-		if len(cfgConf.SecretKey) != 0 {
-			cfg.SecretKey = cfgConf.SecretKey
-		}
-	}
-
-	if cfg.CryptoKey == cfgDef.CryptoKey && cfg.CryptoKey != cfgConf.CryptoKey {
-		if len(cfgConf.CryptoKey) != 0 {
-			cfg.CryptoKey = cfgConf.CryptoKey
-		}
-	}
-
-	return nil
+	return json.Unmarshal(data, cfg)
 }
 
 // ReadEnvironment Получение параметров конфигурации из переменных окружения
