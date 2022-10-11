@@ -99,10 +99,6 @@ func (cfg *Config) ParseFlags() error {
 	}
 
 	if addr == nil || *addr == "" {
-		if len(cfg.ConfigFile) == 0 {
-			return fmt.Errorf("address can not be empty")
-		}
-
 		*addr = cfg.Addr
 	}
 
