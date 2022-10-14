@@ -52,8 +52,6 @@ func (duration *Duration) UnmarshalJSON(b []byte) error {
 	}
 
 	switch value := unmarshalledJSON.(type) {
-	case float64:
-		duration.Duration = time.Duration(value)
 	case string:
 		duration.Duration, err = time.ParseDuration(value)
 		if err != nil {

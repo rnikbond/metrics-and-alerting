@@ -89,7 +89,6 @@ func main() {
 	<-ctx.Done()
 	stop()
 
-	// TODO :: Нужно ли здесь создавать новый контекст
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	if err := serv.Shutdown(ctx); err != nil {
 		logger.Err.Printf("HTTP server Shutdown: %v\n", err)
