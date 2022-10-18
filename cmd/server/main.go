@@ -51,7 +51,7 @@ func main() {
 	var store storage.Repository
 	if len(cfg.DatabaseDSN) != 0 {
 
-		cfg.StoreInterval = 0
+		cfg.StoreInterval.Duration = 0
 		db, err := dbstore.New(cfg.DatabaseDSN, logger)
 		if err != nil {
 			panic(err)
@@ -75,11 +75,11 @@ func main() {
 		store,
 		logger,
 		server.WithSignKey([]byte(cfg.SecretKey)),
-		server.WithFlush(cfg.StoreInterval),
+		server.WithFlush(cfg.StoreInterval.Duration),
 		server.WithRestore(cfg.Restore),
 	)
 
-	handlers := handler.New(storeManager, logger)
+	handlers := handler.New(storeManager, logger, handler.WithKey(cfg.CryptoKey))
 
 	serv := server.NewServer(cfg.Addr, handlers)
 	serv.Start()
@@ -89,7 +89,6 @@ func main() {
 	<-ctx.Done()
 	stop()
 
-	// TODO :: Нужно ли здесь создавать новый контекст
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	if err := serv.Shutdown(ctx); err != nil {
 		logger.Err.Printf("HTTP server Shutdown: %v\n", err)

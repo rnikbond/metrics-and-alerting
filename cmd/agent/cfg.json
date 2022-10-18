@@ -1,0 +1,7 @@
+{
+    "address": "localhost:8082",
+    "report_interval": "1s",
+    "poll_interval": "1s",
+    "report_type": "BatchJSON",
+    "crypto_key": "public.key"
+} 

@@ -1,8 +1,10 @@
 package server
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"strconv"
@@ -13,12 +15,18 @@ import (
 )
 
 type Config struct {
-	Addr          string        `env:"ADDRESS"`
-	StoreInterval time.Duration `env:"STORE_INTERVAL"`
-	Restore       bool          `env:"RESTORE"`
-	DatabaseDSN   string        `env:"DATABASE_DSN"`
-	StoreFile     string        `env:"STORE_FILE"`
-	SecretKey     string        `env:"KEY"`
+	Addr          string   `env:"ADDRESS"        json:"address"        `
+	StoreInterval Duration `env:"STORE_INTERVAL" json:"store_interval" `
+	Restore       bool     `env:"RESTORE"        json:"restore"        `
+	DatabaseDSN   string   `env:"DATABASE_DSN"   json:"database_dsn"   `
+	StoreFile     string   `env:"STORE_FILE"     json:"store_file"     `
+	SecretKey     string   `env:"KEY"            json:"secret_key"     `
+	CryptoKey     string   `env:"CRYPTO_KEY"     json:"crypto_key"     `
+	ConfigFile    string   `env:"CONFIG"`
+}
+
+type Duration struct {
+	time.Duration
 }
 
 // DefaultConfig Конфигурация для сервиса агента со значениями по умолчанию
@@ -26,27 +34,85 @@ func DefaultConfig() *Config {
 
 	return &Config{
 		Addr:          ":8080",
-		StoreInterval: 10 * time.Second,
 		Restore:       true,
 		DatabaseDSN:   "",
 		StoreFile:     "",
 		SecretKey:     "",
+		CryptoKey:     "",
+		StoreInterval: Duration{Duration: 10 * time.Second},
 	}
+}
+
+func (duration *Duration) UnmarshalJSON(b []byte) error {
+	var unmarshalledJSON interface{}
+
+	err := json.Unmarshal(b, &unmarshalledJSON)
+	if err != nil {
+		return err
+	}
+
+	switch value := unmarshalledJSON.(type) {
+	case string:
+		duration.Duration, err = time.ParseDuration(value)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("invalid duration: %#v", unmarshalledJSON)
+	}
+
+	return nil
+}
+
+func (cfg *Config) ReadConfig() error {
+
+	if len(cfg.ConfigFile) == 0 {
+		return nil
+	}
+
+	data, errRead := ioutil.ReadFile(cfg.ConfigFile)
+	if errRead != nil {
+		return errRead
+	}
+
+	return json.Unmarshal(data, cfg)
 }
 
 func (cfg *Config) ParseFlags() error {
 
+	var cryptoPath string
+
 	flag.BoolVar(&cfg.Restore, "r", cfg.Restore, "bool - restore metrics")
 	flag.StringVar(&cfg.StoreFile, "f", cfg.StoreFile, "string - path to fileStorage storage")
-	flag.DurationVar(&cfg.StoreInterval, "i", cfg.StoreInterval, "duration - interval store metrics")
+	flag.DurationVar(&cfg.StoreInterval.Duration, "i", cfg.StoreInterval.Duration, "duration - interval store metrics")
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - key sign")
 	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "string - dbstore data source name")
+	flag.StringVar(&cryptoPath, "crypto-key", cfg.CryptoKey, "string - path to file with private crypto key")
+	flag.StringVar(&cfg.ConfigFile, "c", cfg.ConfigFile, "string - path to config in JSON format")
 
-	addr := flag.String("a", cfg.Addr, "string - host:port")
+	addr := flag.String("a", "", "string - host:port")
 	flag.Parse()
 
+	if err := cfg.ReadConfig(); err != nil {
+		return err
+	}
+
+	if len(cryptoPath) == 0 {
+		cryptoPath = cfg.CryptoKey
+	}
+
+	if len(cryptoPath) > 0 {
+
+		key, err := ioutil.ReadFile(cryptoPath)
+		if err != nil {
+			return err
+		}
+
+		cfg.CryptoKey = string(key)
+	}
+
 	if addr == nil || *addr == "" {
-		return fmt.Errorf("address can not be empty")
+		*addr = cfg.Addr
 	}
 
 	parsedAddr := strings.Split(*addr, ":")
@@ -79,6 +145,10 @@ func (cfg Config) String() string {
 	builder.WriteString(fmt.Sprintf("\t DATABASE_DSN: %s\n", cfg.DatabaseDSN))
 	builder.WriteString(fmt.Sprintf("\t STORE_FILE: %s\n", cfg.StoreFile))
 	builder.WriteString(fmt.Sprintf("\t KEY: %s\n", cfg.SecretKey))
+
+	if len(cfg.CryptoKey) != 0 {
+		builder.WriteString("\t CRYPTO_KEY: USE\n")
+	}
 
 	return builder.String()
 }
