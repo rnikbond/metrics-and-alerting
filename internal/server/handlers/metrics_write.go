@@ -123,8 +123,6 @@ func (h Handler) UpdateDataJSON() http.HandlerFunc {
 			return
 		}
 
-		fmt.Println(r.Header.Get(XRealIP))
-
 		defer func() {
 			if err := r.Body.Close(); err != nil {
 				log.Printf("error close body in handler UpdateDataJSON: %v\n", err)
