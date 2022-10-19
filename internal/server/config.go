@@ -41,7 +41,6 @@ func DefaultConfig() *Config {
 		SecretKey:     "",
 		CryptoKey:     "",
 		StoreInterval: Duration{Duration: 10 * time.Second},
-		TrustedSubnet: "125.3.21.1, 123.1.1.1",
 	}
 }
 
