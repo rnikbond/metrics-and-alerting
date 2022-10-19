@@ -79,7 +79,10 @@ func main() {
 		server.WithRestore(cfg.Restore),
 	)
 
-	handlers := handler.New(storeManager, logger, handler.WithKey(cfg.CryptoKey))
+	handlers := handler.New(storeManager,
+		logger,
+		handler.WithKey(cfg.CryptoKey),
+		handler.WithTrustedSubnet(cfg.TrustedSubnet))
 
 	serv := server.NewServer(cfg.Addr, handlers)
 	serv.Start()

@@ -22,6 +22,7 @@ type Config struct {
 	StoreFile     string   `env:"STORE_FILE"     json:"store_file"     `
 	SecretKey     string   `env:"KEY"            json:"secret_key"     `
 	CryptoKey     string   `env:"CRYPTO_KEY"     json:"crypto_key"     `
+	TrustedSubnet string   `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
 	ConfigFile    string   `env:"CONFIG"`
 }
 
@@ -40,6 +41,7 @@ func DefaultConfig() *Config {
 		SecretKey:     "",
 		CryptoKey:     "",
 		StoreInterval: Duration{Duration: 10 * time.Second},
+		TrustedSubnet: "125.3.21.1, 123.1.1.1",
 	}
 }
 
@@ -81,6 +83,7 @@ func (cfg *Config) ReadConfig() error {
 func (cfg *Config) ParseFlags() error {
 
 	var cryptoPath string
+	var trustedSubnet string
 
 	flag.BoolVar(&cfg.Restore, "r", cfg.Restore, "bool - restore metrics")
 	flag.StringVar(&cfg.StoreFile, "f", cfg.StoreFile, "string - path to fileStorage storage")
@@ -89,6 +92,7 @@ func (cfg *Config) ParseFlags() error {
 	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "string - dbstore data source name")
 	flag.StringVar(&cryptoPath, "crypto-key", cfg.CryptoKey, "string - path to file with private crypto key")
 	flag.StringVar(&cfg.ConfigFile, "c", cfg.ConfigFile, "string - path to config in JSON format")
+	flag.StringVar(&trustedSubnet, "t", trustedSubnet, "string - CIDR")
 
 	addr := flag.String("a", "", "string - host:port")
 	flag.Parse()
@@ -131,6 +135,19 @@ func (cfg *Config) ParseFlags() error {
 	}
 
 	cfg.Addr = *addr
+
+	if len(trustedSubnet) != 0 {
+		trustedSubnet = strings.ReplaceAll(trustedSubnet, " ", "")
+		ipSet := strings.Split(trustedSubnet, ",")
+		for _, ip := range ipSet {
+			if netIP := net.ParseIP(ip); netIP == nil {
+				return fmt.Errorf("incorrect subnet ip: " + ip)
+			}
+		}
+
+		cfg.TrustedSubnet = trustedSubnet
+	}
+
 	return nil
 }
 
@@ -145,6 +162,7 @@ func (cfg Config) String() string {
 	builder.WriteString(fmt.Sprintf("\t DATABASE_DSN: %s\n", cfg.DatabaseDSN))
 	builder.WriteString(fmt.Sprintf("\t STORE_FILE: %s\n", cfg.StoreFile))
 	builder.WriteString(fmt.Sprintf("\t KEY: %s\n", cfg.SecretKey))
+	builder.WriteString(fmt.Sprintf("\t TRUSTED_SUBNET: %s\n", cfg.TrustedSubnet))
 
 	if len(cfg.CryptoKey) != 0 {
 		builder.WriteString("\t CRYPTO_KEY: USE\n")

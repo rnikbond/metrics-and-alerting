@@ -21,6 +21,7 @@ func NewServer(addr string, h *handler.Handler) *MetricsServer {
 
 	r := chi.NewRouter()
 	r.Use(h.DecompressRequest)
+	r.Use(h.Trust)
 	//r.Use(middleware.Logger)
 
 	r.Get("/ping", h.Ping())

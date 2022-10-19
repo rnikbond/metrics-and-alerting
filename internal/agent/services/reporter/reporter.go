@@ -279,6 +279,7 @@ func (r Reporter) reportBatchJSON(ctx context.Context) error {
 	client := resty.New()
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
+		SetHeader("X-Real-IP", "125.3.21.1").
 		SetBody(data).
 		SetContext(ctx).
 		Post(r.addr + "/updates")

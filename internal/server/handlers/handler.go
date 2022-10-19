@@ -25,6 +25,7 @@ const (
 )
 
 const (
+	XRealIP         = "X-Real-IP"
 	ContentType     = "Content-Type"
 	ContentEncoding = "Content-Encoding"
 	AcceptEncoding  = "Accept-Encoding"
@@ -39,9 +40,10 @@ type (
 	OptionsHandler func(*Handler)
 
 	Handler struct {
-		store      storage.Repository
-		logger     *logpack.LogPack
-		privateKey *rsa.PrivateKey
+		store         storage.Repository
+		logger        *logpack.LogPack
+		privateKey    *rsa.PrivateKey
+		trustedSubnet []string
 	}
 
 	gzipWriter struct {
@@ -86,8 +88,42 @@ func WithKey(key string) OptionsHandler {
 	}
 }
 
+func WithTrustedSubnet(subnet string) OptionsHandler {
+	return func(h *Handler) {
+
+		if len(subnet) == 0 {
+			return
+		}
+
+		subnet = strings.TrimSpace(subnet)
+		h.trustedSubnet = strings.Split(subnet, ",")
+	}
+}
+
 func (w gzipWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
+}
+
+// Trust Middleware Проверяет, находится ли IP адрес клиента в списке IP адресов, от которых принимаются запросы.
+// Если такого скиска нет, то запросы обрабатываются от любого IP адреса.
+func (h Handler) Trust(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if len(h.trustedSubnet) == 0 {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		clientIP := r.Header.Get(XRealIP)
+
+		for _, ip := range h.trustedSubnet {
+			if ip == clientIP {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		w.WriteHeader(http.StatusForbidden)
+	})
 }
 
 func (h Handler) DecompressRequest(next http.Handler) http.Handler {
