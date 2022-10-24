@@ -84,8 +84,15 @@ func main() {
 		handler.WithKey(cfg.CryptoKey),
 		handler.WithTrustedSubnet(cfg.TrustedSubnet))
 
-	serv := server.NewServer(cfg.Addr, handlers)
+	serv := server.NewHTTPServer(cfg.Addr, handlers)
 	serv.Start()
+
+	gServ, err := server.NewGRPCServer(":3200", storeManager)
+	if err != nil {
+		logger.Err.Printf("failed create gRPC server^ %v\n", err)
+	} else {
+		gServ.Start()
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
