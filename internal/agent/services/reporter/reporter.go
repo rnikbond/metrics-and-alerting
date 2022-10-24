@@ -178,6 +178,13 @@ func (r Reporter) reportGRPC(ctx context.Context) error {
 	}
 	for _, m := range metrics {
 
+		sign, errSign := m.Sign(r.signKey)
+		if errSign != nil {
+			return fmt.Errorf("could not report metrics: %v", errSign)
+		}
+
+		m.Hash = sign
+
 		var resp *pb.UpsertResponse
 		var errResp error
 
@@ -186,11 +193,13 @@ func (r Reporter) reportGRPC(ctx context.Context) error {
 			resp, errResp = c.UpsertCounter(ctx, &pb.UpsertCounterRequest{
 				Id:    m.ID,
 				Delta: *m.Delta,
+				Hash:  m.Hash,
 			})
 		case metric.GaugeType:
 			resp, errResp = c.UpsertGauge(ctx, &pb.UpsertGaugeRequest{
 				Id:    m.ID,
 				Value: *m.Value,
+				Hash:  m.Hash,
 			})
 		}
 

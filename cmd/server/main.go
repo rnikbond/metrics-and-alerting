@@ -99,6 +99,10 @@ func main() {
 	<-ctx.Done()
 	stop()
 
+	if gServ != nil {
+		gServ.Stop()
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	if err := serv.Shutdown(ctx); err != nil {
 		logger.Err.Printf("HTTP server Shutdown: %v\n", err)
