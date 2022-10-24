@@ -20,7 +20,7 @@ type Config struct {
 	Addr           string   `env:"ADDRESS"         json:"address"        `
 	ReportInterval Duration `env:"REPORT_INTERVAL" json:"report_interval"`
 	PollInterval   Duration `env:"POLL_INTERVAL"   json:"poll_interval"  `
-	ReportURL      string   `env:"REPORT_TYPE"     json:"report_type"    `
+	ReportType     string   `env:"REPORT_TYPE"     json:"report_type"    `
 	SecretKey      string   `env:"KEY"             json:"key"            `
 	CryptoKey      string   `env:"CRYPTO_KEY"      json:"crypto_key"     `
 	ConfigFile     string   `env:"CONFIG"`
@@ -33,7 +33,7 @@ func DefaultConfig() *Config {
 		Addr:           ":8080",
 		ReportInterval: Duration{Duration: 10 * time.Second},
 		PollInterval:   Duration{Duration: 2 * time.Second},
-		ReportURL:      reporter.ReportAsBatchJSON,
+		ReportType:     reporter.ReportAsBatchJSON,
 		SecretKey:      "",
 		CryptoKey:      "",
 	}
@@ -72,8 +72,8 @@ func (cfg *Config) ParseFlags() error {
 	flag.DurationVar(&cfg.PollInterval.Duration, "p", cfg.PollInterval.Duration, "poll interval (duration)")
 	flag.StringVar(&cfg.SecretKey, "k", cfg.SecretKey, "string - secret key for sign metrics")
 	flag.StringVar(&cryptoPath, "crypto-key", cfg.CryptoKey, "string - path to file with public crypto key")
-	flag.StringVar(&cfg.ReportURL, "rt", cfg.ReportURL, fmt.Sprint("support types: ",
-		reporter.ReportAsURL, "|", reporter.ReportAsJSON, "|", reporter.ReportAsBatchJSON))
+	flag.StringVar(&cfg.ReportType, "rt", cfg.ReportType, fmt.Sprint("support types: ",
+		reporter.ReportAsURL, "|", reporter.ReportAsJSON, "|", reporter.ReportAsBatchJSON, "|", reporter.ReportAsGRPC))
 	flag.StringVar(&cfg.ConfigFile, "c", cfg.ConfigFile, "string - path to config in JSON format")
 	addr := flag.String("a", "", "ip address: ip:port")
 	flag.Parse()
@@ -157,7 +157,7 @@ func (cfg Config) String() string {
 	builder.WriteString(fmt.Sprintf("\t ADDRESS: %s\n", cfg.Addr))
 	builder.WriteString(fmt.Sprintf("\t REPORT_INTERVAL: %s\n", cfg.ReportInterval.String()))
 	builder.WriteString(fmt.Sprintf("\t POLL_INTERVAL: %s\n", cfg.PollInterval.String()))
-	builder.WriteString(fmt.Sprintf("\t REPORT_TYPE: %s\n", cfg.ReportURL))
+	builder.WriteString(fmt.Sprintf("\t REPORT_TYPE: %s\n", cfg.ReportType))
 	builder.WriteString(fmt.Sprintf("\t KEY: %s\n", cfg.SecretKey))
 
 	if len(cfg.CryptoKey) != 0 {

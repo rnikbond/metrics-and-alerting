@@ -54,7 +54,7 @@ func main() {
 		agent.WithReportInterval(cfg.ReportInterval.Duration),
 		agent.WithAddr(cfg.Addr),
 		agent.WithLogger(logger),
-		agent.WithReportURL(cfg.ReportURL),
+		agent.WithReportURL(cfg.ReportType),
 		agent.WithSignKey([]byte(cfg.SecretKey)),
 		agent.WithKey([]byte(cfg.CryptoKey)),
 	)

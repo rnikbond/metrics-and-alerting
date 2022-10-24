@@ -53,7 +53,7 @@ func (serv *MetricsServiceRPC) UpsertGauge(ctx context.Context, in *pb.UpsertGau
 	metric, err := metricPkg.CreateMetric(
 		metricPkg.GaugeType,
 		in.Id,
-		metricPkg.WithValueInt(in.Value),
+		metricPkg.WithValueFloat(in.Value),
 	)
 
 	if err == nil {
@@ -74,7 +74,7 @@ func (serv *MetricsServiceRPC) UpsertCounter(ctx context.Context, in *pb.UpsertC
 	metric, err := metricPkg.CreateMetric(
 		metricPkg.CounterType,
 		in.Id,
-		metricPkg.WithValueFloat(in.Delta),
+		metricPkg.WithValueInt(in.Delta),
 	)
 
 	if err == nil {

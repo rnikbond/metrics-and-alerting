@@ -16,6 +16,7 @@ import (
 
 type Config struct {
 	Addr          string   `env:"ADDRESS"        json:"address"        `
+	AddrRPC       string   `env:"ADDRESS_RPC"    json:"address_rpc"    `
 	StoreInterval Duration `env:"STORE_INTERVAL" json:"store_interval" `
 	Restore       bool     `env:"RESTORE"        json:"restore"        `
 	DatabaseDSN   string   `env:"DATABASE_DSN"   json:"database_dsn"   `
@@ -35,6 +36,7 @@ func DefaultConfig() *Config {
 
 	return &Config{
 		Addr:          ":8080",
+		AddrRPC:       ":3200",
 		Restore:       true,
 		DatabaseDSN:   "",
 		StoreFile:     "",
@@ -92,6 +94,7 @@ func (cfg *Config) ParseFlags() error {
 	flag.StringVar(&cryptoPath, "crypto-key", cfg.CryptoKey, "string - path to file with private crypto key")
 	flag.StringVar(&cfg.ConfigFile, "c", cfg.ConfigFile, "string - path to config in JSON format")
 	flag.StringVar(&trustedSubnet, "t", trustedSubnet, "string - CIDR")
+	flag.StringVar(&cfg.AddrRPC, "rpc", cfg.AddrRPC, "string - address grpc gate")
 
 	addr := flag.String("a", "", "string - host:port")
 	flag.Parse()
@@ -156,6 +159,7 @@ func (cfg Config) String() string {
 
 	builder.WriteString("\n")
 	builder.WriteString(fmt.Sprintf("\t ADDRESS: %s\n", cfg.Addr))
+	builder.WriteString(fmt.Sprintf("\t ADDRESS RPC: %s\n", cfg.AddrRPC))
 	builder.WriteString(fmt.Sprintf("\t STORE_INTERVAL: %s\n", cfg.StoreInterval.String()))
 	builder.WriteString(fmt.Sprintf("\t RESTORE: %v\n", cfg.Restore))
 	builder.WriteString(fmt.Sprintf("\t DATABASE_DSN: %s\n", cfg.DatabaseDSN))

@@ -87,7 +87,7 @@ func main() {
 	serv := server.NewHTTPServer(cfg.Addr, handlers)
 	serv.Start()
 
-	gServ, err := server.NewGRPCServer(":3200", storeManager)
+	gServ, err := server.NewGRPCServer(cfg.AddrRPC, storeManager)
 	if err != nil {
 		logger.Err.Printf("failed create gRPC server^ %v\n", err)
 	} else {

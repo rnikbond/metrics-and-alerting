@@ -9,21 +9,25 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"hash"
-	"io"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"metrics-and-alerting/pkg/logpack"
 	"net/http"
+	"strings"
 
 	"metrics-and-alerting/internal/storage"
 	"metrics-and-alerting/pkg/metric"
 
 	"github.com/go-resty/resty/v2"
+
+	pb "metrics-and-alerting/proto"
 )
 
 const (
 	ReportAsURL       = "URL"
 	ReportAsJSON      = "JSON"
 	ReportAsBatchJSON = "BatchJSON"
+	ReportAsGRPC      = "GRPC"
 )
 
 type (
@@ -87,28 +91,6 @@ func WithKey(key []byte) OptionReporter {
 	}
 }
 
-func EncryptOAEP(hash hash.Hash, random io.Reader, public *rsa.PublicKey, msg []byte, label []byte) ([]byte, error) {
-	msgLen := len(msg)
-	step := public.Size() - 2*hash.Size() - 2
-	var encryptedBytes []byte
-
-	for start := 0; start < msgLen; start += step {
-		finish := start + step
-		if finish > msgLen {
-			finish = msgLen
-		}
-
-		encryptedBlockBytes, err := rsa.EncryptOAEP(hash, random, public, msg[start:finish], label)
-		if err != nil {
-			return nil, err
-		}
-
-		encryptedBytes = append(encryptedBytes, encryptedBlockBytes...)
-	}
-
-	return encryptedBytes, nil
-}
-
 func (r Reporter) Encrypt(data []byte) ([]byte, error) {
 	if r.publicKey == nil {
 		return data, nil
@@ -158,9 +140,67 @@ func (r Reporter) Report(ctx context.Context, reportType string) error {
 		if err := r.reportBatchJSON(ctx); err != nil {
 			return err
 		}
+	case ReportAsGRPC:
+		if err := r.reportGRPC(ctx); err != nil {
+			return err
+		}
 
 	default:
 		return fmt.Errorf("could not report metrics: unknown report type")
+	}
+
+	return nil
+}
+
+// reportGRPC Отправка метрик GRPC шлюз
+func (r Reporter) reportGRPC(ctx context.Context) error {
+
+	parts := strings.Split(r.addr, ":")
+	if len(parts) == 0 {
+		return fmt.Errorf("invalid address grpc gate")
+	}
+
+	conn, err := grpc.Dial(":"+parts[len(parts)-1], grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if errClose := conn.Close(); errClose != nil {
+			r.logger.Err.Printf("failed close gPRC connection: %v\n", errClose)
+		}
+	}()
+
+	c := pb.NewMetricsClient(conn)
+
+	metrics, errStorage := r.storage.GetBatch()
+	if errStorage != nil {
+		return errStorage
+	}
+	for _, m := range metrics {
+
+		var resp *pb.UpsertResponse
+		var errResp error
+
+		switch m.MType {
+		case metric.CounterType:
+			resp, errResp = c.UpsertCounter(ctx, &pb.UpsertCounterRequest{
+				Id:    m.ID,
+				Delta: *m.Delta,
+			})
+		case metric.GaugeType:
+			resp, errResp = c.UpsertGauge(ctx, &pb.UpsertGaugeRequest{
+				Id:    m.ID,
+				Value: *m.Value,
+			})
+		}
+
+		if errResp != nil {
+			return errResp
+		}
+
+		if resp.Error != "" {
+			return fmt.Errorf("failed upsert metric: %s", resp.Error)
+		}
 	}
 
 	return nil
