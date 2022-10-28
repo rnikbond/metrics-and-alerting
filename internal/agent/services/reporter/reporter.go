@@ -10,13 +10,10 @@ import (
 	"encoding/pem"
 	"fmt"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"metrics-and-alerting/pkg/logpack"
-	"net/http"
-	"strings"
-
 	"metrics-and-alerting/internal/storage"
+	"metrics-and-alerting/pkg/logpack"
 	"metrics-and-alerting/pkg/metric"
+	"net/http"
 
 	"github.com/go-resty/resty/v2"
 
@@ -37,6 +34,7 @@ type (
 		addr      string
 		signKey   []byte
 		storage   storage.Repository
+		rpcClient pb.MetricsClient
 		logger    *logpack.LogPack
 		publicKey *rsa.PublicKey
 	}
@@ -87,6 +85,14 @@ func WithKey(key []byte) OptionReporter {
 			reporter.publicKey = pub
 		default:
 			reporter.logger.Err.Println("failed create rsa.PublicKey: key is not RSA!")
+		}
+	}
+}
+
+func WithRPC(conn *grpc.ClientConn) OptionReporter {
+	return func(reporter *Reporter) {
+		if conn != nil {
+			reporter.rpcClient = pb.NewMetricsClient(conn)
 		}
 	}
 }
@@ -155,23 +161,6 @@ func (r Reporter) Report(ctx context.Context, reportType string) error {
 // reportGRPC Отправка метрик GRPC шлюз
 func (r Reporter) reportGRPC(ctx context.Context) error {
 
-	parts := strings.Split(r.addr, ":")
-	if len(parts) == 0 {
-		return fmt.Errorf("invalid address grpc gate")
-	}
-
-	conn, err := grpc.Dial(":"+parts[len(parts)-1], grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if errClose := conn.Close(); errClose != nil {
-			r.logger.Err.Printf("failed close gPRC connection: %v\n", errClose)
-		}
-	}()
-
-	c := pb.NewMetricsClient(conn)
-
 	metrics, errStorage := r.storage.GetBatch()
 	if errStorage != nil {
 		return errStorage
@@ -189,13 +178,13 @@ func (r Reporter) reportGRPC(ctx context.Context) error {
 
 		switch m.MType {
 		case metric.CounterType:
-			_, errResp = c.UpsertCounter(ctx, &pb.UpsertCounterRequest{
+			_, errResp = r.rpcClient.UpsertCounter(ctx, &pb.UpsertCounterRequest{
 				Id:    m.ID,
 				Delta: *m.Delta,
 				Hash:  m.Hash,
 			})
 		case metric.GaugeType:
-			_, errResp = c.UpsertGauge(ctx, &pb.UpsertGaugeRequest{
+			_, errResp = r.rpcClient.UpsertGauge(ctx, &pb.UpsertGaugeRequest{
 				Id:    m.ID,
 				Value: *m.Value,
 				Hash:  m.Hash,

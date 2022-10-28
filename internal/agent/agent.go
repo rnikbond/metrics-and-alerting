@@ -3,6 +3,10 @@ package agent
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"metrics-and-alerting/pkg/errs"
+	"strings"
 	"time"
 
 	"metrics-and-alerting/internal/agent/services/reporter"
@@ -22,10 +26,11 @@ type Agent struct {
 	signKey        []byte
 	publicKey      []byte
 	storage        storage.Repository
+	conn           *grpc.ClientConn
 	logger         *logpack.LogPack
 }
 
-// NewAgent Создание экземпляра агента
+// NewAgent Создание экземпляра агента.
 // Используется паттерн "Функциональные опции"
 func NewAgent(storage storage.Repository, opts ...OptionsAgent) *Agent {
 	a := &Agent{
@@ -96,6 +101,19 @@ func (a Agent) Start(ctx context.Context) error {
 		return fmt.Errorf("could not start agent: not setted report type")
 	}
 
+	if a.reportType == reporter.ReportAsGRPC {
+		parts := strings.Split(a.addr, ":")
+		if len(parts) == 0 {
+			return fmt.Errorf("invalid address grpc gate")
+		}
+
+		var errConn error
+		a.conn, errConn = grpc.Dial(":"+parts[len(parts)-1], grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if errConn != nil {
+			return fmt.Errorf("failed create gRPC client connection: %w", errConn)
+		}
+	}
+
 	go a.updateMetrics(ctx)
 	go a.reportMetrics(ctx)
 
@@ -128,7 +146,8 @@ func (a *Agent) reportMetrics(ctx context.Context) {
 		a.storage,
 		a.logger,
 		reporter.WithSignKey(a.signKey),
-		reporter.WithKey(a.publicKey))
+		reporter.WithKey(a.publicKey),
+		reporter.WithRPC(a.conn))
 
 	ticker := time.NewTicker(a.reportInterval)
 
@@ -142,11 +161,18 @@ func (a *Agent) reportMetrics(ctx context.Context) {
 
 			// Сброс значения метрики PollCount
 			pollCount, _ := metric.CreateMetric(metric.CounterType, "PollCount", metric.WithValueInt(0))
-			if err := a.storage.Delete(pollCount); err != nil {
-				a.logger.Err.Printf("error delete metric %s after report\n", pollCount.ShotString())
+			if err := a.storage.Delete(pollCount); err != nil && err != errs.ErrNotFound {
+				a.logger.Err.Printf("error delete metric %s after report: %v\n", pollCount.ShotString(), err)
 			}
 
 		case <-ctx.Done():
+
+			if a.conn != nil {
+				if err := a.conn.Close(); err != nil {
+					a.logger.Err.Printf("failed close gPRC connection: %v\n", err)
+				}
+			}
+
 			return
 		}
 	}
