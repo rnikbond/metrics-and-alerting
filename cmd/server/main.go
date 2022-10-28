@@ -86,12 +86,17 @@ func main() {
 
 	serv := server.NewHTTPServer(cfg.Addr, handlers)
 	serv.Start()
+	logger.Info.Println("HTTP server started")
 
-	gServ, err := server.NewGRPCServer(cfg.AddrRPC, storeManager)
-	if err != nil {
-		logger.Err.Printf("failed create gRPC server^ %v\n", err)
-	} else {
+	var gServ *server.GRPCServer
+	if len(cfg.AddrRPC) != 0 {
+		gServ, err := server.NewGRPCServer(cfg.AddrRPC, storeManager)
+		if err != nil {
+			logger.Err.Fatalf("failed create gRPC server: %v\n", err)
+		}
+
 		gServ.Start()
+		logger.Info.Println("gRPC server started")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
@@ -99,6 +104,8 @@ func main() {
 	<-ctx.Done()
 	stop()
 
+	// gServ здесь может быть nil только в том случае,
+	// если в конфиге не передан адрес gRPC и поэтому его даже не пробовали запускать
 	if gServ != nil {
 		gServ.Stop()
 	}
