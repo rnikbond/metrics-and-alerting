@@ -3,10 +3,13 @@ package server
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc"
+	"net"
+
 	metricPkg "metrics-and-alerting/pkg/metric"
 	pb "metrics-and-alerting/proto"
-	"net"
+
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type GRPCServer struct {
@@ -46,9 +49,7 @@ func (g *GRPCServer) Start() {
 	}()
 }
 
-func (serv *MetricsServiceRPC) UpsertGauge(ctx context.Context, in *pb.UpsertGaugeRequest) (*pb.UpsertResponse, error) {
-
-	var response pb.UpsertResponse
+func (serv *MetricsServiceRPC) UpsertGauge(ctx context.Context, in *pb.UpsertGaugeRequest) (*emptypb.Empty, error) {
 
 	metric, err := metricPkg.CreateMetric(
 		metricPkg.GaugeType,
@@ -56,20 +57,14 @@ func (serv *MetricsServiceRPC) UpsertGauge(ctx context.Context, in *pb.UpsertGau
 		metricPkg.WithValueFloat(in.Value),
 	)
 
-	if err == nil {
-		err = serv.m.Upsert(metric)
-	}
-
 	if err != nil {
-		response.Error = err.Error()
+		return &emptypb.Empty{}, err
 	}
 
-	return &response, nil
+	return &emptypb.Empty{}, serv.m.Upsert(metric)
 }
 
-func (serv *MetricsServiceRPC) UpsertCounter(ctx context.Context, in *pb.UpsertCounterRequest) (*pb.UpsertResponse, error) {
-
-	var response pb.UpsertResponse
+func (serv *MetricsServiceRPC) UpsertCounter(ctx context.Context, in *pb.UpsertCounterRequest) (*emptypb.Empty, error) {
 
 	metric, err := metricPkg.CreateMetric(
 		metricPkg.CounterType,
@@ -77,13 +72,9 @@ func (serv *MetricsServiceRPC) UpsertCounter(ctx context.Context, in *pb.UpsertC
 		metricPkg.WithValueInt(in.Delta),
 	)
 
-	if err == nil {
-		err = serv.m.Upsert(metric)
-	}
-
 	if err != nil {
-		response.Error = err.Error()
+		return &emptypb.Empty{}, err
 	}
 
-	return &response, nil
+	return &emptypb.Empty{}, serv.m.Upsert(metric)
 }

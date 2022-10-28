@@ -185,18 +185,17 @@ func (r Reporter) reportGRPC(ctx context.Context) error {
 
 		m.Hash = sign
 
-		var resp *pb.UpsertResponse
 		var errResp error
 
 		switch m.MType {
 		case metric.CounterType:
-			resp, errResp = c.UpsertCounter(ctx, &pb.UpsertCounterRequest{
+			_, errResp = c.UpsertCounter(ctx, &pb.UpsertCounterRequest{
 				Id:    m.ID,
 				Delta: *m.Delta,
 				Hash:  m.Hash,
 			})
 		case metric.GaugeType:
-			resp, errResp = c.UpsertGauge(ctx, &pb.UpsertGaugeRequest{
+			_, errResp = c.UpsertGauge(ctx, &pb.UpsertGaugeRequest{
 				Id:    m.ID,
 				Value: *m.Value,
 				Hash:  m.Hash,
@@ -204,11 +203,7 @@ func (r Reporter) reportGRPC(ctx context.Context) error {
 		}
 
 		if errResp != nil {
-			return errResp
-		}
-
-		if resp.Error != "" {
-			return fmt.Errorf("failed upsert metric: %s", resp.Error)
+			return fmt.Errorf("failed upsert metric: %s", errResp)
 		}
 	}
 

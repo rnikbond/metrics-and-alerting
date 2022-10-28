@@ -2,7 +2,10 @@ syntax="proto3";
 
 package metrics;
 
+import "google/protobuf/empty.proto";
+
 option go_package = "metrics/proto";
+
 
 message UpsertGaugeRequest {
   string id = 1;
@@ -16,11 +19,7 @@ message UpsertCounterRequest {
   string hash = 3;
 }
 
-message UpsertResponse {
-  string error = 1;
-}
-
 service Metrics {
-  rpc UpsertGauge(UpsertGaugeRequest) returns (UpsertResponse);
-  rpc UpsertCounter(UpsertCounterRequest) returns (UpsertResponse);
+  rpc UpsertGauge(UpsertGaugeRequest) returns (google.protobuf.Empty);
+  rpc UpsertCounter(UpsertCounterRequest) returns (google.protobuf.Empty);
 }

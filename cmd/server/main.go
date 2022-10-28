@@ -88,27 +88,22 @@ func main() {
 	serv.Start()
 	logger.Info.Println("HTTP server started")
 
-	var gServ *server.GRPCServer
 	if len(cfg.AddrRPC) != 0 {
-		gServ, err := server.NewGRPCServer(cfg.AddrRPC, storeManager)
-		if err != nil {
-			logger.Err.Fatalf("failed create gRPC server: %v\n", err)
+		gServ, errServ := server.NewGRPCServer(cfg.AddrRPC, storeManager)
+		if errServ != nil {
+			logger.Err.Fatalf("failed create gRPC server: %v\n", errServ)
 		}
 
 		gServ.Start()
 		logger.Info.Println("gRPC server started")
+
+		defer gServ.Stop()
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
 	<-ctx.Done()
 	stop()
-
-	// gServ здесь может быть nil только в том случае,
-	// если в конфиге не передан адрес gRPC и поэтому его даже не пробовали запускать
-	if gServ != nil {
-		gServ.Stop()
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	if err := serv.Shutdown(ctx); err != nil {

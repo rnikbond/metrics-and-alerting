@@ -11,6 +11,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -22,8 +23,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MetricsClient interface {
-	UpsertGauge(ctx context.Context, in *UpsertGaugeRequest, opts ...grpc.CallOption) (*UpsertResponse, error)
-	UpsertCounter(ctx context.Context, in *UpsertCounterRequest, opts ...grpc.CallOption) (*UpsertResponse, error)
+	UpsertGauge(ctx context.Context, in *UpsertGaugeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	UpsertCounter(ctx context.Context, in *UpsertCounterRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type metricsClient struct {
@@ -34,8 +35,8 @@ func NewMetricsClient(cc grpc.ClientConnInterface) MetricsClient {
 	return &metricsClient{cc}
 }
 
-func (c *metricsClient) UpsertGauge(ctx context.Context, in *UpsertGaugeRequest, opts ...grpc.CallOption) (*UpsertResponse, error) {
-	out := new(UpsertResponse)
+func (c *metricsClient) UpsertGauge(ctx context.Context, in *UpsertGaugeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, "/metrics.Metrics/UpsertGauge", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -43,8 +44,8 @@ func (c *metricsClient) UpsertGauge(ctx context.Context, in *UpsertGaugeRequest,
 	return out, nil
 }
 
-func (c *metricsClient) UpsertCounter(ctx context.Context, in *UpsertCounterRequest, opts ...grpc.CallOption) (*UpsertResponse, error) {
-	out := new(UpsertResponse)
+func (c *metricsClient) UpsertCounter(ctx context.Context, in *UpsertCounterRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, "/metrics.Metrics/UpsertCounter", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -56,8 +57,8 @@ func (c *metricsClient) UpsertCounter(ctx context.Context, in *UpsertCounterRequ
 // All implementations must embed UnimplementedMetricsServer
 // for forward compatibility
 type MetricsServer interface {
-	UpsertGauge(context.Context, *UpsertGaugeRequest) (*UpsertResponse, error)
-	UpsertCounter(context.Context, *UpsertCounterRequest) (*UpsertResponse, error)
+	UpsertGauge(context.Context, *UpsertGaugeRequest) (*emptypb.Empty, error)
+	UpsertCounter(context.Context, *UpsertCounterRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedMetricsServer()
 }
 
@@ -65,10 +66,10 @@ type MetricsServer interface {
 type UnimplementedMetricsServer struct {
 }
 
-func (UnimplementedMetricsServer) UpsertGauge(context.Context, *UpsertGaugeRequest) (*UpsertResponse, error) {
+func (UnimplementedMetricsServer) UpsertGauge(context.Context, *UpsertGaugeRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpsertGauge not implemented")
 }
-func (UnimplementedMetricsServer) UpsertCounter(context.Context, *UpsertCounterRequest) (*UpsertResponse, error) {
+func (UnimplementedMetricsServer) UpsertCounter(context.Context, *UpsertCounterRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpsertCounter not implemented")
 }
 func (UnimplementedMetricsServer) mustEmbedUnimplementedMetricsServer() {}
