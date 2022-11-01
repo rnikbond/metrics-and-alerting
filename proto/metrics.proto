@@ -1,0 +1,25 @@
+syntax="proto3";
+
+package metrics;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "metrics/proto";
+
+
+message UpsertGaugeRequest {
+  string id = 1;
+  double value = 2;
+  string hash = 3;
+}
+
+message UpsertCounterRequest {
+  string id = 1;
+  int64 delta = 2;
+  string hash = 3;
+}
+
+service Metrics {
+  rpc UpsertGauge(UpsertGaugeRequest) returns (google.protobuf.Empty);
+  rpc UpsertCounter(UpsertCounterRequest) returns (google.protobuf.Empty);
+}

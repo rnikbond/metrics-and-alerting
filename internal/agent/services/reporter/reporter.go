@@ -9,21 +9,22 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"hash"
-	"io"
+	"google.golang.org/grpc"
+	"metrics-and-alerting/internal/storage"
 	"metrics-and-alerting/pkg/logpack"
+	"metrics-and-alerting/pkg/metric"
 	"net/http"
 
-	"metrics-and-alerting/internal/storage"
-	"metrics-and-alerting/pkg/metric"
-
 	"github.com/go-resty/resty/v2"
+
+	pb "metrics-and-alerting/proto"
 )
 
 const (
 	ReportAsURL       = "URL"
 	ReportAsJSON      = "JSON"
 	ReportAsBatchJSON = "BatchJSON"
+	ReportAsGRPC      = "GRPC"
 )
 
 type (
@@ -33,6 +34,7 @@ type (
 		addr      string
 		signKey   []byte
 		storage   storage.Repository
+		rpcClient pb.MetricsClient
 		logger    *logpack.LogPack
 		publicKey *rsa.PublicKey
 	}
@@ -87,26 +89,12 @@ func WithKey(key []byte) OptionReporter {
 	}
 }
 
-func EncryptOAEP(hash hash.Hash, random io.Reader, public *rsa.PublicKey, msg []byte, label []byte) ([]byte, error) {
-	msgLen := len(msg)
-	step := public.Size() - 2*hash.Size() - 2
-	var encryptedBytes []byte
-
-	for start := 0; start < msgLen; start += step {
-		finish := start + step
-		if finish > msgLen {
-			finish = msgLen
+func WithRPC(conn *grpc.ClientConn) OptionReporter {
+	return func(reporter *Reporter) {
+		if conn != nil {
+			reporter.rpcClient = pb.NewMetricsClient(conn)
 		}
-
-		encryptedBlockBytes, err := rsa.EncryptOAEP(hash, random, public, msg[start:finish], label)
-		if err != nil {
-			return nil, err
-		}
-
-		encryptedBytes = append(encryptedBytes, encryptedBlockBytes...)
 	}
-
-	return encryptedBytes, nil
 }
 
 func (r Reporter) Encrypt(data []byte) ([]byte, error) {
@@ -158,9 +146,54 @@ func (r Reporter) Report(ctx context.Context, reportType string) error {
 		if err := r.reportBatchJSON(ctx); err != nil {
 			return err
 		}
+	case ReportAsGRPC:
+		if err := r.reportGRPC(ctx); err != nil {
+			return err
+		}
 
 	default:
 		return fmt.Errorf("could not report metrics: unknown report type")
+	}
+
+	return nil
+}
+
+// reportGRPC Отправка метрик GRPC шлюз
+func (r Reporter) reportGRPC(ctx context.Context) error {
+
+	metrics, errStorage := r.storage.GetBatch()
+	if errStorage != nil {
+		return errStorage
+	}
+	for _, m := range metrics {
+
+		sign, errSign := m.Sign(r.signKey)
+		if errSign != nil {
+			return fmt.Errorf("could not report metrics: %v", errSign)
+		}
+
+		m.Hash = sign
+
+		var errResp error
+
+		switch m.MType {
+		case metric.CounterType:
+			_, errResp = r.rpcClient.UpsertCounter(ctx, &pb.UpsertCounterRequest{
+				Id:    m.ID,
+				Delta: *m.Delta,
+				Hash:  m.Hash,
+			})
+		case metric.GaugeType:
+			_, errResp = r.rpcClient.UpsertGauge(ctx, &pb.UpsertGaugeRequest{
+				Id:    m.ID,
+				Value: *m.Value,
+				Hash:  m.Hash,
+			})
+		}
+
+		if errResp != nil {
+			return fmt.Errorf("failed upsert metric: %s", errResp)
+		}
 	}
 
 	return nil
@@ -279,6 +312,7 @@ func (r Reporter) reportBatchJSON(ctx context.Context) error {
 	client := resty.New()
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
+		SetHeader("X-Real-IP", "125.3.21.1").
 		SetBody(data).
 		SetContext(ctx).
 		Post(r.addr + "/updates")

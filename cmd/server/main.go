@@ -79,10 +79,26 @@ func main() {
 		server.WithRestore(cfg.Restore),
 	)
 
-	handlers := handler.New(storeManager, logger, handler.WithKey(cfg.CryptoKey))
+	handlers := handler.New(storeManager,
+		logger,
+		handler.WithKey(cfg.CryptoKey),
+		handler.WithTrustedSubnet(cfg.TrustedSubnet))
 
-	serv := server.NewServer(cfg.Addr, handlers)
+	serv := server.NewHTTPServer(cfg.Addr, handlers)
 	serv.Start()
+	logger.Info.Println("HTTP server started")
+
+	if len(cfg.AddrRPC) != 0 {
+		gServ, errServ := server.NewGRPCServer(cfg.AddrRPC, storeManager)
+		if errServ != nil {
+			logger.Err.Fatalf("failed create gRPC server: %v\n", errServ)
+		}
+
+		gServ.Start()
+		logger.Info.Println("gRPC server started")
+
+		defer gServ.Stop()
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
