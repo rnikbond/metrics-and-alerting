@@ -51,6 +51,8 @@ func (g *GRPCServer) Start() {
 
 func (serv *MetricsServiceRPC) UpsertGauge(ctx context.Context, in *pb.UpsertGaugeRequest) (*emptypb.Empty, error) {
 
+	res := &emptypb.Empty{}
+
 	metric, err := metricPkg.CreateMetric(
 		metricPkg.GaugeType,
 		in.Id,
@@ -58,13 +60,15 @@ func (serv *MetricsServiceRPC) UpsertGauge(ctx context.Context, in *pb.UpsertGau
 	)
 
 	if err != nil {
-		return &emptypb.Empty{}, err
+		return res, err
 	}
 
-	return &emptypb.Empty{}, serv.m.Upsert(metric)
+	return res, serv.m.Upsert(metric)
 }
 
 func (serv *MetricsServiceRPC) UpsertCounter(ctx context.Context, in *pb.UpsertCounterRequest) (*emptypb.Empty, error) {
+
+	res := &emptypb.Empty{}
 
 	metric, err := metricPkg.CreateMetric(
 		metricPkg.CounterType,
@@ -73,8 +77,8 @@ func (serv *MetricsServiceRPC) UpsertCounter(ctx context.Context, in *pb.UpsertC
 	)
 
 	if err != nil {
-		return &emptypb.Empty{}, err
+		return res, err
 	}
 
-	return &emptypb.Empty{}, serv.m.Upsert(metric)
+	return res, serv.m.Upsert(metric)
 }
